@@ -1,7 +1,9 @@
 Type: grilling
+Mode: HITL
 Status: open
 Triage: ready-for-human
 Blocked by: 04, 05, 07
+Depends on research: 22 (resolved)
 
 # 薄 CLI 的产品与扩展合同
 

@@ -1,7 +1,9 @@
 Type: grilling
+Mode: HITL
 Status: open
 Triage: ready-for-human
 Blocked by: 01, 06, 07
+Depends on research: 21
 
 # 测试分层、设备矩阵与质量门禁
 

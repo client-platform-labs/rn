@@ -1,4 +1,5 @@
 Type: grilling
+Mode: HITL
 Status: open
 Triage: ready-for-human
 Blocked by: 01, 06

@@ -16,7 +16,8 @@
 - 工具策略：核心契约厂商无关，公司默认基础设施通过适配器开箱接入。
 - 动态发布：宿主/商店列车管壳；**JS 列车生产默认开启**（RN 敏捷主路径）；机器门禁为 HBC Bytecode Version + `runtime_fingerprint`（含 Codegen/TurboModule ABI）+ 能力子集 + 渠道叠加；放行档为 `needs-native` / `js-standard` / `js-gated`。禁止用热更新规避审核或擅自改变主功能/权限/隐私范围。
 - 安全基线：按账号、支付、精确位置、相机和用户媒体等高敏消费级 App 设计；金融/医疗监管要求作为额外配置。
-- 每 session 只决一张票；research 票可并行。
+- 每 session 默认只决一张 HITL 票；**research（AFK）可并行**；用户可要求一次统一讨论多张 HITL。
+- **Mode**：`AFK`（research / 可无人执行的 task）直接执行；`HITL`（grilling / prototype / 需人确认的 task）等人统一讨论，代理不代替人做决定。
 - 应查阅：grilling、domain-modeling；research 票查阅 research。
 - Canonical repo：[`client-platform-labs/rn`](https://github.com/client-platform-labs/rn)；本地在 `/Users/xuwei/Work/client-platform-labs/rn`。
 - 研究产物写在 `research/`，由对应票链接；组装后的读者向蓝图落在仓库根 `blueprint/`。
@@ -35,6 +36,7 @@
 - （grilling 定稿）默认安全基线是涉及账号、支付、精确位置、相机和用户媒体的高敏消费级 App。
 - （grilling 修正 2026-08-19）发布默认值从“中国区可执行 OTA 默认关闭”改为“JS 列车生产默认开启 + 指纹/能力子集/渠道叠加 + 三档放行”；官方政策与 Hermes/RN ABI 是硬约束，三档是企业策略层而非 ISO 名。
 - [蓝图的信息架构与验收合同](./issues/04-blueprint-artifact-contract.md) — 唯一入口 + 五边界卷 + 附录机读样例；票为决议源；五张强制图；`acceptance.md` 定义蓝图完成（≠ 平台已实现）；落点 `blueprint/`。
+- [企业 RN 薄 CLI 命令面与插件协议对照](./issues/22-rn-cli-surface-patterns.md) — 上游薄 CLI 为切开宿主（expo 开发 vs eas 交付）；插件三类 ABI 不可混；CI 有非交互合同但无全局 dry-run/细分退出码表；kernel 仍为章程。
 - [业界 RN 交付平台能力与 Build-vs-Buy](./issues/03-industry-platform-build-buy.md) — 企业自有薄控制面、交付事实与信任根，集成官方工具并购买重资产执行能力；OTA 采用开放协议，中国大陆部署独立执行面。
 - [React Native 2026 企业技术基线](./issues/01-rn-2026-enterprise-baseline.md) — 采用 production/next/minimum 滚动通道；当前生产线为 RN 0.86.2、候选线为 0.87.0，平台只支持 New Architecture 和按 RN 锁定的原子工具链元组。
 - [中国区分发与动态更新合规边界](./issues/02-china-distribution-ota-policy.md) — JS/Hermes 属可执行载荷；原生/SDK/权限/隐私变化只走商店；渠道与监管构成叠加约束，不是取消 JS 列车的理由。

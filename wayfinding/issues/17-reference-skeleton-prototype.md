@@ -1,4 +1,5 @@
 Type: prototype
+Mode: HITL
 Status: open
 Triage: ready-for-human
 Blocked by: 04, 05, 06, 07, 08, 11, 13
