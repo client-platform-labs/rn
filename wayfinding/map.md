@@ -37,6 +37,7 @@
 - （grilling 修正 2026-08-19）发布默认值从“中国区可执行 OTA 默认关闭”改为“JS 列车生产默认开启 + 指纹/能力子集/渠道叠加 + 三档放行”；官方政策与 Hermes/RN ABI 是硬约束，三档是企业策略层而非 ISO 名。
 - [蓝图的信息架构与验收合同](./issues/04-blueprint-artifact-contract.md) — 唯一入口 + 五边界卷 + 附录机读样例；票为决议源；五张强制图；`acceptance.md` 定义蓝图完成（≠ 平台已实现）；落点 `blueprint/`。
 - [企业 RN 薄 CLI 命令面与插件协议对照](./issues/22-rn-cli-surface-patterns.md) — 上游薄 CLI 为切开宿主（expo 开发 vs eas 交付）；插件三类 ABI 不可混；CI 有非交互合同但无全局 dry-run/细分退出码表；kernel 仍为章程。
+- [2026 RN New Architecture 测试与质量门禁基线](./issues/21-rn-testing-quality-baseline.md) — 官方分层静态→Jest→RNTL→E2E；Detox New Arch 仅核至 0.84；三端矩阵分轨；企业阶段门禁由 HITL 自定。
 - [业界 RN 交付平台能力与 Build-vs-Buy](./issues/03-industry-platform-build-buy.md) — 企业自有薄控制面、交付事实与信任根，集成官方工具并购买重资产执行能力；OTA 采用开放协议，中国大陆部署独立执行面。
 - [React Native 2026 企业技术基线](./issues/01-rn-2026-enterprise-baseline.md) — 采用 production/next/minimum 滚动通道；当前生产线为 RN 0.86.2、候选线为 0.87.0，平台只支持 New Architecture 和按 RN 锁定的原子工具链元组。
 - [中国区分发与动态更新合规边界](./issues/02-china-distribution-ota-policy.md) — JS/Hermes 属可执行载荷；原生/SDK/权限/隐私变化只走商店；渠道与监管构成叠加约束，不是取消 JS 列车的理由。
