@@ -35,6 +35,7 @@
 - （grilling 定稿）CLI 采用薄核心、可版本化插件和平台 API。
 - （grilling 定稿）默认安全基线是涉及账号、支付、精确位置、相机和用户媒体的高敏消费级 App。
 - （grilling 修正 2026-08-19）发布默认值从“中国区可执行 OTA 默认关闭”改为“JS 列车生产默认开启 + 指纹/能力子集/渠道叠加 + 三档放行”；官方政策与 Hermes/RN ABI 是硬约束，三档是企业策略层而非 ISO 名。
+- [中国区渠道支持组合与政策档案](./issues/19-china-channel-support-profile.md) — 一等七渠 + `channel_profile` 叠加；缺口机读阻断；全局 versionCode；商店灰度 ⊥ JS 列车；`FORWARD_FIX`；90 天证据复核。
 - [蓝图的信息架构与验收合同](./issues/04-blueprint-artifact-contract.md) — 唯一入口 + 五边界卷 + 附录机读样例；票为决议源；五张强制图；`acceptance.md` 定义蓝图完成（≠ 平台已实现）；落点 `blueprint/`。
 - [企业 RN 薄 CLI 命令面与插件协议对照](./issues/22-rn-cli-surface-patterns.md) — 上游薄 CLI 为切开宿主（expo 开发 vs eas 交付）；插件三类 ABI 不可混；CI 有非交互合同但无全局 dry-run/细分退出码表；kernel 仍为章程。
 - [2026 RN New Architecture 测试与质量门禁基线](./issues/21-rn-testing-quality-baseline.md) — 官方分层静态→Jest→RNTL→E2E；Detox New Arch 仅核至 0.84；三端矩阵分轨；企业阶段门禁由 HITL 自定。
@@ -54,11 +55,10 @@
 
 ## Not yet specified
 
-- 蓝图完成后的实施计划如何按团队、里程碑和依赖拆解；待参考骨架与渠道档案票收口、蓝图组装后再升级为新地图。
+- 蓝图完成后的实施计划如何按团队、里程碑和依赖拆解；待参考骨架票收口、蓝图组装后再升级为新地图。
 - 既有 App 与遗留 RN 架构的迁移顺序、双轨期限和退出机制；待蓝图组装阶段再精确出票。
 - 平台团队编制、值班轮转、成本预算与内部推广机制；待蓝图组装后另开实施地图。
 - 公司现有 Git、CI、制品库、云、监控与账号体系的具体适配清单；待厂商无关接口与参考适配器边界确定后再精确出票。
-- 目标渠道选定后，是否需要取得登录后台规则、合同或渠道书面答复来补齐公开证据缺口；待“中国区渠道支持组合与政策档案”确定支持层级后出票。
 
 ## Out of scope
 
