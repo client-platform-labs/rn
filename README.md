@@ -1,6 +1,8 @@
-# react-native-delivery-platform
+# rn
 
 Enterprise React Native full-lifecycle delivery platform for Client Platform Labs.
+
+Product code: `rn` (`@client-platform/rn` when packages land).
 
 ## Vision
 

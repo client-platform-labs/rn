@@ -24,6 +24,6 @@ Assignee: cursor-agent
 - **读者**：主=平台架构/实施负责人；辅=业务 TL/安全/发布；止于合同，不含 runbook
 
 ### Round 3 settled (2026-08-19)
-- **物理落点（用户改写）**：GitHub `client-platform-labs/react-native-delivery-platform`；本地 workspace `/Users/xuwei/Work/client-platform-labs/react-native-delivery-platform`；父目录由 `eng‑practices` 重命名为 `client-platform-labs`
+- **物理落点（用户改写）**：GitHub [`client-platform-labs/rn`](https://github.com/client-platform-labs/rn)（由 `react-native-delivery-platform` 缩短命名）；本地 `/Users/xuwei/Work/client-platform-labs/rn`；父目录由 `eng‑practices` 重命名为 `client-platform-labs`
 - **目录合同**：产品仓根含 `README`/`ROADMAP`/`docs`；wayfinding 在 `wayfinding/`；组装产出在 `blueprint/`（入口 + 五边界卷 + appendix + acceptance）
 - Q8/Q9 尚未口头确认；下一轮按推荐确认后关票
