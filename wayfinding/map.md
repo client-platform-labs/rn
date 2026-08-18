@@ -18,7 +18,8 @@
 - 安全基线：按账号、支付、精确位置、相机和用户媒体等高敏消费级 App 设计；金融/医疗监管要求作为额外配置。
 - 每 session 只决一张票；research 票可并行。
 - 应查阅：grilling、domain-modeling；research 票查阅 research。
-- 本目录无 git；研究产物写在 `research/`，由对应票链接。
+- Canonical repo：[`client-platform-labs/react-native-delivery-platform`](https://github.com/client-platform-labs/react-native-delivery-platform)；本地在 `/Users/xuwei/Work/client-platform-labs/react-native-delivery-platform`。
+- 研究产物写在 `research/`，由对应票链接；组装后的读者向蓝图落在仓库根 `blueprint/`。
 - 术语：[CONTEXT.md](./CONTEXT.md)。
 
 ## Decisions so far

@@ -23,6 +23,7 @@ Assignee: cursor-agent
 - **强制图件**：五边界上下文、三端制品流、宿主三层、发布列车/放行档状态机、控制面对象关系
 - **读者**：主=平台架构/实施负责人；辅=业务 TL/安全/发布；止于合同，不含 runbook
 
-### Round 3 partial (2026-08-19)
-- 用户改写物理落点：不落在 notes `.scratch/`，改为 GitHub org `client-platform-labs` 新建对应 repo，并同步到本地 `/Users/xuwei/Work/client-platform-labs`（由 `eng-practices` 重命名）
-- Q8/Q9 尚未口头确认；暂按推荐推进物理落点，关票前补确认入口骨架与验收清单
+### Round 3 settled (2026-08-19)
+- **物理落点（用户改写）**：GitHub `client-platform-labs/react-native-delivery-platform`；本地 workspace `/Users/xuwei/Work/client-platform-labs/react-native-delivery-platform`；父目录由 `eng‑practices` 重命名为 `client-platform-labs`
+- **目录合同**：产品仓根含 `README`/`ROADMAP`/`docs`；wayfinding 在 `wayfinding/`；组装产出在 `blueprint/`（入口 + 五边界卷 + appendix + acceptance）
+- Q8/Q9 尚未口头确认；下一轮按推荐确认后关票
