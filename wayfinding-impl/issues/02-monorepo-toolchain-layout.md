@@ -2,6 +2,7 @@ Type: grilling
 Mode: HITL
 Status: open
 Triage: ready-for-human
+Assignee: cursor-agent
 
 # Monorepo 工具链与仓库布局
 

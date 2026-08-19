@@ -20,6 +20,7 @@
 
 - （charting）本地图终点为可演示 MVP（core + rn CLI 主路径）；delivery-cli stub；非完整生产平台。
 - [家族 kernel 与 CLI 约定核对](./issues/04-kernel-cli-conventions.md) — Must：Node24/TS/commander/ESM、JSONC+Ajv+schemaVersion、`clientPlatform` 发现；May：rn 双宿主与领域命令；kernel 尚无已发布 createCli/`clientPlatform` schema。
+- [MVP 范围与验收定义](./issues/01-mvp-scope-acceptance.md) — init 仅 JSONC+骨架；doctor/plugin/config；验收三命令退出 0；完整 RN/`dev`/delivery/控制面划出。
 
 ## Not yet specified
 
