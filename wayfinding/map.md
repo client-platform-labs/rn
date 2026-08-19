@@ -35,6 +35,7 @@
 - （grilling 定稿）CLI 采用薄核心、可版本化插件和平台 API。
 - （grilling 定稿）默认安全基线是涉及账号、支付、精确位置、相机和用户媒体的高敏消费级 App。
 - （grilling 修正 2026-08-19）发布默认值从“中国区可执行 OTA 默认关闭”改为“JS 列车生产默认开启 + 指纹/能力子集/渠道叠加 + 三档放行”；官方政策与 Hermes/RN ABI 是硬约束，三档是企业策略层而非 ISO 名。
+- [本地开发、调试与诊断闭环](./issues/09-local-dev-debug-diagnostics.md) — 标准 doctor→dev 路径；安全自动修复；显式代理证书；脱敏诊断包；pure-rn/brownfield×三端剖面；生产 Source Map 鉴权。
 - [薄 CLI 的产品与扩展合同](./issues/08-cli-product-contract.md) — 双宿主（本地 rn + 交付 CLI）；编排不替代上游；三 ABI 插件；flags>env>JSONC；自建退出码与分命令 dry-run；项目合同钉版本。
 - [中国区渠道支持组合与政策档案](./issues/19-china-channel-support-profile.md) — 一等七渠 + `channel_profile` 叠加；缺口机读阻断；全局 versionCode；商店灰度 ⊥ JS 列车；`FORWARD_FIX`；90 天证据复核。
 - [蓝图的信息架构与验收合同](./issues/04-blueprint-artifact-contract.md) — 唯一入口 + 五边界卷 + 附录机读样例；票为决议源；五张强制图；`acceptance.md` 定义蓝图完成（≠ 平台已实现）；落点 `blueprint/`。

@@ -2,6 +2,7 @@ Type: grilling
 Mode: HITL
 Status: open
 Triage: ready-for-human
+Assignee: cursor-agent
 Blocked by: 01, 06, 07
 Depends on research: 21 (resolved)
 

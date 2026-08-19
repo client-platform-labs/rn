@@ -188,3 +188,11 @@ _Avoid_: 单一万能二进制, 把交付 CLI 塞进业务依赖
 **插件三 ABI**:
 CLI 命令插件、原生/能力包、预构建改写三类插件协议；发现、版本协商与校验按类隔离，禁止混 ABI。
 _Avoid_: 一个插件同时冒充命令、原生模块与 prebuild
+
+**诊断剖面**:
+本地诊断与 doctor 检查按 `pure-rn`|`brownfield` × `ios`|`android`|`harmonyos` 分支的合同；共享报告格式，分轨工具链假设。
+_Avoid_: 三端各写互不相干工具, 把 Harmony 当成 Android 调试
+
+**诊断包**:
+脱敏的可复现本地故障包：环境指纹、元组/CLI 版本、日志摘要、Source Map 指针与栈；默认不含密钥与 PII。
+_Avoid_: 靠截图提单, 打包钥匙串或生产 .env
