@@ -2,28 +2,23 @@ THROWAWAY fixture — not a real binary
 
 Usage: rn-delivery <command> [options]
 
-Delivery host. Version MUST be pinned in project contract (deliveryCli.versionRange).
-Do NOT add this package to app dependencies.
+Delivery host. Pin version in project contract — NEVER app dependencies.
+Optional: `client-platform rn-delivery …` if family umbrella is installed.
 
 Commands:
-  build         Orchestrate OS-specific compile backends (does not reimplement Metro)
-  sign          Signing orchestration against enterprise-owned roots
-  test          Trigger hard gates (static/Jest/RNTL/contract/codegen) — E2E is signal-only
-  release       Promote-same-artifact across environments
-  update        Publish JS train unit (js-standard | js-gated); respects channel_profile
-  submit        Store submit for host trains (needs-native path)
-  release plan  --dry-run preview of promote/submit graph
-  update plan   --dry-run preview of JS selector + channel gates
+  build         OS backends via installed adapter plugins
+  sign          Enterprise signing roots
+  test          Hard gates only (static/Jest/RNTL/contract/codegen)
+                E2E = signal, never blocks promote/submit
+  release       Promote-same-artifact
+  update        JS train (default gate js-standard; policy plugin may elevate)
+  submit        Store submit for host trains
+  release plan  --dry-run
+  update plan   --dry-run (selector + channel_profile)
 
-Global options:
-  --non-interactive
-  --json
-  --dry-run             Explicit on mutating plan commands (no global dry-run)
-  --help
+Plugins (examples):
+  adapter-ios | adapter-android | adapter-harmonyos
+  channel-profile-cn | release-gate-policy
 
-Hard gates (block promote/submit):
-  fingerprint match, capability subset, channel_profile, signing, SBOM/attest
-Never blocked by: E2E signal failure alone
-
-Trains:
-  ios-host | android-host | harmony-host | js | experiment
+Hard gates: fingerprint, capability subset, channel_profile, signing, SBOM
+Never blocked by: E2E red alone

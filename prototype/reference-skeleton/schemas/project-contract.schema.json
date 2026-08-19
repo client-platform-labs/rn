@@ -33,6 +33,12 @@
     },
     "hostProfile": {
       "enum": ["pure-rn", "brownfield"]
+    },
+    "targets": {
+      "type": "array",
+      "description": "Installed runtime targets; init defaults ios+android; harmonyos via add-target",
+      "items": { "enum": ["ios", "android", "harmonyos"] },
+      "uniqueItems": true
     }
   },
   "additionalProperties": false

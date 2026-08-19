@@ -2,32 +2,28 @@ THROWAWAY fixture — not a real binary
 
 Usage: rn <command> [options]
 
-Local / diagnostic host (dual-host CLI). Delivery commands live in rn-delivery.
+Local / diagnostic host. Optional family umbrella: `client-platform rn …`
+(same plugin surface; not required for the happy path).
 
 Commands:
-  init          Scaffold pure-rn or brownfield workspace contract
-  doctor        Detect drift; safe autofix only (no prod secrets)
-  doctor --report
-                Emit redacted diagnostic package path
-  diag collect  Alias for diagnostic package collection
-  dev           Metro + device discovery (simulator/USB/wireless)
-  generate      Codegen / templates (supports --dry-run)
-  capability    List / probe / add capability packages
-  migrate       schemaVersion + breaking migrations
+  init              Scaffold workspace (default targets: ios, android)
+  add-target        Add a runtime target plugin (e.g. harmonyos) — hot-plug
+  doctor            Detect drift; safe autofix only
+  doctor --report   Redacted diagnostic package
+  diag collect      Alias for diagnostic package
+  dev               Metro + device discovery
+  generate          Templates / codegen (--dry-run)
+  capability        List / probe / add capability plugins
+  plugin list|info  Discovered plugins (package.json#clientPlatform)
+  migrate           schemaVersion migrations
   config show|validate
-                Show or validate project JSONC contract
 
-Global options:
-  --non-interactive   Fail on missing required prompts (implied by CI=1)
-  --json              Machine output on stdout; human logs on stderr
+Global:
+  --non-interactive   (implied by CI=1)
+  --json              machine on stdout; humans on stderr
   --help
 
-Exit codes (enterprise table):
-  0 ok | 1 generic | 2 usage | 3 gate/compat | 4 credentials | 5 network/backend
+Exit: 0 ok | 1 fail | 2 usage | 3 gate/compat | 4 creds | 5 network
 
-Config precedence:
-  flags > env > project JSONC (schemaVersion) > user/global defaults
-
-Plugins:
-  Discover via package.json#clientPlatform (CLI command ABI only).
-  Native capability packs and prebuild plugins are separate ABIs.
+Config: flags > env > project JSONC (schemaVersion) > defaults
+Plugins: install npm package → register via clientPlatform → lazy import()

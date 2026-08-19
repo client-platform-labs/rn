@@ -1,33 +1,35 @@
 # Journey 01 — Pure RN init (THROWAWAY)
 
-Goal: map “new business app” onto skeleton without inventing domains.
-
-## Actors
-
-- Business TL
-- Platform CLI (`rn` local host)
+Easy path: **ios + android first**; Harmony later via plugin.
 
 ## Steps
 
-1. `rn doctor` — toolchain tuple + Xcode/Android SDK/DevEco presence by target OS.
-2. `rn init --profile pure-rn --targets ios,android,harmonyos`
-   - Writes project JSONC (`schemaVersion`, `runtimeTuple`, `cli`, `deliveryCli`).
-   - Scaffolds `apps/pure-rn-demo` placeholder layout.
-3. `rn config validate` — contract + schema.
-4. `rn capability add @scope/official-camera` — installs L1 pack; records manifest probe states.
-5. `rn dev --target ios` — Metro + simulator/device.
-6. Optional signal: Maestro smoke (non-blocking).
-7. First store shell: `rn-delivery build` → `sign` → hard `test` → `release` → `submit` on `ios-host` / `android-host` / `harmony-host` artifact lines (shared `release_id`).
+1. `rn doctor`
+2. `rn init --profile pure-rn`
+   - Default targets: **ios, android**
+   - Writes JSONC: `schemaVersion`, `runtimeTuple`, `cli`, `deliveryCli`
+   - Scaffolds `examples/pure-rn-demo`
+3. `rn config validate`
+4. `rn capability add @client-platform/capability-camera`  # hot-plug L1
+5. `rn plugin list`  # shows discovered plugins
+6. `rn dev --target ios`
+7. Ship shell: `rn-delivery build|sign|test|release|submit` per artifact_line  
+   (shared `release_id`)
 
-## Expected mental model
+### Later: Harmony (first-class platform, not day-one forced toolchain)
 
-```text
-packages/rn-cli ──► apps/pure-rn-demo
-                 └─► packages/runtime-sdk + adapters/{ios,android,harmonyos}
-rn-delivery ──► artifact_line per OS ──► control-plane release_id
+```bash
+rn add-target harmonyos   # installs plugins/adapter-harmonyos
+rn doctor --target harmonyos
+rn-delivery build --target harmonyos
 ```
 
-## Open for reviewer
+## Mental model
 
-- Is `init` too heavy if Harmony is optional on day one?
-- Should umbrella `client-platform rn` appear in the journey text?
+```text
+packages/cli  →  packages/core (registry)
+                 └─ plugins/* (hot-plug)
+packages/delivery-cli → same registry + channel/gate plugins
+```
+
+Optional docs-only: same commands via `client-platform rn`.

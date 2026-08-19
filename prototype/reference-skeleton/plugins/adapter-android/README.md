@@ -1,0 +1,1 @@
+# plugin: adapter-android (STUB)

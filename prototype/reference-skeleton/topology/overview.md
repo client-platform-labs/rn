@@ -1,32 +1,23 @@
-# Deploy / control-plane topology (THROWAWAY)
+# Deploy topology (THROWAWAY) — replaceable backends
 
 ```text
-                    ┌─────────────────────────┐
-                    │  Enterprise Control Plane │
-                    │  release_id / update_id   │
-                    │  channel_profile / gates  │
-                    │  error budget → pause     │
-                    └───────────┬─────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
-        ▼                       ▼                       ▼
- ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
- │ CN execution │      │ Build runners│      │ Observability│
- │ CDN / OTA    │      │ per OS       │      │ backends     │
- │ (regional)   │      │ ios/and/hos  │      │ (replaceable)│
- └──────────────┘      └──────────────┘      └──────────────┘
-        ▲                       ▲
-        │                       │
- ┌──────┴────────┐      ┌───────┴────────┐
- │ rn-delivery   │      │ adapters/      │
- │ update/submit │      │ ios android    │
- └───────────────┘      │ harmonyos      │
-                        └────────────────┘
+         packages/delivery-cli + packages/cli
+                      │
+              packages/core (plugin registry)
+                      │
+     ┌────────────────┼────────────────┐
+     ▼                ▼                ▼
+ plugins/         plugins/         plugins/
+ adapter-*      channel-profile   release-gate
+     │                │                │
+     ▼                ▼                ▼
+ OS build/sign   evidence gates    js-standard|
+                                   js-gated|
+                                   needs-native
+                      │
+              Control Plane (facts)
+           CN CDN / runners / obs backends
+                 (swap via adapters)
 ```
 
-## Notes
-
-- Control plane owns delivery facts; backends are replaceable adapters.
-- China regional execution plane shares control-plane semantics (Build-vs-Buy).
-- Harmony artifact line never inherits APK submit path.
-- JS train and store phased release are orthogonal; budgets may link-pause.
+Harmony adapter is a plugin: install when you need the track; platform still treats `harmonyos` as a first-class runtime *in contracts*.
