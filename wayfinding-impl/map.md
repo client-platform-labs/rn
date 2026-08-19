@@ -22,6 +22,7 @@
 - [家族 kernel 与 CLI 约定核对](./issues/04-kernel-cli-conventions.md) — Must：Node24/TS/commander/ESM、JSONC+Ajv+schemaVersion、`clientPlatform` 发现；May：rn 双宿主与领域命令；kernel 尚无已发布 createCli/`clientPlatform` schema。
 - [MVP 范围与验收定义](./issues/01-mvp-scope-acceptance.md) — init 仅 JSONC+骨架；doctor/plugin/config；验收三命令退出 0；完整 RN/`dev`/delivery/控制面划出。
 - [Monorepo 工具链与仓库布局](./issues/02-monorepo-toolchain-layout.md) — pnpm workspaces；同仓 packages+plugins+examples；Node 24 主推、engines ≥22&lt;25；CI=typecheck+三命令。
+- [包命名、版本与发布策略](./issues/03-package-naming-publish.md) — `@client-platform/rn-core|rn|rn-delivery`；插件 `rn-plugin-*`；MVP workspace-only + private；delivery 禁入 app dependencies。
 
 ## Not yet specified
 

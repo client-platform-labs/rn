@@ -2,6 +2,7 @@ Type: task
 Mode: AFK
 Status: open
 Triage: ready-for-agent
+Assignee: cursor-agent
 Blocked by: 01, 02, 03, 04
 
 # 脚手架 Monorepo 与空包
