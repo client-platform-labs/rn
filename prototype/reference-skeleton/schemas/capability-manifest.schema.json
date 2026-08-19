@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform-labs.example/rn/capability-manifest.schema.json",
+  "title": "THROWAWAY CapabilityManifest",
+  "type": "object",
+  "required": ["id", "version", "probe", "permissions", "privacy"],
+  "properties": {
+    "id": { "type": "string" },
+    "version": { "type": "string" },
+    "level": { "enum": ["L0", "L1", "L2", "L3"] },
+    "probe": {
+      "type": "object",
+      "required": ["ios", "android", "harmonyos"],
+      "properties": {
+        "ios": { "enum": ["SUPPORTED", "ADAPTER_REQUIRED", "UNSUPPORTED"] },
+        "android": { "enum": ["SUPPORTED", "ADAPTER_REQUIRED", "UNSUPPORTED"] },
+        "harmonyos": { "enum": ["SUPPORTED", "ADAPTER_REQUIRED", "UNSUPPORTED"] }
+      }
+    },
+    "permissions": { "type": "array", "items": { "type": "string" } },
+    "privacy": { "type": "object" },
+    "errorModel": { "type": "string" },
+    "observabilityFields": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

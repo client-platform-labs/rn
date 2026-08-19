@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform-labs.example/rn/channel-profile.schema.json",
+  "title": "THROWAWAY ChannelProfile",
+  "type": "object",
+  "required": ["channelId", "supportTier", "jsTrain", "evidence"],
+  "properties": {
+    "channelId": {
+      "enum": [
+        "app-store-cn",
+        "huawei",
+        "xiaomi",
+        "oppo",
+        "vivo",
+        "honor",
+        "yingyongbao",
+        "360-best-effort"
+      ]
+    },
+    "supportTier": { "enum": ["first-class", "best-effort"] },
+    "jsTrain": {
+      "type": "object",
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "blockReason": {
+          "enum": [null, "BLOCKED_PENDING_CHANNEL_RULES", "POLICY_DENY"]
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["owner", "expiresAt"],
+      "properties": {
+        "owner": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "date" },
+        "sources": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform-labs.example/rn/js-selector.schema.json",
+  "title": "THROWAWAY JsSelector",
+  "description": "Machine gate for JS train — not a human four-dim form",
+  "type": "object",
+  "required": [
+    "hbcBytecodeVersion",
+    "runtimeFingerprint",
+    "requiredCapabilities",
+    "targetArtifactLines",
+    "releaseGate"
+  ],
+  "properties": {
+    "hbcBytecodeVersion": { "type": "integer" },
+    "runtimeFingerprint": { "type": "string" },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Must be ⊆ host.capability_set — never exact equality"
+    },
+    "targetArtifactLines": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "releaseGate": {
+      "enum": ["needs-native", "js-standard", "js-gated"]
+    }
+  },
+  "additionalProperties": false
+}

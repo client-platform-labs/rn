@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform-labs.example/rn/observability-identity.schema.json",
+  "title": "THROWAWAY ObservabilityIdentity",
+  "type": "object",
+  "required": ["tenantId", "releaseId", "artifactLine", "updateId"],
+  "properties": {
+    "tenantId": { "type": "string" },
+    "environmentId": { "type": "string" },
+    "releaseId": { "type": "string" },
+    "artifactLine": { "type": "string" },
+    "updateId": { "type": "string" },
+    "compatibilityProfileId": { "type": "string" },
+    "runtimeFingerprint": { "type": "string" }
+  },
+  "additionalProperties": false
+}

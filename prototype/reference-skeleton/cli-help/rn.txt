@@ -1,0 +1,33 @@
+THROWAWAY fixture — not a real binary
+
+Usage: rn <command> [options]
+
+Local / diagnostic host (dual-host CLI). Delivery commands live in rn-delivery.
+
+Commands:
+  init          Scaffold pure-rn or brownfield workspace contract
+  doctor        Detect drift; safe autofix only (no prod secrets)
+  doctor --report
+                Emit redacted diagnostic package path
+  diag collect  Alias for diagnostic package collection
+  dev           Metro + device discovery (simulator/USB/wireless)
+  generate      Codegen / templates (supports --dry-run)
+  capability    List / probe / add capability packages
+  migrate       schemaVersion + breaking migrations
+  config show|validate
+                Show or validate project JSONC contract
+
+Global options:
+  --non-interactive   Fail on missing required prompts (implied by CI=1)
+  --json              Machine output on stdout; human logs on stderr
+  --help
+
+Exit codes (enterprise table):
+  0 ok | 1 generic | 2 usage | 3 gate/compat | 4 credentials | 5 network/backend
+
+Config precedence:
+  flags > env > project JSONC (schemaVersion) > user/global defaults
+
+Plugins:
+  Discover via package.json#clientPlatform (CLI command ABI only).
+  Native capability packs and prebuild plugins are separate ABIs.

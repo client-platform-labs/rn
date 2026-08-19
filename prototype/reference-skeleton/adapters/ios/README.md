@@ -1,0 +1,1 @@
+# ios adapter (STUB / THROWAWAY)

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform-labs.example/rn/project-contract.schema.json",
+  "title": "THROWAWAY ProjectContract",
+  "type": "object",
+  "required": ["schemaVersion", "runtimeTuple", "cli", "deliveryCli"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "runtimeTuple": {
+      "type": "object",
+      "description": "Atomic RN/Hermes/New Arch toolchain pin",
+      "required": ["reactNative", "hermes"],
+      "properties": {
+        "reactNative": { "type": "string" },
+        "hermes": { "type": "string" },
+        "newArchitecture": { "type": "boolean", "const": true }
+      }
+    },
+    "cli": {
+      "type": "object",
+      "properties": {
+        "package": { "type": "string" },
+        "versionRange": { "type": "string" }
+      }
+    },
+    "deliveryCli": {
+      "type": "object",
+      "description": "Pinned in project contract — never app dependencies",
+      "properties": {
+        "package": { "type": "string" },
+        "versionRange": { "type": "string" }
+      }
+    },
+    "hostProfile": {
+      "enum": ["pure-rn", "brownfield"]
+    }
+  },
+  "additionalProperties": false
+}
