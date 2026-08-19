@@ -41,7 +41,7 @@ release_id
 - **宿主列车**（慢）：原生 / RN·Hermes·Codegen / 权限·隐私 / SDK → 商店通道；每端 `ios-host` / `android-host` / `harmony-host`。
 - **JS 列车**（快，**生产默认开启**）：匹配指纹的业务 Hermes/JS；机器门禁 = HBC Bytecode Version + `runtime_fingerprint` + 能力子集 + `channel_profile` / 行允许。
 - **放行档**：`needs-native` / `js-standard` / `js-gated`（企业策略层，非 ISO 名）。
-- **渠道叠加**：一等七渠 + 可审计 `channel_profile`；证据缺口 → `BLOCKED_PENDING_CHANNEL_RULES`（取证任务见票 23，不在本蓝图关闭范围内）。
+- **渠道叠加**：一等七渠 + 可审计 `channel_profile`；缺口渠对可执行 JS/自更新默认保守阻断（**非** CLI 安装门槛；企业可选证据覆盖，见票 23）。
 
 字段表与机读样例见 [appendix/](./appendix/)。
 
@@ -172,4 +172,4 @@ erDiagram
 | 含义 | 决策收口 + 本合同文档/图/样例/验收清单齐备 → **可进入实施拆期** | 生产级 Runtime/CLI/控制面/渠道证据与 SLA 可运行 |
 | 本目录状态 | 见 [acceptance.md](./acceptance.md) | **未实现**；勿将样例 JSON 或参考骨架当作投产合同 |
 
-开放 fog（实施地图）：编制与预算、遗留迁移顺序、公司基础设施适配清单、渠道取证（票 23）等——见 [wayfinding/map.md](../wayfinding/map.md) Not yet specified。
+开放 fog（实施地图）：编制与预算、遗留迁移顺序、公司基础设施适配清单、可选企业渠道证据覆盖等——见 [wayfinding/map.md](../wayfinding/map.md) Not yet specified。

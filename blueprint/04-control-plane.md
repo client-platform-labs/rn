@@ -56,7 +56,7 @@ Control Plane 管理环境、配置、版本、兼容关系、灰度、离线包
 - 业务方各自一套灰度后台。
 - 全国默认关闭 JS 列车。
 - 用 OTA 规避审核或改变主功能/权限/隐私范围。
-- 在本蓝图内关闭渠道书面取证（票 23 仍开放）。
+- 把渠道书面取证做成 CLI 用户安装/开发必经步骤（票 23：仅企业可选解禁覆盖）。
 
 ## Decided in / Evidence
 
@@ -68,4 +68,4 @@ Control Plane 管理环境、配置、版本、兼容关系、灰度、离线包
 | 渠道支持组合 | [19](../wayfinding/issues/19-china-channel-support-profile.md) | 同上 |
 | Build-vs-Buy | [03](../wayfinding/issues/03-industry-platform-build-buy.md) | [research/03](../wayfinding/research/03-industry-platform-build-buy.md) |
 | 观测联动暂停 | [14](../wayfinding/issues/14-observability-slo-incident.md) | [appendix/observability-identity.sample.json](./appendix/observability-identity.sample.json) |
-| 渠道样例 | — | schema 启发自 `prototype/.../channel-profile.schema.json`；取证开放项票 23 |
+| 渠道样例 | 票 23（可选企业覆盖） | schema 启发自 `prototype/.../channel-profile.schema.json`；开箱默认保守，取证非安装门槛 |

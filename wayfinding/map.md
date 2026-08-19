@@ -56,6 +56,7 @@
 - [可观测性、SLO 与事故闭环](./issues/14-observability-slo-incident.md) — 观测契约挂企业自有身份；JS/Native 双故障链强制覆盖；企业 SLI 与错误预算驱动控制面自动暂停；事故复盘必须回流质量门禁与兼容矩阵；Harmony 独立观测轨道。
 - [安全、隐私与合规控制](./issues/15-security-privacy-compliance.md) — 高敏消费级为默认基线，金融/医疗以附加 `compliance_profile` 叠加；安全控制按五层落地；权限走声明→同意→探测→调用；更新签名通过不等于合规通过。
 - [所有权、版本生命周期与跨团队治理](./issues/16-governance-ownership-lifecycle.md) — 宿主列车分轨、契约窗口、JS 列车、实验层按耦合分级；例外进同一账本；平台对门禁与指纹合同有最终否决权。
+- [一等渠道缺口规则取证](./issues/23-channel-rule-evidence-intake.md) — 取证非 CLI 用户必经；开箱默认保守门禁；企业可选用证据插件解禁缺口渠。
 - [组装企业级 RN 交付平台蓝图](./issues/18-assemble-platform-blueprint.md) — 读者向蓝图已落盘 `blueprint/`（入口 `00-entry.md`）；票为决议源，acceptance 对齐票 04。
 
 ## Not yet specified
@@ -64,7 +65,7 @@
 - （可升级为新地图）既有 App / 遗留 RN 迁移顺序、双轨期限与退出机制。
 - （可升级为新地图）平台编制、值班、成本与内部推广。
 - （可升级为新地图）公司 Git/CI/制品库/云/监控/账号的具体适配清单。
-- 票 23：vivo / 应用宝等一等渠道书面规则取证与 `channel_profile` 归档（HITL；不挡蓝图完成）。
+- （可选运营扩展）企业自备渠道书面证据以解禁缺口渠 JS 列车——非通用 CLI 安装路径（合同见已关闭票 23）。
 
 ## Out of scope
 

@@ -1,6 +1,16 @@
-# Channel profile evidence (placeholder)
+# Channel profile evidence (optional enterprise overlay)
 
-HITL ticket: [一等渠道缺口规则取证](../../wayfinding/issues/23-channel-rule-evidence-intake.md)
+**Not part of CLI one-click install or developer onboarding.**
 
-Put per-channel folders here (`vivo/`, `yingyongbao/`, …) with `META.json` + redacted rule/reply artifacts.
-Until then, production JS train on gap channels stays `BLOCKED_PENDING_CHANNEL_RULES`.
+Generic product defaults ship from public research + conservative gates
+(`BLOCKED_PENDING_CHANNEL_RULES` on executable JS/self-update for evidence-gap channels).
+
+Only an **enterprise operator** who wants to *unlock* those channels for production
+JS train should place redacted rule/reply artifacts here, e.g.:
+
+```text
+evidence/channel-profiles/<channelId>/META.json
+evidence/channel-profiles/<channelId>/rules-or-reply.*
+```
+
+Contract: [wayfinding/issues/23-channel-rule-evidence-intake.md](../../wayfinding/issues/23-channel-rule-evidence-intake.md).
