@@ -1,0 +1,27 @@
+{
+  "$comment": "SAMPLE only — enterprise-owned observability identity. From ticket 14; schema stub in prototype/reference-skeleton/schemas/observability-identity.schema.json",
+  "tenantId": "tenant-demo",
+  "environmentId": "production",
+  "releaseId": "rel_2026_08_19_001",
+  "artifactLine": "android-cn-huawei",
+  "updateId": "upd_js_a41_003",
+  "channel": "huawei",
+  "compatibilityProfileId": "cp_android_8_3_1_a41",
+  "runtimeFingerprint": "sha256:SAMPLE_HOST_RUNTIME_FINGERPRINT",
+  "capabilityId": "capability.camera",
+  "experimentId": null,
+  "requiredJoinKeys": [
+    "release_id",
+    "artifact_line",
+    "compatibility_profile_id",
+    "update_id",
+    "channel",
+    "tenant_id",
+    "environment_id",
+    "capability_id"
+  ],
+  "notes": [
+    "Vendor APM/Sentry are replaceable backends, not the source of delivery truth.",
+    "Harmony events use a separate artifact_line / compatibility_profile_id track."
+  ]
+}

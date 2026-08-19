@@ -1,0 +1,21 @@
+{
+  "$comment": "SAMPLE only — machine gate for JS train, not a human four-dim form. From ticket 11/13; schema stub in prototype/reference-skeleton/schemas/js-selector.schema.json",
+  "hbcBytecodeVersion": 96,
+  "runtimeFingerprint": "sha256:SAMPLE_HOST_RUNTIME_FINGERPRINT",
+  "requiredCapabilities": [
+    "capability.camera@1.2.0",
+    "capability.network@l0"
+  ],
+  "targetArtifactLines": [
+    "android-cn-huawei",
+    "android-cn-xiaomi"
+  ],
+  "releaseGate": "js-standard",
+  "matchRules": {
+    "hbcBytecodeVersion": "JS.hbc_bytecode_version == Host.hermes_vm_bytecode_version",
+    "runtimeFingerprint": "JS.runtime_fingerprint == Host.runtime_fingerprint",
+    "capabilities": "JS.required_capabilities ⊆ Host.capability_set (never exact equality)",
+    "artifactLines": "target line hit AND channel_profile / line allows JS train"
+  },
+  "onMismatch": "BLOCKED_INCOMPATIBLE"
+}

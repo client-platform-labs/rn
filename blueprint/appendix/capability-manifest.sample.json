@@ -1,0 +1,65 @@
+{
+  "$comment": "SAMPLE only — not production. Adapted from prototype/reference-skeleton/schemas/capability-manifest.schema.json + ticket 07 Answer.",
+  "id": "capability.camera",
+  "name": "Camera",
+  "version": "1.2.0",
+  "level": "L1",
+  "runtimeTargets": {
+    "ios": { "minHostVersion": "8.0.0" },
+    "android": { "minHostVersion": "8.0.0" },
+    "harmonyos": { "minHostVersion": "5.0.0", "note": "Independent RNOH track" }
+  },
+  "probe": {
+    "ios": "SUPPORTED",
+    "android": "SUPPORTED",
+    "harmonyos": "ADAPTER_REQUIRED"
+  },
+  "permissions": [
+    "ios.NSCameraUsageDescription",
+    "android.permission.CAMERA",
+    "harmonyos.ohos.permission.CAMERA"
+  ],
+  "privacy": {
+    "piiCategories": ["biometric_image_optional"],
+    "consentRequired": true,
+    "scopeChangeRequiresNativeTrain": true
+  },
+  "capabilityDetection": ["SUPPORTED", "ADAPTER_REQUIRED", "UNSUPPORTED"],
+  "degradationPlan": {
+    "UNSUPPORTED": "Show native fallback picker CTA; emit CAPABILITY_CAMERA_UNAVAILABLE_*",
+    "ADAPTER_REQUIRED": "Route via host adapter registration before invoke"
+  },
+  "errorDomain": "CAPABILITY_CAMERA_<CATEGORY>_<CODE>",
+  "errorCategories": [
+    "PERMISSION",
+    "UNAVAILABLE",
+    "TIMEOUT",
+    "INVALID_INPUT",
+    "CONFLICT",
+    "INTERNAL"
+  ],
+  "testingStubs": {
+    "simulator": true,
+    "mustMatchContractSemantics": true
+  },
+  "observabilityContract": {
+    "requiredFields": [
+      "release_id",
+      "update_id",
+      "capability_id",
+      "error_code",
+      "artifact_line"
+    ]
+  },
+  "lifecycle": [
+    "init",
+    "permission_callback",
+    "foreground",
+    "background",
+    "dispose"
+  ],
+  "owners": {
+    "team": "platform-capabilities",
+    "retireBy": "2027-12-31"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$comment": "SAMPLE only — compliance_profile overlay on top of high-sensitivity consumer baseline. From ticket 15 Answer. Not a certified finance/health profile.",
+  "baseProfile": "high-sensitivity-consumer",
+  "overlayId": "compliance.finance.addon.sample",
+  "appliesWhen": ["app.tags contains finance-regulated"],
+  "stricterControls": {
+    "audit": {
+      "dualApprovalRequired": true,
+      "retainDays": 365
+    },
+    "dataResidency": {
+      "region": "CN",
+      "crossBorderDefault": "deny"
+    },
+    "retention": {
+      "tokenLocalMaxHours": 24,
+      "mediaTempMaxHours": 1,
+      "locationCacheMaxHours": 0
+    },
+    "approvals": {
+      "jsGatedFullRequires": ["security", "compliance"],
+      "exceptionBreakGlassRequires": ["security", "platform-oncall"]
+    },
+    "disabledCapabilities": [
+      "capability.experimental.*",
+      "capability.share.external-unreviewed"
+    ]
+  },
+  "explicitNonGoals": [
+    "Does not claim PCI/HIPAA/or any regulator certification by itself",
+    "Update signature success still does not equal compliance pass"
+  ]
+}
