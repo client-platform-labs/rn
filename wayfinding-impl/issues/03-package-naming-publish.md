@@ -2,6 +2,7 @@ Type: grilling
 Mode: HITL
 Status: open
 Triage: ready-for-human
+Assignee: cursor-agent
 Blocked by: 01, 02
 
 # 包命名、版本与发布策略
