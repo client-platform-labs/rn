@@ -61,10 +61,8 @@
 
 ## Not yet specified
 
-- （可升级为新地图）实施计划：团队、里程碑、依赖、与 `prototype/reference-skeleton` 的落地顺序。
-- （可升级为新地图）既有 App / 遗留 RN 迁移顺序、双轨期限与退出机制。
-- （可升级为新地图）平台编制、值班、成本与内部推广。
-- （可升级为新地图）公司 Git/CI/制品库/云/监控/账号的具体适配清单。
+- 实施拆期与代码落地：已升级为新地图 [`../wayfinding-impl/map.md`](../wayfinding-impl/map.md)。
+- （实施地图 fog）公司 Git/CI/制品库适配、遗留迁移、编制值班 —— 见实施地图 Not yet specified。
 - （可选运营扩展）企业自备渠道书面证据以解禁缺口渠 JS 列车——非通用 CLI 安装路径（合同见已关闭票 23）。
 
 ## Out of scope

@@ -8,7 +8,17 @@ Product code: `rn` (`@client-platform/rn` when packages land).
 
 Deliver a production-grade platform and thin CLI for multi-business-line React Native apps in mainland China across **iOS**, **Android**, and **HarmonyOS (RNOH)** — covering Runtime SDK, Toolchain, Delivery, Control Plane, and Governance.
 
-This repository currently holds the **wayfinding map and blueprint contracts**. It is not yet a runnable production platform.
+This repository holds the **blueprint** (complete) and an **implementation wayfinder** toward a runnable MVP. It is not yet a production platform.
+
+## Documents
+
+- [Blueprint entry](./blueprint/00-entry.md)
+- [Implementation map](./wayfinding-impl/map.md)
+- [Blueprint wayfinding map](./wayfinding/map.md) (closed)
+- [Roadmap](./ROADMAP.md)
+- [Architecture charter](./docs/architecture.md)
+- [Domain glossary](./wayfinding/CONTEXT.md)
+- Throwaway skeleton: `prototype/reference-skeleton/`
 
 ## Scope
 
@@ -23,7 +33,7 @@ In:
 
 Out (for now):
 
-- Shipping a production control plane or native capability packs from this repo before the blueprint is assembled
+- Shipping a production control plane or full native capability packs before the implementation MVP lands
 - Using OTA/offline packages to bypass store review
 - Claiming financial/medical certification by default
 
@@ -39,14 +49,6 @@ Key release spine already decided in wayfinding:
 - Humans: `platform + app_version + release_train`
 - Machines: `compatibility_profile_id` + `runtime_fingerprint` + capability subset + channel overlay
 - Gates: `needs-native` / `js-standard` / `js-gated`
-
-## Documents
-
-- [Roadmap](./ROADMAP.md)
-- [Architecture charter](./docs/architecture.md)
-- [Wayfinding map](./wayfinding/map.md)
-- [Domain glossary](./wayfinding/CONTEXT.md)
-- Blueprint output (after assemble): `blueprint/`
 
 ## Working Principles
 

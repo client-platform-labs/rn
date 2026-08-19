@@ -172,4 +172,4 @@ erDiagram
 | 含义 | 决策收口 + 本合同文档/图/样例/验收清单齐备 → **可进入实施拆期** | 生产级 Runtime/CLI/控制面/渠道证据与 SLA 可运行 |
 | 本目录状态 | 见 [acceptance.md](./acceptance.md) | **未实现**；勿将样例 JSON 或参考骨架当作投产合同 |
 
-开放 fog（实施地图）：编制与预算、遗留迁移顺序、公司基础设施适配清单、可选企业渠道证据覆盖等——见 [wayfinding/map.md](../wayfinding/map.md) Not yet specified。
+开放 fog：见实施地图 [wayfinding-impl/map.md](../wayfinding-impl/map.md)。蓝图地图已收口。
