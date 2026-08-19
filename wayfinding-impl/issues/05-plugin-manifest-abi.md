@@ -3,6 +3,7 @@ Mode: HITL
 Status: open
 Triage: ready-for-human
 Blocked by: 03, 04
+Depends on research: 04 (resolved)
 
 # 插件清单 ABI 落地字段
 

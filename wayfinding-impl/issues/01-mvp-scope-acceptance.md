@@ -2,6 +2,7 @@ Type: grilling
 Mode: HITL
 Status: open
 Triage: ready-for-human
+Assignee: cursor-agent
 
 # MVP 范围与验收定义
 
