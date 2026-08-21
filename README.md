@@ -2,13 +2,30 @@
 
 Enterprise React Native full-lifecycle delivery platform for Client Platform Labs.
 
-Product code: `rn` (`@client-platform/rn` when packages land).
+Product code: `rn` (`@client-platform/rn`).
 
 ## Vision
 
 Deliver a production-grade platform and thin CLI for multi-business-line React Native apps in mainland China across **iOS**, **Android**, and **HarmonyOS (RNOH)** — covering Runtime SDK, Toolchain, Delivery, Control Plane, and Governance.
 
-This repository holds the **blueprint** (complete) and an **implementation wayfinder** toward a runnable MVP. It is not yet a production platform.
+This repository holds the **blueprint** (complete) and implementation maps toward a runnable, enterprise-promotable platform. Workspace packages and the `rn` CLI (including A1 Greenfield `init` / `doctor` / `dev`) are in-tree.
+
+## Quick start (any directory — industrial install)
+
+```bash
+# preflight (optional)
+curl -fsSL https://raw.githubusercontent.com/client-platform-labs/rn/main/scripts/get-rn.sh | bash -s -- --preflight
+
+# install
+curl -fsSL https://raw.githubusercontent.com/client-platform-labs/rn/main/scripts/get-rn.sh | bash
+
+# then
+mkdir my-app && cd my-app
+rn init
+```
+
+Lifecycle: `rn preflight` · `rn self update` · `rn self uninstall --yes`  
+Details: [docs/cli-distribution.md](./docs/cli-distribution.md) · [docs/a1-greenfield.md](./docs/a1-greenfield.md)
 
 ## Documents
 
@@ -17,6 +34,8 @@ This repository holds the **blueprint** (complete) and an **implementation wayfi
 - [Blueprint wayfinding map](./wayfinding/map.md) (closed)
 - [Roadmap](./ROADMAP.md)
 - [Architecture charter](./docs/architecture.md)
+- [MVP scaffold (install)](./docs/mvp-scaffold.md)
+- [A1 Greenfield acceptance](./docs/a1-greenfield.md)
 - [Domain glossary](./wayfinding/CONTEXT.md)
 - Throwaway skeleton: `prototype/reference-skeleton/`
 

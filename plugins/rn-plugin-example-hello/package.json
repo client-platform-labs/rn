@@ -1,0 +1,21 @@
+{
+  "name": "@client-platform/rn-plugin-example-hello",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Example discoverable CLI-command plugin for the rn MVP",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "clientPlatform": {
+    "id": "example-hello",
+    "kind": "cli-command",
+    "apiVersion": 1,
+    "export": "./dist/register.js"
+  }
+}

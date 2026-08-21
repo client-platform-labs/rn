@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform.local/rn/runtime-fingerprint.schema.json",
+  "title": "RuntimeFingerprint",
+  "type": "object",
+  "required": [
+    "rnExactTuple",
+    "hermesVmIdentity",
+    "hbcBytecodeVersion",
+    "newArchFlags",
+    "nativeAbiSurfaceDigest"
+  ],
+  "properties": {
+    "rnExactTuple": { "type": "string" },
+    "hermesVmIdentity": { "type": "string" },
+    "hbcBytecodeVersion": {
+      "type": "integer",
+      "description": "Not interchangeable with RN or Hermes package version"
+    },
+    "newArchFlags": { "type": "object" },
+    "nativeAbiSurfaceDigest": {
+      "type": "string",
+      "description": "Codegen/TurboModule/Fabric native ABI surface hash"
+    },
+    "officialCapabilityNativeLocks": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

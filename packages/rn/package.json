@@ -1,0 +1,28 @@
+{
+  "name": "@client-platform/rn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local host CLI for the rn product (bin: rn)",
+  "bin": {
+    "rn": "./bin/rn.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "dependencies": {
+    "@client-platform/rn-core": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}

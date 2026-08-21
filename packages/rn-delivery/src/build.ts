@@ -1,0 +1,181 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+
+import {
+  DeliveryError,
+  EXIT_FAIL,
+  findAndroidSdkRoot,
+  findNewestApk,
+  findWorkspaceOrProject,
+  findXcodeScheme,
+  loadManifestOrEmpty,
+  resolveProjectRoot,
+  runStreaming,
+  sha256File,
+  commandExists,
+} from "./util.js";
+
+export async function runBuild(options: {
+  cwd: string;
+  platform?: "android" | "ios" | "all";
+}): Promise<void> {
+  const projectRoot = resolveProjectRoot(options.cwd);
+  const { releaseId, manifest } = loadManifestOrEmpty(projectRoot);
+  const platform = options.platform ?? "all";
+  const androidDir = path.join(projectRoot, "android");
+  const iosDir = path.join(projectRoot, "ios");
+
+  const results: Array<Record<string, unknown>> = [];
+
+  if (platform === "android" || platform === "all") {
+    if (!existsSync(androidDir)) {
+      if (platform === "android") {
+        throw new DeliveryError(
+          "android/ missing — run `rn init` to generate a React Native 0.87 project first",
+          EXIT_FAIL,
+        );
+      }
+      console.error("rn-delivery build: skip android (android/ missing)");
+    } else {
+      const sdk = findAndroidSdkRoot();
+      if (!sdk) {
+        throw new DeliveryError(
+          "Android SDK missing (set ANDROID_HOME or ANDROID_SDK_ROOT). Install Android Studio SDK + platform-tools, then retry `rn-delivery build --platform android`.",
+          EXIT_FAIL,
+        );
+      }
+      const gradlew = path.join(
+        androidDir,
+        process.platform === "win32" ? "gradlew.bat" : "gradlew",
+      );
+      if (!existsSync(gradlew)) {
+        throw new DeliveryError(
+          `Missing ${gradlew} — project android tree looks incomplete`,
+          EXIT_FAIL,
+        );
+      }
+      console.error("rn-delivery build: assembling Android debug APK via Gradle…");
+      const code = await runStreaming(gradlew, ["assembleDebug"], {
+        cwd: androidDir,
+        env: {
+          ANDROID_HOME: sdk,
+          ANDROID_SDK_ROOT: sdk,
+        },
+      });
+      if (code !== 0) {
+        throw new DeliveryError(
+          `Gradle assembleDebug failed (exit ${code})`,
+          EXIT_FAIL,
+        );
+      }
+      const apk = findNewestApk(androidDir);
+      const digest = apk ? sha256File(apk) : "pending";
+      const meta = {
+        artifact_kind: manifest?.artifact_kind ?? "app-host",
+        release_id: releaseId,
+        platform: "android",
+        configuration: "debug",
+        path: apk ?? null,
+        digest,
+      };
+      results.push(meta);
+      console.log(JSON.stringify(meta, null, 2));
+    }
+  }
+
+  if (platform === "ios" || platform === "all") {
+    if (!existsSync(iosDir)) {
+      if (platform === "ios") {
+        throw new DeliveryError(
+          "ios/ missing — run `rn init` to generate a React Native 0.87 project first",
+          EXIT_FAIL,
+        );
+      }
+      console.error("rn-delivery build: skip ios (ios/ missing)");
+    } else if (process.platform !== "darwin") {
+      console.error(
+        "rn-delivery build: iOS debug build requires darwin. Next step: run this command on a Mac with Xcode, or `rn-delivery build --platform android` for APK candidates.",
+      );
+      if (platform === "ios") {
+        throw new DeliveryError(
+          "iOS build unavailable on non-darwin hosts",
+          EXIT_FAIL,
+        );
+      }
+    } else if (!commandExists("xcodebuild")) {
+      console.error(
+        "rn-delivery build: xcodebuild not found. Install Xcode + CLT, open Xcode once, then retry.",
+      );
+      throw new DeliveryError(
+        "xcodebuild missing — cannot produce iOS debug candidate",
+        EXIT_FAIL,
+      );
+    } else {
+      const target = findWorkspaceOrProject(iosDir);
+      const scheme = findXcodeScheme(iosDir);
+      if (!target || !scheme) {
+        throw new DeliveryError(
+          "Could not locate ios/*.xcworkspace|.xcodeproj / scheme",
+          EXIT_FAIL,
+        );
+      }
+      const derived = path.join(projectRoot, "build", "ios-derived");
+      const args =
+        target.type === "workspace"
+          ? [
+              "-workspace",
+              target.path,
+              "-scheme",
+              scheme,
+              "-configuration",
+              "Debug",
+              "-sdk",
+              "iphonesimulator",
+              "-derivedDataPath",
+              derived,
+              "build",
+            ]
+          : [
+              "-project",
+              target.path,
+              "-scheme",
+              scheme,
+              "-configuration",
+              "Debug",
+              "-sdk",
+              "iphonesimulator",
+              "-derivedDataPath",
+              derived,
+              "build",
+            ];
+      console.error(
+        "rn-delivery build: xcodebuild Debug (iphonesimulator — no store signing)…",
+      );
+      const code = await runStreaming("xcodebuild", args, { cwd: iosDir });
+      if (code !== 0) {
+        throw new DeliveryError(
+          `xcodebuild failed (exit ${code}). If pods are missing: cd ios && bundle exec pod install, then retry. Store submit is out of scope.`,
+          EXIT_FAIL,
+        );
+      }
+      const meta = {
+        artifact_kind: manifest?.artifact_kind ?? "app-host",
+        release_id: releaseId,
+        platform: "ios",
+        configuration: "Debug",
+        sdk: "iphonesimulator",
+        path: derived,
+        digest: "pending:app-bundle-in-derived-data",
+      };
+      results.push(meta);
+      console.log(JSON.stringify(meta, null, 2));
+    }
+  }
+
+  if (results.length === 0) {
+    throw new DeliveryError(
+      "No candidate artifacts produced. Ensure android/ exists and Android SDK is installed, or run on darwin for iOS.",
+      EXIT_FAIL,
+    );
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "rn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Client Platform Labs React Native product workspace",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc -b",
+    "build": "tsc -b",
+    "test": "tsc -b && node --experimental-strip-types --test packages/rn-core/test/*.test.ts",
+    "link:cli": "node ./scripts/link-cli.mjs",
+    "install:product": "./scripts/install.sh",
+    "postinstall": "node ./scripts/link-cli.mjs --postinstall"
+  },
+  "devDependencies": {
+    "@client-platform/rn": "workspace:*",
+    "@client-platform/rn-delivery": "workspace:*",
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

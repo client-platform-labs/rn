@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/rn-core" },
+    { "path": "./packages/rn" },
+    { "path": "./packages/rn-delivery" },
+    { "path": "./plugins/rn-plugin-example-hello" }
+  ]
+}

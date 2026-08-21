@@ -23,10 +23,18 @@
 - [MVP 范围与验收定义](./issues/01-mvp-scope-acceptance.md) — init 仅 JSONC+骨架；doctor/plugin/config；验收三命令退出 0；完整 RN/`dev`/delivery/控制面划出。
 - [Monorepo 工具链与仓库布局](./issues/02-monorepo-toolchain-layout.md) — pnpm workspaces；同仓 packages+plugins+examples；Node 24 主推、engines ≥22&lt;25；CI=typecheck+三命令。
 - [包命名、版本与发布策略](./issues/03-package-naming-publish.md) — `@client-platform/rn-core|rn|rn-delivery`；插件 `rn-plugin-*`；MVP workspace-only + private；delivery 禁入 app dependencies。
+- [插件清单 ABI 落地字段](./issues/05-plugin-manifest-abi.md) — `clientPlatform`：`id`/`kind:cli-command`/`apiVersion`/`export`；先记录后 lazy `import()`；`register(ctx)`；MVP 开发信任、签名预留。
+- [MVP 命令面与配置合同](./issues/06-mvp-cli-config-contract.md) — `client-platform.manifest.jsonc` 最小字段；flags>env>JSONC；退出码 0–5；doctor/init/plugin/config 非交互行为；无文件 validate → exit 2。
+- [脚手架 Monorepo 与空包](./issues/07-scaffold-monorepo.md) — pnpm workspace + rn-core/rn/rn-delivery stub + example plugin + typecheck CI；业务命令留给 08。
+- [delivery-cli Stub 边界](./issues/09-delivery-cli-stub-boundary.md) — help 列交付动词占位；未实现 exit 1；与 `rn` 独立不转发。
+- [实现 rn-core 与 rn MVP](./issues/08-implement-core-cli-mvp.md) — doctor/init/--dry-run/plugin list/config validate 可跑；三命令 Node 24 退出 0；CI 含 typecheck+test+验收。
+- [MVP 之后的下一里程碑边界](./issues/10-next-milestone-after-mvp.md) — 下一图主切片 delivery 编排骨架；附带 init 合同+adapter 空壳；本图结图。
+
+## Status
+
+**Resolved** — Destination 达成（2026-08-19）。下一里程碑见 [`../wayfinding-impl-2/map.md`](../wayfinding-impl-2/map.md)。
 
 ## Not yet specified
-
-- MVP 之后的里程碑切分（控制面最小切片、JS 列车、Brownfield 示例工程化）。
 - 公司内部 Git/CI/制品库的具体适配清单（厂商无关接口落地后）。
 - 遗留 App 迁移双轨与编制/值班（组织实施，非本 MVP 工程核心）。
 
