@@ -1,6 +1,7 @@
 Type: task
 Mode: AFK
 Status: open
+GitHub: #9
 Triage: ready-for-agent
 Blocked by: 01, 02
 

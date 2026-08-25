@@ -3,6 +3,7 @@
 Type: task
 Mode: AFK
 Status: open
+GitHub: #7
 Triage: ready-for-agent
 Blocked by: 01, 02, [06-a3-delivery-candidate](./06-a3-delivery-candidate.md)（制品元数据）, [08-a5-client-fallback](./08-a5-client-fallback.md)（客户端兜底演示）
 Priority: **P1**

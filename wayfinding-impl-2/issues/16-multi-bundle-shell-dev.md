@@ -3,6 +3,7 @@
 Type: task / product
 Mode: HITL → AFK
 Status: open
+GitHub: #17
 Triage: ready-for-human
 Blocked by: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md)
 Priority: **P1**

@@ -17,30 +17,32 @@
 | 阶段 | 含义 | 地图 A 现状 |
 |------|------|-------------|
 | **to-specs** | 合同/ADR/研究可签核 | **大部分已有**：蓝图五卷、research/01–04、ADR-001–006、Goals G0–G3 |
-| **to-tickets** | 可执行票已拆进 `issues/` | **已拆**：01–16（含深化票）；**不是** GitHub Issues 面板 |
-| **实现 / 验收** | 代码 + 真机 DoD | **部分**：身份模块 + A1 基线 CLI 已合入远程；本批深化多数仅本地至 push |
+| **to-tickets** | 可执行票已拆进 `issues/` | **已拆**：01–16；**已同步** [GitHub Issues](https://github.com/client-platform-labs/rn/issues)（权威仍是 Markdown；GH 镜像） |
+| **实现 / 验收** | 代码 + 真机 DoD | **部分**：身份模块 + A1 基线 CLI + DevTransport 已在 main |
 
 ### 进度板（2026-08-25）
 
-| ID | 标题 | 阶段 | Status | 实现粗估 |
-|----|------|------|--------|----------|
-| 01 | Destination / P1–P17 | grilling | **resolved** | 合同完成 |
-| 02 | 切片序 | grilling | **resolved** | 合同完成 |
-| 03 | 身份 fingerprint 合同 | grilling | **resolved** | 合同完成 |
-| 10 | rn-core fingerprint 落地 | task | **resolved** | **代码已在 main** |
-| 11 | RN 原子元组 | grilling | **resolved** | 合同完成 |
-| 04 | A1 Greenfield 基线 | task | **resolved** | **CLI init/dev/doctor 已在 main**；深化见 13/16 |
-| 12 | Expo 对标研究 | research | **ready-for-human** | 文档完成；同机 bench 待测 |
-| 13 | A1 Dev Session | task | **in-progress** | DevTransport/fail-fast/单 ABI **本批代码** |
-| 13b | Debug Host | task | open | 未实现 |
-| 16 | 多 Bundle / 多 Metro（A1+A2 深化） | task | open | 合同/ADR 有；实现未开 |
-| 06 | A3 候选包 | task | open | 有初版 delivery build；七阶段/双 SBOM **未齐** |
-| 08 | A5 客户端兜底 | task | open | 未实现 |
-| 05 | A2 Brownfield | task | open | 未实现 |
-| 07 | A4 Control Plane Web+Node | task | open | 未实现 |
-| 14 | 装包台 | task | open | 未实现（P2） |
-| 09 | A6 质量信号 | task | open | 未实现 |
-| 15 | Expo 互操作口子 | task | open | 低优；未实现 |
+面板：[Open](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aopen) · [Closed](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aclosed)（票 ID ≠ GH 号时以标题 `[map-a/ID]` 为准；如 13b→#14）
+
+| ID | GH | 标题 | 阶段 | Status | 实现粗估 |
+|----|-----|------|------|--------|----------|
+| 01 | [#1](https://github.com/client-platform-labs/rn/issues/1) | Destination / P1–P17 | grilling | **resolved** | 合同完成 |
+| 02 | [#2](https://github.com/client-platform-labs/rn/issues/2) | 切片序 | grilling | **resolved** | 合同完成 |
+| 03 | [#3](https://github.com/client-platform-labs/rn/issues/3) | 身份 fingerprint 合同 | grilling | **resolved** | 合同完成 |
+| 10 | [#10](https://github.com/client-platform-labs/rn/issues/10) | rn-core fingerprint 落地 | task | **resolved** | **代码已在 main** |
+| 11 | [#11](https://github.com/client-platform-labs/rn/issues/11) | RN 原子元组 | grilling | **resolved** | 合同完成 |
+| 04 | [#4](https://github.com/client-platform-labs/rn/issues/4) | A1 Greenfield 基线 | task | **resolved** | **CLI init/dev/doctor 已在 main**；深化见 13/16 |
+| 12 | [#12](https://github.com/client-platform-labs/rn/issues/12) | Expo 对标研究 | research | **ready-for-human** | 文档完成；同机 bench 待测 |
+| 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **in-progress** | DevTransport/fail-fast/单 ABI **本批代码** |
+| 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | open | 未实现 |
+| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro（A1+A2 深化） | task | open | 合同/ADR 有；实现未开 |
+| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | open | 有初版 delivery build；七阶段/双 SBOM **未齐** |
+| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | open | 未实现 |
+| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | open | 未实现 |
+| 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane Web+Node | task | open | 未实现 |
+| 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | open | 未实现（P2） |
+| 09 | [#9](https://github.com/client-platform-labs/rn/issues/9) | A6 质量信号 | task | open | 未实现 |
+| 15 | [#16](https://github.com/client-platform-labs/rn/issues/16) | Expo 互操作口子 | task | open | 低优；未实现 |
 
 **切片完成度（实现视角）**
 

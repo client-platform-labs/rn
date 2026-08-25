@@ -3,6 +3,7 @@
 Type: task
 Mode: AFK
 Status: **in-progress** — W1 AFK：DevTransport + fail-fast + 单 ABI 已落地
+GitHub: #13
 Triage: ready-for-agent
 Blocked by: none（票 12 研究 sufficient）
 Blocks: A2 brownfield dev 桥接复用

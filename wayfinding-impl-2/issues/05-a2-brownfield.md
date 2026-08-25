@@ -3,6 +3,7 @@
 Type: task
 Mode: AFK
 Status: open
+GitHub: #5
 Triage: ready-for-agent
 Blocked by: 01, 02, 03
 Related: [ADR-006](../docs/adr/006-unified-multi-metro-debug.md), [16-multi-bundle-shell-dev](./16-multi-bundle-shell-dev.md)

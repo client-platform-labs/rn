@@ -3,6 +3,7 @@
 Type: task
 Mode: AFK
 Status: open
+GitHub: #15
 Triage: ready-for-agent
 Blocked by: 01, 02, [06-a3-delivery-candidate](./06-a3-delivery-candidate.md)（候选包元数据）
 Priority: **P2**（不阻塞票 13 / A3 核心）

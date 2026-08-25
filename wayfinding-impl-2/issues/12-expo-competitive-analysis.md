@@ -3,6 +3,7 @@
 Type: research + product (HITL)
 Mode: **HITL** — 研究收口前不 AFK 大规模实现
 Status: **ready-for-human** — 研究主体完成；Expo 同机基线待 bench 脚本实测
+GitHub: #12
 Triage: P0 — 票 13 可 AFK
 Blocked by: none
 Blocks: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md), A1 dev 体验硬化 PR

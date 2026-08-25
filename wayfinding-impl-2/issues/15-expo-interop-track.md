@@ -3,6 +3,7 @@
 Type: task
 Mode: AFK
 Status: open
+GitHub: #16
 Triage: ready-for-agent
 Blocked by: [12-expo-competitive-analysis](./12-expo-competitive-analysis.md)
 Priority: **P3**

@@ -1,6 +1,7 @@
 Type: grilling
 Mode: HITL
 Status: resolved
+GitHub: #1
 Triage: ready-for-human
 Assignee: cursor-agent
 Depends on research: 01, 02

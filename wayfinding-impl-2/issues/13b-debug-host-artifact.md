@@ -3,6 +3,7 @@
 Type: task
 Mode: AFK
 Status: open
+GitHub: #14
 Triage: ready-for-agent
 Blocked by: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md), [06-a3-delivery-candidate](./06-a3-delivery-candidate.md)
 Priority: **P1**（票 13 之后）

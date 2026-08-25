@@ -1,6 +1,7 @@
 Type: task
 Mode: AFK
 Status: resolved
+GitHub: #4
 Triage: ready-for-human
 Assignee: cursor-agent
 Blocked by: 01, 02, 03, 10, 11
