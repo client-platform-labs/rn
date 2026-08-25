@@ -16,7 +16,8 @@
   "types": "./dist/index.d.ts",
   "files": [
     "bin",
-    "dist"
+    "dist",
+    "templates"
   ],
   "engines": {
     "node": ">=22 <25"

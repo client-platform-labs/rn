@@ -95,6 +95,28 @@ preflight() {
 
   if have pnpm; then log "pnpm ok"; else warn "pnpm missing (will bootstrap)"; fi
 
+  # Device-build toolchain (warn only — install must still succeed without SDKs)
+  if [[ -n "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}" && -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}" ]]; then
+    log "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+  elif [[ -d "$HOME/Library/Android/sdk" ]]; then
+    log "Android SDK: $HOME/Library/Android/sdk"
+  else
+    warn "Android SDK missing (needed for rn-delivery build / rn dev --android)"
+  fi
+  if have adb; then
+    log "adb ok"
+  else
+    warn "adb missing (install SDK platform-tools)"
+  fi
+  if have java; then
+    log "java ok"
+  else
+    warn "java/JDK missing (need JDK 17+ for Android Gradle)"
+  fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    if have xcodebuild; then log "xcodebuild ok"; else warn "xcodebuild missing (iOS)"; fi
+  fi
+
   mkdir -p "$HOME/.client-platform"
   if touch "$HOME/.client-platform/.write-probe" 2>/dev/null; then
     rm -f "$HOME/.client-platform/.write-probe"
@@ -171,7 +193,7 @@ do_install() {
   echo "  rn init"
   echo
   echo "Lifecycle:"
-  echo "  rn preflight"
+  echo "  rn doctor"
   echo "  rn self update"
   echo "  rn self uninstall --yes"
 }

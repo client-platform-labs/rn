@@ -11,11 +11,16 @@ import {
   RN_GREENFIELD_MAJOR_MINOR,
 } from "@client-platform/rn-core";
 import { CliError, EXIT_FAIL } from "../errors.js";
+import { defaultInstallHome } from "../install-home.js";
 import type { CliLogger } from "../logger.js";
+import { probeMetroBridge } from "../android-dev-bridge.js";
+import { probeAndroidHost } from "../host-env.js";
 import {
-  commandExists,
-  findAndroidSdkRoot,
-} from "../process.js";
+  collectPreflightFindings,
+  evaluatePreflight,
+  printHostLayers,
+  type PreflightFinding,
+} from "../preflight-layers.js";
 
 function canResolve(specifier: string, parentHref: string): boolean {
   try {
@@ -30,6 +35,10 @@ export function nodeMajor(version = process.versions.node): number {
   return Number.parseInt(version.split(".")[0] ?? "0", 10);
 }
 
+/**
+ * Unified diagnostics: host layers L0–L2 + project contract L3 when present.
+ * Does not mutate the machine.
+ */
 export async function runDoctor(options: {
   cwd: string;
   logger: CliLogger;
@@ -38,7 +47,15 @@ export async function runDoctor(options: {
   const { cwd, logger } = options;
   const strict = Boolean(options.strict);
   const issues: string[] = [];
-  const warnings: string[] = [];
+  const home = defaultInstallHome();
+
+  const androidHost = probeAndroidHost();
+  const bridge =
+    androidHost.adbPath != null
+      ? probeMetroBridge({ adbPath: androidHost.adbPath })
+      : undefined;
+  const findings = collectPreflightFindings({ android: androidHost, bridge });
+  const host = evaluatePreflight(findings, { strict });
 
   const major = nodeMajor();
   const nodeOk = major === 24;
@@ -46,6 +63,21 @@ export async function runDoctor(options: {
     issues.push(
       `Node.js ${process.versions.node} is not 24.x (rn doctor requires Node 24.x)`,
     );
+  }
+  if (!host.ok) {
+    for (const f of findings) {
+      if (f.status !== "missing") {
+        continue;
+      }
+      if (f.plane === "cli") {
+        issues.push(f.summary);
+      } else if (
+        strict &&
+        (f.plane === "assisted" || (f.plane === "manual" && f.id === "ios"))
+      ) {
+        issues.push(f.summary);
+      }
+    }
   }
 
   const workspaceRoot = findWorkspaceRoot(cwd);
@@ -113,122 +145,112 @@ export async function runDoctor(options: {
     }
   }
 
-  const androidSdk = findAndroidSdkRoot();
-  const adbOk = commandExists("adb");
-  const android = {
-    sdk: Boolean(androidSdk),
-    sdkPath: androidSdk,
-    adb: adbOk,
-  };
-  if (!androidSdk) {
-    const msg =
-      "Android SDK not found (set ANDROID_HOME / ANDROID_SDK_ROOT). Native builds need a local SDK.";
-    if (strict) issues.push(msg);
-    else warnings.push(msg);
-  }
-  if (!adbOk) {
-    const msg = "adb not on PATH (device install / run-android needs platform-tools).";
-    if (strict) issues.push(msg);
-    else warnings.push(msg);
-  }
-
-  let xcodebuild: boolean | "skipped" = "skipped";
-  if (process.platform === "darwin") {
-    xcodebuild = commandExists("xcodebuild");
-    if (!xcodebuild) {
-      const msg = "xcodebuild not found (install Xcode + CLT for iOS builds).";
-      if (strict) issues.push(msg);
-      else warnings.push(msg);
-    }
-  }
-
   const plugins = await discoverPlugins({
     cwd,
     onWarn: (message) => logger.warn(message),
   });
 
+  const ok = issues.length === 0;
   const payload = {
-    ok: issues.length === 0,
+    ok,
     strict,
-    node: { version: process.versions.node, major, ok: nodeOk },
-    packages,
-    manifest,
-    android,
-    ios: { platform: process.platform, xcodebuild },
-    warnings,
-    plugins,
-    // Safe autofix is intentionally not implemented yet (ticket 04).
-    autofix: { available: false, note: "TODO: safe autofix only; no unsafe rewrite" },
+    installHome: home,
+    host: {
+      cliOk: host.cliOk,
+      deviceReady: host.deviceReady,
+      layers: {
+        cli: findings.filter((f: PreflightFinding) => f.plane === "cli"),
+        assisted: findings.filter((f) => f.plane === "assisted"),
+        manual: findings.filter((f) => f.plane === "manual"),
+      },
+      findings,
+    },
+    project: {
+      node: { version: process.versions.node, major, ok: nodeOk },
+      packages,
+      manifest,
+      plugins,
+    },
+    autofix: {
+      available: false,
+      note: "TODO: safe autofix only; no unsafe rewrite",
+    },
   };
 
   if (logger.json) {
     logger.writeMachine(payload);
   } else {
+    logger.writeHuman("rn doctor");
+    printHostLayers(logger, findings);
+    logger.writeHuman("");
     logger.writeHuman(
-      `Node.js: ${process.versions.node}${nodeOk ? " (ok)" : " (not 24.x)"}`,
+      `host summary: CLI ${host.cliOk ? "PASS" : "FAIL"} · device-build ${host.deviceReady ? "READY" : "NOT READY"}`,
     );
-    logger.writeHuman("Packages:");
+    if (!host.deviceReady && !strict) {
+      logger.writeHuman(
+        "note: L1 device-build gaps are advisory unless --strict (Metro-only still works)",
+      );
+    }
+
+    logger.writeHuman("");
+    logger.writeHuman(
+      "L3  Project contract — manifest / workspace / plugins (cwd)",
+    );
+    logger.writeHuman(
+      `  [${nodeOk ? "OK  " : "NEED"}] Node.js ${process.versions.node}${nodeOk ? "" : " (doctor requires 24.x)"}`,
+    );
     if (packages.length === 0) {
-      logger.writeHuman("  (skipped — not inside monorepo workspace)");
+      logger.writeHuman("  [INFO] workspace packages: (not inside monorepo)");
     } else {
       for (const pkg of packages) {
-        logger.writeHuman(`  ${pkg.name}: ${pkg.ok ? "ok" : "MISSING"}`);
+        logger.writeHuman(
+          `  [${pkg.ok ? "OK  " : "NEED"}] ${pkg.name}`,
+        );
       }
     }
     if (!manifest.present) {
-      logger.writeHuman("Manifest: (none)");
+      logger.writeHuman(
+        "  [INFO] manifest: (none — run from an rn init project for L3 contract checks)",
+      );
     } else if (manifest.schemaVersion !== undefined) {
       logger.writeHuman(
-        `Manifest: ${MANIFEST_FILENAME} schemaVersion=${manifest.schemaVersion}`,
+        `  [OK  ] ${MANIFEST_FILENAME} schemaVersion=${manifest.schemaVersion}`,
       );
       if (manifest.rnExactTuple) {
-        logger.writeHuman(`  rnExactTuple: ${manifest.rnExactTuple}`);
+        logger.writeHuman(`           rnExactTuple: ${manifest.rnExactTuple}`);
         logger.writeHuman(
-          `  expectations: New Arch only, Hermes V1 (RN ${RN_GREENFIELD_MAJOR_MINOR}.x train)`,
+          `           expectations: New Arch + Hermes V1 (RN ${RN_GREENFIELD_MAJOR_MINOR}.x)`,
         );
       }
       if (manifest.fingerprintDigest) {
-        logger.writeHuman(`  fingerprint digest: ${manifest.fingerprintDigest}`);
+        logger.writeHuman(
+          `           fingerprint: ${manifest.fingerprintDigest}`,
+        );
       }
     } else {
-      logger.writeHuman(`Manifest: ${MANIFEST_FILENAME} invalid`);
+      logger.writeHuman(`  [NEED] ${MANIFEST_FILENAME} invalid`);
       for (const err of manifest.errors ?? []) {
-        logger.writeHuman(`  ${err}`);
+        logger.writeHuman(`           ${err}`);
       }
     }
-    logger.writeHuman(
-      `Android SDK: ${android.sdk ? `ok (${android.sdkPath})` : "missing (warn)"}`,
-    );
-    logger.writeHuman(`adb: ${android.adb ? "ok" : "missing (warn)"}`);
-    if (process.platform === "darwin") {
-      logger.writeHuman(
-        `xcodebuild: ${xcodebuild === true ? "ok" : "missing (warn)"}`,
-      );
-    } else {
-      logger.writeHuman("iOS: skipped (non-darwin)");
-    }
-    if (warnings.length > 0) {
-      logger.writeHuman("Warnings:");
-      for (const w of warnings) {
-        logger.writeHuman(`  ${w}`);
-      }
-    }
-    logger.writeHuman("Plugins:");
     if (plugins.length === 0) {
-      logger.writeHuman("  (none)");
+      logger.writeHuman("  [INFO] plugins: (none)");
     } else {
       for (const plugin of plugins) {
         logger.writeHuman(
-          `  ${plugin.id}  ${plugin.kind}  apiVersion=${plugin.apiVersion}  ${plugin.packageName}`,
+          `  [OK  ] plugin ${plugin.id}  ${plugin.kind}  api=${plugin.apiVersion}  ${plugin.packageName}`,
         );
       }
     }
     logger.writeHuman(
-      "Autofix: not available (safe autofix TODO; unsafe autofix never).",
+      "  [INFO] autofix: not available (safe autofix TODO; unsafe never)",
     );
+
+    logger.writeHuman("");
+    logger.writeHuman(ok ? "doctor: PASS" : "doctor: FAIL");
   }
 
-  if (issues.length > 0) {
+  if (!ok) {
     throw new CliError(issues.join("\n"), EXIT_FAIL);
   }
 }

@@ -7,8 +7,10 @@
 | 动作 | 命令 |
 |------|------|
 | 一键安装 | `curl -fsSL https://raw.githubusercontent.com/client-platform-labs/rn/main/scripts/get-rn.sh \| bash` |
-| 安装前预检 | `curl -fsSL https://raw.githubusercontent.com/client-platform-labs/rn/main/scripts/get-rn.sh \| bash -s -- --preflight` |
-| 安装后预检 | `rn preflight` |
+| 安装前预检 | `curl …/get-rn.sh \| bash -s -- --preflight`（安装器侧，非 `rn` 子命令） |
+| 日更诊断 | `rn doctor`（主机 L0–L2 + 工程 L3） |
+| Android 主机工具链 | `rn host android`（`--check` / `--dry-run` / `--yes`） |
+| 样板 Demo | `rn init --demo` / `rn demo add` / `rn demo remove` |
 | 升级 | `rn self update` |
 | 卸载 | `rn self uninstall` |
 | 应急卸载（CLI 损坏时） | `curl -fsSL …/get-rn.sh \| bash -s -- --uninstall` |
@@ -25,6 +27,7 @@ CLIENT_PLATFORM_RN_REF=v0.1.0 curl -fsSL …/get-rn.sh | bash
 | 路径 | 用途 |
 |------|------|
 | `$CLIENT_PLATFORM_RN_HOME`（默认 `~/.client-platform/rn`） | 工具源码与 build 产物（git checkout） |
+| `$CLIENT_PLATFORM_RN_HOME/config.json` | 可选主机策略（如 `npm.policy` / `npm.registry`，见 [a1-greenfield.md](./a1-greenfield.md)） |
 | `~/.local/bin/rn`、`rn-delivery` | 用户 PATH 入口（symlink → HOME/packages/…/bin） |
 | `~/.config/client-platform/rn-env.sh` | PATH 片段 |
 | shell profile 中 `# client-platform-rn-cli` 标记段 | 持久 PATH |

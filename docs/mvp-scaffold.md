@@ -8,8 +8,8 @@ curl -fsSL https://raw.githubusercontent.com/client-platform-labs/rn/main/script
 
 | Command | Purpose |
 |---------|---------|
-| `… \| bash -s -- --preflight` | Install-time host checks |
-| `rn preflight` | Day-2 host checks |
+| `… \| bash -s -- --preflight` | Installer-time host checks (get-rn.sh) |
+| `rn doctor` | Day-2 unified diagnostics (host L0–L2 + project L3) |
 | `rn self update` | Upgrade managed install |
 | `rn self uninstall --yes` | Remove CLI + install home |
 

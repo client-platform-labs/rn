@@ -32,4 +32,4 @@ echo
 echo "Local checkout linked. Product users should prefer:"
 echo "  curl -fsSL https://raw.githubusercontent.com/client-platform-labs/rn/main/scripts/get-rn.sh | bash"
 echo
-echo "Try: rn preflight && mkdir /tmp/app && cd /tmp/app && rn init"
+echo "Try: rn doctor && mkdir /tmp/app && cd /tmp/app && rn init"

@@ -5,13 +5,16 @@ import { Command, CommanderError } from "commander";
 
 import { shouldLoadPluginCommands } from "./argv.js";
 import { runConfigValidate } from "./commands/config.js";
+import { runDemoAdd, runDemoRemove } from "./commands/demo.js";
+import { runDevSupportAdd, runDevSupportRemove } from "./commands/dev-support.js";
 import { runDev } from "./commands/dev.js";
 import { runDoctor } from "./commands/doctor.js";
+import { runHostAndroid } from "./commands/host-android.js";
 import { runInit } from "./commands/init.js";
 import { runPluginList } from "./commands/plugin.js";
-import { runPreflight } from "./commands/preflight.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
 import { CliError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./errors.js";
+import { parseDevTransportMode } from "./dev-transport.js";
 import {
   createLogger,
   peekArgvFlags,
@@ -46,15 +49,42 @@ export async function run(argv = process.argv): Promise<number> {
     .exitOverride();
 
   program
-    .command("preflight")
+    .command("doctor")
     .description(
-      "Host/toolchain preflight (Node, git, curl, pnpm, PATH, install home, optional SDKs) — no project required",
+      "Unified diagnostics: host L0–L2 (CLI / assisted packages / manual) + project L3 when present",
     )
-    .option("--strict", "treat missing native SDKs as failures")
-    .action((opts: { strict?: boolean }) => {
-      runPreflight({
+    .option(
+      "--strict",
+      "fail when L1 device-build packages (or Xcode on macOS) are missing",
+    )
+    .action(async (opts: { strict?: boolean }) => {
+      await runDoctor({
+        cwd: process.cwd(),
         logger: loggerFromArgv(argv),
         strict: Boolean(opts.strict),
+      });
+    });
+
+  const hostCmd = program
+    .command("host")
+    .description("Host toolchain setup (mutates machine; explicit consent)");
+  hostCmd
+    .command("android")
+    .description(
+      "Detect / install JDK 17 + Android SDK + adb (idempotent; wraps scripts/setup-host-android.sh)",
+    )
+    .option("--check", "detect only (exit 1 if not ready)")
+    .option("--dry-run", "print install plan without changes")
+    .option("--yes", "non-interactive install (required with --non-interactive)")
+    .action(async (opts: { check?: boolean; dryRun?: boolean; yes?: boolean }) => {
+      if (opts.check && opts.dryRun) {
+        throw new CliError("pass only one of --check or --dry-run", EXIT_USAGE);
+      }
+      const mode = opts.check ? "check" : opts.dryRun ? "dry-run" : "install";
+      await runHostAndroid({
+        logger: loggerFromArgv(argv),
+        mode,
+        yes: Boolean(opts.yes),
       });
     });
 
@@ -79,23 +109,6 @@ export async function run(argv = process.argv): Promise<number> {
     });
 
   program
-    .command("doctor")
-    .description(
-      "Greenfield checks: Node 24, workspace packages, manifest/tuple, Android SDK/adb (warn), xcodebuild on darwin (warn)",
-    )
-    .option(
-      "--strict",
-      "fail on missing native SDKs (default: warn so CI without SDK still passes)",
-    )
-    .action(async (opts: { strict?: boolean }) => {
-      await runDoctor({
-        cwd: process.cwd(),
-        logger: loggerFromArgv(argv),
-        strict: Boolean(opts.strict),
-      });
-    });
-
-  program
     .command("init")
     .description(
       "Orchestrate React Native 0.87 Community CLI init + overlay platform manifest (non-interactive)",
@@ -105,33 +118,170 @@ export async function run(argv = process.argv): Promise<number> {
       "empty target directory (default: cwd). Prefer running via monorepo bin: pnpm exec rn init /path/to/app",
     )
     .option("--dry-run", "print the orchestration plan without creating files")
-    .action(async (directory: string | undefined, opts: { dryRun?: boolean }) => {
-      const cwd = directory ? path.resolve(directory) : process.cwd();
-      await runInit({
-        cwd,
-        dryRun: Boolean(opts.dryRun),
+    .option(
+      "--npm-policy <policy>",
+      'how init runs npx/npm: "inherit" (default, use ~/.npmrc) or "isolated"',
+    )
+    .option(
+      "--isolated-npmrc",
+      "shorthand for --npm-policy isolated (CI / ignore noisy global npm configs)",
+    )
+    .option(
+      "--npm-registry <url>",
+      "force npm registry for Community CLI (also CLIENT_PLATFORM_NPM_REGISTRY)",
+    )
+    .option("--demo", "after init, implant the sample demo (rn demo add)")
+    .action(
+      async (
+        directory: string | undefined,
+        opts: {
+          dryRun?: boolean;
+          npmPolicy?: string;
+          isolatedNpmrc?: boolean;
+          npmRegistry?: string;
+          demo?: boolean;
+        },
+      ) => {
+        const cwd = directory ? path.resolve(directory) : process.cwd();
+        await runInit({
+          cwd,
+          dryRun: Boolean(opts.dryRun),
+          logger: loggerFromArgv(argv),
+          npmPolicy: opts.npmPolicy,
+          isolatedNpmrc: Boolean(opts.isolatedNpmrc),
+          npmRegistry: opts.npmRegistry,
+          demo: Boolean(opts.demo),
+        });
+      },
+    );
+
+  const demoCmd = program
+    .command("demo")
+    .description("Sample demo implant (pure-rn teaching scaffold)");
+  demoCmd
+    .command("add")
+    .description("Add src/sample/ work-order demo + wire App entry")
+    .option("--dry-run", "print plan without changes")
+    .action(async (opts: { dryRun?: boolean }) => {
+      await runDemoAdd({
+        cwd: process.cwd(),
         logger: loggerFromArgv(argv),
+        dryRun: Boolean(opts.dryRun),
+      });
+    });
+  demoCmd
+    .command("remove")
+    .description("Remove sample demo and restore upstream Hello entry")
+    .option("--dry-run", "print plan without changes")
+    .action(async (opts: { dryRun?: boolean }) => {
+      await runDemoRemove({
+        cwd: process.cwd(),
+        logger: loggerFromArgv(argv),
+        dryRun: Boolean(opts.dryRun),
+      });
+    });
+
+  const devSupportCmd = program
+    .command("dev-support")
+    .description("Debug affordance (FAB → RN Dev Menu); independent of sample demo");
+  devSupportCmd
+    .command("add")
+    .description("Wrap App entry with DevSupportRoot (debug builds only)")
+    .option("--dry-run", "print plan without changes")
+    .action(async (opts: { dryRun?: boolean }) => {
+      await runDevSupportAdd({
+        cwd: process.cwd(),
+        logger: loggerFromArgv(argv),
+        dryRun: Boolean(opts.dryRun),
+      });
+    });
+  devSupportCmd
+    .command("remove")
+    .description("Restore App entry and remove dev-support module")
+    .option("--dry-run", "print plan without changes")
+    .action(async (opts: { dryRun?: boolean }) => {
+      await runDevSupportRemove({
+        cwd: process.cwd(),
+        logger: loggerFromArgv(argv),
+        dryRun: Boolean(opts.dryRun),
       });
     });
 
   program
     .command("dev")
     .description(
-      "Start Metro for the project (upstream). Optional --android / --ios call run-* when tools exist.",
+      "Dev server & platform attach. `rn dev --android` starts Metro, installs, then keeps Metro running (Ctrl+C to stop).",
     )
-    .option("--android", "run upstream react-native run-android (requires adb)")
-    .option("--ios", "run upstream react-native run-ios (darwin + Xcode)")
-    .action(async (opts: { android?: boolean; ios?: boolean }) => {
-      if (opts.android && opts.ios) {
-        throw new CliError("pass only one of --android or --ios", EXIT_USAGE);
-      }
-      await runDev({
-        cwd: process.cwd(),
-        logger: loggerFromArgv(argv),
-        android: Boolean(opts.android),
-        ios: Boolean(opts.ios),
-      });
-    });
+    .option("--android", "build & install on Android (Metro orchestrated)")
+    .option("--ios", "build & install on iOS (darwin + Xcode; Metro orchestrated)")
+    .option("--metro-only", "Metro foreground only (same as bare `rn dev`)")
+    .option(
+      "--no-metro",
+      "with --android/--ios: fail if Metro is not already running (do not start)",
+    )
+    .option(
+      "--stop-metro",
+      "with --android/--ios: stop Metro after install (only if this command started it)",
+    )
+    .option(
+      "--detach-metro",
+      "with --android/--ios: leave Metro in background and exit CLI after install",
+    )
+    .option(
+      "--transport <mode>",
+      "Android DevTransport: auto|usb|wifi|lan (default: auto)",
+    )
+    .option("--device <serial>", "Android adb device serial or host:port")
+    .option(
+      "--no-active-arch-only",
+      "Android: build all ABIs from gradle.properties (slower; default is single-ABI when one device)",
+    )
+    .action(
+      async (opts: {
+        android?: boolean;
+        ios?: boolean;
+        metroOnly?: boolean;
+        noMetro?: boolean;
+        stopMetro?: boolean;
+        detachMetro?: boolean;
+        transport?: string;
+        device?: string;
+        noActiveArchOnly?: boolean;
+      }) => {
+        const platformFlags = [opts.android, opts.ios, opts.metroOnly].filter(Boolean);
+        if (platformFlags.length > 1) {
+          throw new CliError(
+            "pass only one of --android, --ios, or --metro-only",
+            EXIT_USAGE,
+          );
+        }
+        if (
+          (opts.noMetro || opts.stopMetro || opts.detachMetro) &&
+          !opts.android &&
+          !opts.ios
+        ) {
+          throw new CliError(
+            "--no-metro, --stop-metro, and --detach-metro require --android or --ios",
+            EXIT_USAGE,
+          );
+        }
+        await runDev({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          android: Boolean(opts.android),
+          ios: Boolean(opts.ios),
+          metroOnly: Boolean(opts.metroOnly),
+          noMetro: Boolean(opts.noMetro),
+          stopMetro: Boolean(opts.stopMetro),
+          detachMetro: Boolean(opts.detachMetro),
+          transport: opts.transport
+            ? parseDevTransportMode(opts.transport)
+            : undefined,
+          device: opts.device,
+          activeArchOnly: opts.noActiveArchOnly ? false : undefined,
+        });
+      },
+    );
 
   const plugin = program.command("plugin").description("Plugin discovery");
   plugin

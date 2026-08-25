@@ -15,9 +15,17 @@ import {
   RN_GREENFIELD_INIT_VERSION,
   RN_GREENFIELD_MAJOR_MINOR,
 } from "@client-platform/rn-core";
-import { CliError, EXIT_FAIL } from "../errors.js";
+import { CliError, EXIT_FAIL, EXIT_USAGE } from "../errors.js";
 import type { CliLogger } from "../logger.js";
+import {
+  buildNpmChildEnv,
+  countNpmConfigKeys,
+  formatNpmPolicyLine,
+  parseNpmPolicyKind,
+  resolveNpmPolicy,
+} from "../npm-policy.js";
 import { resolveNpx, runStreaming } from "../process.js";
+import { runDemoAdd } from "./demo.js";
 
 const COMMUNITY_CLI = "@react-native-community/cli@latest";
 
@@ -127,12 +135,38 @@ export async function runInit(options: {
   cwd: string;
   dryRun: boolean;
   logger: CliLogger;
+  npmPolicy?: string;
+  isolatedNpmrc?: boolean;
+  npmRegistry?: string;
+  demo?: boolean;
 }): Promise<void> {
+  if (options.isolatedNpmrc && options.npmPolicy) {
+    const parsed = parseNpmPolicyKind(options.npmPolicy);
+    if (parsed && parsed !== "isolated") {
+      throw new CliError(
+        "pass only one of --isolated-npmrc or --npm-policy <isolated|inherit>",
+        EXIT_USAGE,
+      );
+    }
+  }
+  if (options.npmPolicy && !parseNpmPolicyKind(options.npmPolicy)) {
+    throw new CliError(
+      `--npm-policy must be "isolated" or "inherit" (got ${JSON.stringify(options.npmPolicy)})`,
+      EXIT_USAGE,
+    );
+  }
+
   const cwd = path.resolve(options.cwd);
   const appName = sanitizeAppName(cwd);
   const npx = resolveNpx();
   const cliArgs = communityCliArgs(appName);
   const rnExactTuplePreview = buildRnExactTuple(RN_GREENFIELD_INIT_VERSION);
+  const npm = resolveNpmPolicy({
+    flagPolicy: options.npmPolicy,
+    isolatedNpmrc: options.isolatedNpmrc,
+    flagRegistry: options.npmRegistry,
+  });
+  const npmConfigKeyCount = countNpmConfigKeys();
 
   const plan = {
     dryRun: options.dryRun,
@@ -142,13 +176,21 @@ export async function runInit(options: {
     orchestrate: `${npx} ${cliArgs.join(" ")}`,
     hoist: `move ${appName}/* → cwd`,
     overlay: [MANIFEST_FILENAME],
+    demo: options.demo ? "rn demo add" : null,
     expects: ["package.json", "ios/", "android/"],
     rnExactTuple: rnExactTuplePreview,
+    npmPolicy: npm.policy,
+    npmPolicySource: npm.policySource,
+    npmRegistry: npm.registry ?? null,
+    npmRegistrySource: npm.registrySource,
     notes: [
       "Hermes V1 + New Architecture are defaults on RN 0.87.x (no legacy arch).",
       "HarmonyOS is contract-reserved; A1 template targets ios+android only.",
       "Pods are skipped at init; run pod install on darwin before iOS device runs.",
       "Community CLI cannot init into cwd via absolute --directory; we stage then hoist.",
+      npm.policy === "inherit"
+        ? "npm policy=inherit uses your ~/.npmrc / npm_config_* (mainstream). Use --isolated-npmrc for CI/clean public fetch."
+        : "npm policy=isolated ignores ~/.npmrc; forces a clean registry (CI / noisy global npm configs).",
     ],
   };
 
@@ -167,7 +209,16 @@ export async function runInit(options: {
     options.logger.writeHuman(`  orchestrate: ${plan.orchestrate}`);
     options.logger.writeHuman(`  hoist: ${plan.hoist}`);
     options.logger.writeHuman(`  overlay: ${MANIFEST_FILENAME}`);
+    if (options.demo) {
+      options.logger.writeHuman("  demo: rn demo add (after init)");
+    }
     options.logger.writeHuman(`  rnExactTuple (preview): ${rnExactTuplePreview}`);
+    options.logger.writeHuman(`  ${formatNpmPolicyLine(npm)}`);
+    if (npm.policy === "isolated" && npmConfigKeyCount > 0) {
+      options.logger.writeHuman(
+        `  note: isolation will drop ${npmConfigKeyCount} npm_config_* env key(s) from this shell`,
+      );
+    }
     for (const note of plan.notes) {
       options.logger.writeHuman(`  note: ${note}`);
     }
@@ -185,12 +236,11 @@ export async function runInit(options: {
   options.logger.info(
     `Running Community CLI init for React Native ${RN_GREENFIELD_INIT_VERSION}…`,
   );
+  const child = buildNpmChildEnv(npm, { CI: "1" });
   const code = await runStreaming(npx, cliArgs, {
     cwd,
-    env: {
-      CI: "1",
-      npm_config_yes: "true",
-    },
+    replaceEnv: child.replaceEnv,
+    env: child.env,
   });
   if (code !== 0) {
     throw new CliError(
@@ -216,16 +266,25 @@ export async function runInit(options: {
   if (options.logger.json) {
     options.logger.writeMachine({
       ok: true,
+      projectRoot: cwd,
       rnVersion,
       rnExactTuple: tuple,
       manifest: MANIFEST_FILENAME,
     });
   } else {
+    options.logger.writeHuman(`Project root: ${cwd}`);
     options.logger.writeHuman(
-      `Wrote ${MANIFEST_FILENAME} (rnExactTuple=${tuple})`,
+      `Wrote ${path.join(cwd, MANIFEST_FILENAME)} (rnExactTuple=${tuple})`,
     );
     options.logger.writeHuman(
-      "Next: rn doctor → rn dev → rn-delivery build (requires Android SDK / Xcode for native packages).",
+      "Next: rn doctor → rn dev → rn-delivery build --platform android",
     );
+    options.logger.writeHuman(
+      "Android device testing needs ANDROID_HOME + adb (platform-tools). iOS needs Xcode + pod install.",
+    );
+  }
+
+  if (options.demo) {
+    await runDemoAdd({ cwd, logger: options.logger });
   }
 }

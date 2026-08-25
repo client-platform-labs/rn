@@ -1,10 +1,12 @@
 const CORE_ROOT_COMMANDS = new Set([
   "doctor",
+  "demo",
+  "dev-support",
+  "host",
   "init",
   "dev",
   "plugin",
   "config",
-  "preflight",
   "self",
 ]);
 

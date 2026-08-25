@@ -24,7 +24,7 @@ mkdir my-app && cd my-app
 rn init
 ```
 
-Lifecycle: `rn preflight` · `rn self update` · `rn self uninstall --yes`  
+Lifecycle: `rn doctor` · `rn self update` · `rn self uninstall --yes`  
 Details: [docs/cli-distribution.md](./docs/cli-distribution.md) · [docs/a1-greenfield.md](./docs/a1-greenfield.md)
 
 ## Documents
