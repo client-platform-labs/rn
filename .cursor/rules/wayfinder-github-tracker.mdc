@@ -1,0 +1,17 @@
+---
+description: Wayfinder and tickets use GitHub Issues as the authoritative tracker
+globs:
+alwaysApply: true
+---
+
+# Issue tracker = GitHub
+
+This repo's issue tracker is **GitHub Issues** (`docs/agents/issue-tracker.md`).
+
+When running `/wayfinder`, `/to-tickets`, `/triage`, or creating map/decision tickets:
+
+- Create and update issues with `gh issue …`
+- Map issues: label `wayfinder:map`
+- Tickets: label `wayfinder:research` | `wayfinder:prototype` | `wayfinder:grilling` | `wayfinder:task`
+- Do **not** open a new live ticket only as `wayfinding*/issues/*.md`
+- Markdown under `wayfinding*/` may mirror content (`GitHub: #N`) but status/claim/close go through GitHub

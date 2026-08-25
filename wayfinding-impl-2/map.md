@@ -1,5 +1,8 @@
 # RN 交付平台 · 实施地图 2（企业闭环 · 地图 A）
 
+GitHub: #18 (`wayfinder:map`)
+
+
 ## Destination
 
 在已结 CLI/合同 MVP 之上，按蓝图多平面与 **P1–P17** 推进**可企业推广**实现。本图（地图 A）交付六切片并真机可验证：Greenfield + Brownfield 一等路径；Delivery 至候选包；Control Plane 合同可演示（含分岔回滚）；客户端兜底与质量信号总线接口。Harmony 合同一等，真机可挂地图 B。
@@ -17,12 +20,12 @@
 | 阶段 | 含义 | 地图 A 现状 |
 |------|------|-------------|
 | **to-specs** | 合同/ADR/研究可签核 | **大部分已有**：蓝图五卷、research/01–04、ADR-001–006、Goals G0–G3 |
-| **to-tickets** | 可执行票已拆进 `issues/` | **已拆**：01–16；**已同步** [GitHub Issues](https://github.com/client-platform-labs/rn/issues)（权威仍是 Markdown；GH 镜像） |
+| **to-tickets** | 可执行票 | **权威 = GitHub Issues**（[`docs/agents/issue-tracker.md`](../docs/agents/issue-tracker.md)）；地图父票 [#18](https://github.com/client-platform-labs/rn/issues/18)；本地 `issues/*.md` 仅为历史/可选镜像 |
 | **实现 / 验收** | 代码 + 真机 DoD | **部分**：身份模块 + A1 基线 CLI + DevTransport 已在 main |
 
 ### 进度板（2026-08-25）
 
-面板：[Open](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aopen) · [Closed](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aclosed)（票 ID ≠ GH 号时以标题 `[map-a/ID]` 为准；如 13b→#14）
+面板：[Map #18](https://github.com/client-platform-labs/rn/issues/18) · [Open](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aopen) · [Closed](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aclosed)（票 ID ≠ GH 号时以标题 `[map-a/ID]` 为准；如 13b→#14）
 
 | ID | GH | 标题 | 阶段 | Status | 实现粗估 |
 |----|-----|------|------|--------|----------|
