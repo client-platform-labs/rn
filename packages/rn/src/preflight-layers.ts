@@ -13,6 +13,7 @@ import path from "node:path";
 
 import { iosHostCheckItems, probeAndroidHost, type AndroidHostProbe } from "./host-env.js";
 import type { MetroBridgeProbe } from "./android-dev-bridge.js";
+import { buildLanBundlerUrl, isWifiAdbSerial } from "./dev-transport.js";
 import { defaultInstallHome, localBinDir } from "./install-home.js";
 import { commandExists } from "./process.js";
 
@@ -64,6 +65,168 @@ export function androidAssistedInstallLines(): string[] {
     "rn host android --yes",
     "rn doctor --strict",
   ];
+}
+
+/**
+ * L2 Dev Session probes (ticket 13): transport reachability, Metro, reverse/LAN URL.
+ * Pure + injectable — no subprocess beyond what the caller already probed.
+ */
+export function collectDevSessionFindings(options: {
+  bridge: MetroBridgeProbe;
+  lanBundlerUrl?: string;
+}): PreflightFinding[] {
+  const { bridge } = options;
+  const findings: PreflightFinding[] = [];
+  const lanUrl =
+    options.lanBundlerUrl ?? buildLanBundlerUrl(bridge.metroPort);
+  const usbDevices = bridge.authorizedDevices.filter(
+    (d) => !isWifiAdbSerial(d.serial),
+  );
+  const wifiDevices = bridge.authorizedDevices.filter((d) =>
+    isWifiAdbSerial(d.serial),
+  );
+  const modes: string[] = [];
+  if (usbDevices.length > 0) {
+    modes.push("usb");
+  }
+  if (wifiDevices.length > 0) {
+    modes.push("wifi-adb");
+  }
+  // LAN is always a reachable *option* when Metro can bind on the host LAN IP
+  modes.push("lan");
+
+  // ——— transport reachability ———
+  if (bridge.unauthorizedCount > 0 && bridge.authorizedDevices.length === 0) {
+    findings.push({
+      id: "dev-session-transport",
+      plane: "manual",
+      status: "missing",
+      summary: `${bridge.unauthorizedCount} adb device(s) unauthorized (usb/wifi-adb blocked)`,
+      remediation: {
+        kind: "manual",
+        title: "Authorize debugging on the phone",
+        lines: [
+          "Unlock phone → accept “Allow USB debugging?” / wireless debug pair",
+          "Or: Developer options → Revoke USB debugging authorizations, replug / re-pair",
+          "adb devices   # should show “device”, not “unauthorized”",
+          `LAN fallback: rn dev --android --transport lan  # bundler ${lanUrl}`,
+        ],
+      },
+    });
+  } else if (bridge.authorizedDevices.length === 0) {
+    findings.push({
+      id: "dev-session-transport",
+      plane: "manual",
+      status: "info",
+      summary: `No authorized adb device (modes available: lan only → ${lanUrl})`,
+      remediation: {
+        kind: "manual",
+        title: "Connect a device or use LAN transport",
+        lines: [
+          "adb devices",
+          "USB: enable USB debugging and trust this computer",
+          "Wi‑Fi adb: adb connect <ip>:5555 then rn dev --android --transport wifi",
+          `LAN: rn dev --android --transport lan  # device Dev Menu → ${lanUrl}`,
+        ],
+      },
+    });
+  } else {
+    const parts: string[] = [];
+    if (usbDevices.length > 0) {
+      parts.push(`usb×${usbDevices.length}`);
+    }
+    if (wifiDevices.length > 0) {
+      parts.push(
+        `wifi-adb×${wifiDevices.length} (${wifiDevices.map((d) => d.serial).join(", ")})`,
+      );
+    }
+    findings.push({
+      id: "dev-session-transport",
+      plane: "manual",
+      status: "ok",
+      summary: `Transport reachable: ${parts.join(", ")}; lan option ${lanUrl}`,
+    });
+  }
+
+  // ——— Metro ———
+  if (bridge.metroRunning) {
+    findings.push({
+      id: "dev-session-metro",
+      plane: "manual",
+      status: "ok",
+      summary: `Metro responding on :${bridge.metroPort}`,
+    });
+  } else {
+    findings.push({
+      id: "dev-session-metro",
+      plane: "manual",
+      status: "info",
+      summary: `Metro not running on :${bridge.metroPort}`,
+      remediation: {
+        kind: "command",
+        title: "Start Metro",
+        lines: ["rn dev --android", "rn dev  # Metro foreground only"],
+      },
+    });
+  }
+
+  // ——— reverse / LAN URL ———
+  if (bridge.authorizedDevices.length === 0) {
+    findings.push({
+      id: "dev-session-bridge",
+      plane: "manual",
+      status: "info",
+      summary: `Bridge idle — LAN bundler URL: ${lanUrl}`,
+      remediation: {
+        kind: "manual",
+        title: "When a device is connected",
+        lines: [
+          `usb/wifi-adb: rn dev --android  # adb reverse tcp:${bridge.metroPort}`,
+          `lan: set Dev Menu bundle location to ${lanUrl}`,
+        ],
+      },
+    });
+  } else if (bridge.reverseConfigured) {
+    findings.push({
+      id: "dev-session-bridge",
+      plane: "manual",
+      status: bridge.metroRunning ? "ok" : "info",
+      summary: bridge.metroRunning
+        ? `Dev session ready (reverse :${bridge.metroPort}; LAN alt ${lanUrl})`
+        : `adb reverse :${bridge.metroPort} ok; Metro not up yet (LAN alt ${lanUrl})`,
+    });
+  } else {
+    findings.push({
+      id: "dev-session-bridge",
+      plane: "manual",
+      status: "degraded",
+      summary: `Device connected but Metro port :${bridge.metroPort} not reversed`,
+      remediation: {
+        kind: "command",
+        title: "Configure DevTransport bridge",
+        lines: [
+          "rn dev --android   # auto reverse for usb/wifi-adb",
+          `adb reverse tcp:${bridge.metroPort} tcp:${bridge.metroPort}`,
+          `Or LAN: --transport lan → ${lanUrl}`,
+        ],
+      },
+    });
+  }
+
+  // Keep a compact summary id for jq filters that still look for android-bridge
+  const worst = findings.reduce<PreflightStatus>((acc, f) => {
+    const rank = { missing: 0, degraded: 1, info: 2, ok: 3 } as const;
+    return rank[f.status] < rank[acc] ? f.status : acc;
+  }, "ok");
+  const transport = findings.find((f) => f.id === "dev-session-transport");
+  findings.push({
+    id: "android-bridge",
+    plane: "manual",
+    status: worst,
+    summary: `Dev session (${modes.join("|")}): ${transport?.summary ?? "probed"}`,
+  });
+
+  return findings;
 }
 
 export function collectPreflightFindings(options: {
@@ -346,75 +509,8 @@ export function collectPreflightFindings(options: {
     },
   });
 
-  const bridge = options.bridge;
-  if (bridge?.adbAvailable) {
-    if (bridge.unauthorizedCount > 0) {
-      findings.push({
-        id: "android-bridge",
-        plane: "manual",
-        status: "missing",
-        summary: `${bridge.unauthorizedCount} adb device(s) unauthorized`,
-        remediation: {
-          kind: "manual",
-          title: "Authorize USB debugging on the phone",
-          lines: [
-            "Unlock phone → accept “Allow USB debugging?”",
-            "Or: Developer options → Revoke USB debugging authorizations, replug USB",
-            "adb devices   # should show “device”, not “unauthorized”",
-          ],
-        },
-      });
-    } else if (bridge.authorizedDevices.length === 0) {
-      findings.push({
-        id: "android-bridge",
-        plane: "manual",
-        status: "info",
-        summary: "No adb device connected (runtime)",
-        remediation: {
-          kind: "manual",
-          title: "Connect phone or start emulator before rn dev --android",
-          lines: [
-            "adb devices",
-            "rn dev --android   # installs APK + configures USB Metro bridge",
-          ],
-        },
-      });
-    } else if (!bridge.reverseConfigured) {
-      findings.push({
-        id: "android-bridge",
-        plane: "manual",
-        status: "degraded",
-        summary: `USB device connected but Metro port :${bridge.metroPort} not reversed`,
-        remediation: {
-          kind: "command",
-          title: "Configure dev bridge (automatic with rn dev)",
-          lines: [
-            "rn dev --android   # starts Metro in-process if needed",
-            "rn dev   # Metro foreground; then rn dev --android --no-metro",
-            `adb reverse tcp:${bridge.metroPort} tcp:${bridge.metroPort}`,
-          ],
-        },
-      });
-    } else if (!bridge.metroRunning) {
-      findings.push({
-        id: "android-bridge",
-        plane: "manual",
-        status: "info",
-        summary: `USB bridge ready; Metro not running on :${bridge.metroPort}`,
-        remediation: {
-          kind: "command",
-          title: "Start Metro",
-          lines: ["rn dev --android", "rn dev  # Metro foreground only"],
-        },
-      });
-    } else {
-      findings.push({
-        id: "android-bridge",
-        plane: "manual",
-        status: "ok",
-        summary: `Dev session ready (${bridge.authorizedDevices.length} device, Metro :${bridge.metroPort})`,
-      });
-    }
+  if (options.bridge?.adbAvailable) {
+    findings.push(...collectDevSessionFindings({ bridge: options.bridge }));
   }
 
   for (const row of iosHostCheckItems({ strict: false })) {
@@ -466,7 +562,7 @@ export function planeLabel(plane: PreflightPlane): string {
     case "assisted":
       return "L1  Assisted packages — copy/paste install (Homebrew / sdkmanager; not silent)";
     case "manual":
-      return "L2  Manual / human-gated — licenses, USB trust, Xcode first-run, Studio GUI";
+      return "L2  Manual / human-gated — licenses, USB trust, Dev Session (transport/Metro/bridge), Xcode";
   }
 }
 

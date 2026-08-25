@@ -11,11 +11,16 @@ export {
 export type {
   ArtifactKind,
   ComputedFingerprint,
+  GateJsCandidateResult,
+  HostSelectorContext,
   IdentitySpine,
   JsArtifactMatrix,
+  JsReleaseGate,
+  JsUpdateCandidate,
   LoadManifestResult,
   Logger,
   ManifestValidationResult,
+  ModuleSlots,
   NewArchFlags,
   PluginKind,
   PluginRecord,
@@ -23,8 +28,12 @@ export type {
   ProjectManifest,
   RuntimeFingerprint,
   RuntimeFingerprintRequired,
+  SelectFallbackSlotResult,
+  SelectorBlockReason,
+  SkippedSlot,
   SupportWindowValidationResult,
   TargetOs,
+  UpdateSlotKind,
 } from "./types.js";
 
 export { discoverPlugins } from "./discover.js";
@@ -57,9 +66,39 @@ export {
 export type { RenderManifestOptions } from "./manifest.js";
 
 export {
+  jsSelectorHostSchema,
+  jsUpdateCandidateSchema,
+  moduleSlotsSchema,
   projectManifestSchema,
   runtimeFingerprintSchema,
 } from "./schema.js";
+
+export {
+  capabilitiesSatisfied,
+  FALLBACK_SLOT_ORDER,
+  gateJsCandidate,
+  selectFallbackSlot,
+} from "./selector.js";
+export type { SelectFallbackSlotOptions } from "./selector.js";
+
+export {
+  assertModulesIsolated,
+  DEFAULT_MAIN_METRO_PORT,
+  DEFAULT_MAIN_MODULE_ID,
+  DEV_SESSION_SCHEMA_VERSION,
+  defaultDualModuleDevSession,
+  defaultModulePort,
+  resolveEnv,
+} from "./env.js";
+export type {
+  DevSessionConfig,
+  EnvDimensions,
+  EnvProfile,
+  EnvResolveLayer,
+  ModuleDevBinding,
+  ResolveEnvInput,
+  ResolvedEnv,
+} from "./env.js";
 
 export {
   findWorkspaceRoot,

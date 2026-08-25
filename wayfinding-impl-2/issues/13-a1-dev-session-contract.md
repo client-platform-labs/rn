@@ -2,7 +2,7 @@
 
 Type: task
 Mode: AFK
-Status: **in-progress** — W1 AFK：DevTransport + fail-fast + 单 ABI 已落地
+Status: **resolved** — 2026-08-25 HITL：fail-fast 222ms + USB/Wi‑Fi/LAN PASS
 GitHub: #13
 Triage: ready-for-agent
 Blocked by: none（票 12 研究 sufficient）
@@ -57,8 +57,25 @@ Related: [04-a1-greenfield-device](./04-a1-greenfield-device.md), [packages/rn/s
 - [x] `--transport auto|usb|wifi|lan`、`--device`、`--no-active-arch-only`
 - [x] 单设备默认 `--active-arch-only` + `reactNativeArchitectures` 探测
 - [x] 分阶段 UX（device gate / Metro / cold|warm native / session）
-- [ ] 真机验收：USB / Wi‑Fi / LAN 三模（用户环境）
-- [ ] `dev.failfast.no_device` ≤3s 实测（`scripts/bench-dev-session.sh`）
+- [x] `rn doctor` L2：dev-session 探测（传输可达、Metro、reverse/LAN URL）+ 单测
+- [x] `scripts/bench-dev-session.sh` 硬化（ms 精度、Gradle 哨兵、budget PASS/FAIL → `dev.failfast.no_device`）
+- [x] 真机验收：**USB**（2026-08-25 my-rn-app：gate→单 ABI→reverse→warm ~7s→install Success）
+- [x] 真机验收：Wi‑Fi adb（2026-08-25：`192.168.2.10:5555`，warm ~1s → install Success）
+- [x] 真机验收：LAN（2026-08-25：`http://192.168.2.2:8081`，reverse skipped → install Success）
+- [x] `dev.failfast.no_device` ≤3s 实测（2026-08-25：**222ms**，`docs/bench/dev-session-no-device-20260825T074843Z.log`）
+
+
+## Scope boundary（收口后补记）
+
+本票 **只验收 Greenfield · L-N**（壳/传输/装包连调）。**不**包含：
+
+| 层 | 缺口 | 跟踪 |
+|----|------|------|
+| L-J | 多 module / 多 Metro / 业务 JS 热更环 | #17 |
+| L-C | API 基址 / 开关 / 租户 env overlay 连调 | #17 `dev-session` ABI 或后续深化票 |
+| BF | 棕地同协议 DevSession | #5 + #17 BF |
+| L-O / L-P | OTA 槽位 / 发布态复现 | #8 / #7 |
+| 业务场景 | 真实多业务 module 日更工作流 | A1+A2 DoD 联合 |
 
 ## 辐射面
 
@@ -68,3 +85,14 @@ Related: [04-a1-greenfield-device](./04-a1-greenfield-device.md), [packages/rn/s
 | **A3 Delivery** | debug vs release 构建 profile 分离；dev 不污染候选包指纹 |
 | **A5 Fallback** | dev session 与 runtime fingerprint 边界清晰 |
 | **issue 07 L1** | 能力包 dev 探测与 Dev Menu 注册口 |
+
+
+## Answer
+
+（2026-08-25）Dev Session 合同在 greenfield Android 路径验收通过：
+
+1. DevTransport：`usb` | `wifi-adb` | `lan` + fail-fast 设备门禁（Gradle 前）
+2. 单 ABI / 分阶段 UX / doctor L2 / bench 脚本
+3. 真机：USB、Wi‑Fi adb（`192.168.2.10:5555`）、LAN bundler URL；fail-fast **222ms**
+4. 非本票：Debug Host → #14；多 Metro → #17；`deviceId` 上游警告另跟
+

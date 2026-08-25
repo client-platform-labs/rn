@@ -1,0 +1,144 @@
+/**
+ * JSON Schema 2020-12 for CandidateMetadata (Ajv-ready).
+ * Mirror: schemas/candidate-metadata.schema.json
+ */
+export const candidateMetadataSchema = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://client-platform.local/rn/candidate-metadata.schema.json",
+  title: "CandidateMetadata",
+  type: "object",
+  required: [
+    "schemaVersion",
+    "release_id",
+    "artifact_kind",
+    "platform",
+    "profile",
+    "digest",
+    "stage",
+  ],
+  additionalProperties: false,
+  properties: {
+    schemaVersion: { const: 1 },
+    release_id: { type: "string", minLength: 1 },
+    artifact_kind: {
+      type: "string",
+      enum: ["app-host", "rn-module", "js-update"],
+    },
+    artifact_line: { type: "string", minLength: 1 },
+    platform: {
+      type: "string",
+      enum: ["android", "ios", "harmonyos", "js"],
+    },
+    profile: {
+      type: "string",
+      enum: ["debug-host", "release"],
+      description:
+        "debug-host vs release tracks reserved; promote only on release",
+    },
+    business_module: {
+      type: "string",
+      minLength: 1,
+      description: "Required for js-update (one shell, many bundles)",
+    },
+    update_id: { type: "string", minLength: 1 },
+    channel: { type: "string", minLength: 1 },
+    configuration: { type: "string" },
+    path: { type: ["string", "null"] },
+    digest: {
+      type: "string",
+      description: "sha256 hex of artifact bytes, or pending* until sealed",
+    },
+    runtime_fingerprint_digest: {
+      type: "string",
+      pattern: "^[a-f0-9]{64}$",
+    },
+    stage: {
+      type: "string",
+      enum: [
+        "validate",
+        "compile",
+        "sign",
+        "test",
+        "attest",
+        "promote",
+        "submit",
+      ],
+    },
+    supply_chain: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        host: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            sbom: { $ref: "#/$defs/sbomEvidence" },
+            attest: { $ref: "#/$defs/attestEvidence" },
+          },
+        },
+        js_update: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            sbom: { $ref: "#/$defs/sbomEvidence" },
+            attest: { $ref: "#/$defs/attestEvidence" },
+          },
+        },
+      },
+    },
+  },
+  $defs: {
+    sbomEvidence: {
+      type: "object",
+      required: ["artifact_kind", "format"],
+      additionalProperties: false,
+      properties: {
+        artifact_kind: {
+          type: "string",
+          enum: ["app-host", "rn-module", "js-update"],
+        },
+        format: {
+          type: "string",
+          enum: ["cyclonedx-json", "spdx-json", "stub"],
+        },
+        digest: { type: "string" },
+        uri: { type: "string" },
+      },
+    },
+    attestEvidence: {
+      type: "object",
+      required: ["artifact_kind", "predicate_type"],
+      additionalProperties: false,
+      properties: {
+        artifact_kind: {
+          type: "string",
+          enum: ["app-host", "rn-module", "js-update"],
+        },
+        predicate_type: { type: "string", minLength: 1 },
+        digest: { type: "string" },
+        uri: { type: "string" },
+      },
+    },
+  },
+} as const;
+
+export const deliveryStagesSchema = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://client-platform.local/rn/delivery-stages.schema.json",
+  title: "DeliveryStages",
+  type: "array",
+  minItems: 7,
+  maxItems: 7,
+  items: {
+    type: "string",
+    enum: [
+      "validate",
+      "compile",
+      "sign",
+      "test",
+      "attest",
+      "promote",
+      "submit",
+    ],
+  },
+} as const;

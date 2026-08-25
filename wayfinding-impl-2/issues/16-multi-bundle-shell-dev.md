@@ -2,17 +2,71 @@
 
 Type: task / product
 Mode: HITL → AFK
-Status: open
+Status: **in-progress** — HITL 合同已收口；GF AFK 切片 1 落地中
 GitHub: #17
-Triage: ready-for-human
-Blocked by: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md)
+Triage: ready-for-agent
+Blocked by: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md)（**resolved** · 仅 GF·L-N）
 Priority: **P1**
 Map: **wayfinding-impl-2（地图 A）only** — 融入 [A1](./04-a1-greenfield-device.md) + [A2](./05-a2-brownfield.md)；字段辐射 [A4](./07-a4-control-plane.md) / [A5](./08-a5-client-fallback.md)
 Related: [ADR-005](../docs/adr/005-multi-bundle-shell.md), [ADR-006](../docs/adr/006-unified-multi-metro-debug.md), [map Goals G1](../map.md)
 
+## Answer（HITL 2026-08-25 · Q1=A Q2′=A Q3=A Q4=A Q5=A）
+
+1. 签核 **ADR-006 + Goals G1**  
+2. **L-C 工业 DoD C1–C10** 全盘锁定（拒绝最小 stub）  
+3. 实现序：先 GF → 再 BF 同协议  
+4. sample-demo 双 module；**`rn demo remove` 必须零残留**（含 `.rn/dev-session.jsonc`）  
+5. 端口：`main→8081`，其后 `8082+`；配置可覆盖  
+
+### AFK 进度（切片 1）
+
+- [x] `rn-core` `resolveEnv` + 隔离单测（C2/C4/C5）  
+- [x] `.rn/dev-session.jsonc` 读写；`rn demo add/remove` 写入/删除  
+- [x] `rn dev --modules a,b` + `ensureMultiMetroSessions` + 多端口 reverse  
+- [x] sample「模块」Tab：main/support L-C 对照
+- [x] 真机/本机验收：`rn demo remove|add` + `rn dev --modules main,support`（2026-08-25 my-rn-app：8081+8082 + reverse）  
+- [ ] 每 module 独立 metro.config / 双入口 HMR 不串包（自动化）  
+- [ ] Dev Menu ABI 插件 + Effective config 面板（C5/C8 完整）  
+- [ ] BF 参考宿主同协议（#5）  
+- [ ] `devSessionProtocolVersion` 协商  
+
 ## Question
 
 在 **一壳多离线 JS Bundle** 且 **多 Metro 并行 + 壳内切换 bundler** 前提下，如何用 **同一套 Dev Session 协议** 覆盖 Greenfield 与 Brownfield，只在 Surface 打开方式上分叉——并在 **不新开实施图/切片** 的前提下，把验收并入 A1/A2？
+
+## Working Notes（HITL Round 1 · 2026-08-25）
+
+| Q | 决议 |
+|---|------|
+| Q1 | **A** 签核 ADR-006 + Goals G1 |
+| Q2 | **全面工业级 L-C**（拒绝「最小 stub」）；见下方 L-C 工业 DoD |
+| Q3 | **A** 先 GF（端口表/`--modules`/Dev Menu/L-C），再 BF 挂同协议 |
+| Q4 | **A** sample-demo 双 module；**`rn demo remove` 必须可卸载零残留** |
+| Q5 | **A** `main→8081`，其后 `8082+`；`.rn/dev-session.jsonc` 可覆盖 |
+
+### L-C 工业 DoD（#17 一等 · 非最小集）
+
+原则：**合同按工业一次设计对；实现可分期填满，禁止不可演进的死 stub。** Map A 必须交付可演示的完整 L-C 面，不是「Dev Menu 改一个 baseURL」演示。
+
+| # | 能力 | 工业要求 |
+|---|------|----------|
+| C1 | **机读模型** | 壳 `envProfile` + per-`business_module` `envOverlay`；schema 进 manifest / `.rn/dev-session.jsonc`；`schemaVersion` |
+| C2 | **分层解析** | 解析序：平台默认 ← 壳 profile ← module overlay ← Dev Menu 运行时 override；冲突规则写死 |
+| C3 | **维度全集（合同）** | 至少覆盖：`apiBaseUrl`、`tenantId`、渠道/环境标签（dev/staging/prod）、feature flags、mock 总开关、超时/重试策略键、日志/采样级别；扩展点 `custom` 字典 |
+| C4 | **隔离** | module A overlay **不得**泄漏到 module B；并行 Surface 各用各 overlay |
+| C5 | **Dev Menu / ABI** | 切 profile、看生效合并结果、单键 override、重置；走 `dev-session` 插件 ABI；**Release 零残留** |
+| C6 | **持久化** | debug 覆盖可落盘（用户级或项目级）；可导出/导入 profile；CI 可 `--env-profile` 注入 |
+| C7 | **安全** | 密钥不进 JS bundle 明文合同；debug 覆盖不得写入 release 制品；doctor 警告危险 override |
+| C8 | **可观测** | 当前生效 env 可机读（doctor / Dev Menu「Effective config」）；带 `module` 键 |
+| C9 | **GF=BF** | 同一 env 解析器与 ABI；仅 Surface 打开方式分叉 |
+| C10 | **验收** | 双 module 不同 `apiBaseUrl` 并行不串；切换 profile 不重装壳；`demo remove` 后无 sample env 残留 |
+
+**非本票（仍工业，但层不同）**：L-O 槽位 → #8；L-P 发布态 → #7；真正业务后端联调账号由企业自备。
+
+### 样例约束（Q4）
+
+- 双 module 挂在 **sample-demo**（可假业务）
+- `rn demo add` 植入；**`rn demo remove` 必须去掉** 第二 module、端口表样例段、native/入口改动 — 与现网 demo 可逆合同一致
 
 ## 归属（强制）
 
@@ -69,9 +123,9 @@ DevSessionController ── BundlerResolver(module → url|slot|baseline)
 
 - [x] ADR-005 / ADR-006 起草  
 - [x] 地图 A Goals G1 + 六切片归属表（map.md）  
-- [ ] Human 签核 ADR-006 + Goals G1  
+- [x] Human 签核 ADR-006 + Goals G1 + L-C C1–C10（2026-08-25）  
 - [ ] A1/A2/A4/A5 票正文交叉引用本票 DoD  
-- [ ] manifest `modules[]` + port 字段草案  
+- [x] manifest / `.rn/dev-session.jsonc` modules + port + env 草案（落地中）  
 
 ## Acceptance（实现）
 

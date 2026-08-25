@@ -35,12 +35,13 @@ GitHub: #18 (`wayfinder:map`)
 | 10 | [#10](https://github.com/client-platform-labs/rn/issues/10) | rn-core fingerprint 落地 | task | **resolved** | **代码已在 main** |
 | 11 | [#11](https://github.com/client-platform-labs/rn/issues/11) | RN 原子元组 | grilling | **resolved** | 合同完成 |
 | 04 | [#4](https://github.com/client-platform-labs/rn/issues/4) | A1 Greenfield 基线 | task | **resolved** | **CLI init/dev/doctor 已在 main**；深化见 13/16 |
-| 12 | [#12](https://github.com/client-platform-labs/rn/issues/12) | Expo 对标研究 | research | **ready-for-human** | 文档完成；同机 bench 待测 |
-| 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **in-progress** | DevTransport/fail-fast/单 ABI **本批代码** |
+| 12 | [#12](https://github.com/client-platform-labs/rn/issues/12) | Expo 对标研究 | research | **resolved** | SLA 锁定；bench→[#19](https://github.com/client-platform-labs/rn/issues/19) |
+| 12b | [#19](https://github.com/client-platform-labs/rn/issues/19) | Expo 同机 bench | task | open | 填 research/03 §9 |
+| 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **resolved** | **仅 GF·L-N**（传输/装包）；L-J/L-C/BF 另见 #17/#5 |
 | 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | open | 未实现 |
-| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro（A1+A2 深化） | task | open | 合同/ADR 有；实现未开 |
-| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | open | 有初版 delivery build；七阶段/双 SBOM **未齐** |
-| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | open | 未实现 |
+| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro（A1+A2 深化） | task | **in-progress** | HITL 齐；GF 切片1（env/`--modules`/demo）落地中 |
+| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **in-progress** | 七阶段 stub + candidate metadata/同物晋级；后端/SBOM 生成未齐 |
+| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **in-progress** | `gateJsCandidate` + 槽位选择器已落地；持久化/Failed 页/A4 未齐 |
 | 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | open | 未实现 |
 | 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane Web+Node | task | open | 未实现 |
 | 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | open | 未实现（P2） |
@@ -51,14 +52,14 @@ GitHub: #18 (`wayfinder:map`)
 
 | 切片 | 合同 | 代码/真机 | 备注 |
 |------|------|-----------|------|
-| A1 | ~85% | ~55% | 基线 resolved；Dev Session/多 Metro/Debug Host 未完 |
+| A1 | ~85% | ~60% | 基线 + Dev Session AFK；真机/#14/#17 未完 |
 | A2 | ~40% | ~0% | 票+ADR；无参考宿主 |
-| A3 | ~50% | ~20% | debug 候选有；工业七阶段未齐 |
-| A4 | ~60% | ~0% | 票已写 Node+Web DoD |
-| A5 | ~50% | ~0% | 按 module 槽位已写入票 |
+| A3 | ~55% | ~35% | 阶段机/候选元数据 stub；生成器与七阶段后端未齐 |
+| A4 | ~60% | ~0% | 票已写 Node+Web DoD；仍 blocked by #6+#8 深化 |
+| A5 | ~55% | ~30% | 选择器纯函数+schema；运行时/原生页未齐 |
 | A6 | ~30% | ~0% | 开 |
 
-**一句话**：to-specs / to-tickets **已覆盖当前目标（含调试 Goals）**；**整体实现约三成**，卡在 W1 深化与 A3/A5/A2/A4 未开工。
+**一句话**：#12 已收口；W1 三条 AFK（#13/#6/#8）均有代码增量；卡点转 **#13 真机** 与下一 HITL（#17 或继续加深 A3/A5）。
 
 ---
 
@@ -134,7 +135,7 @@ A6 Quality     ←── 信号带 business_module + update_id
 - [真机可装包 Destination](./issues/01-device-test-destination.md) — P1–P17；六切片；FORWARD_FIX vs RolledBack。
 - [切片序](./issues/02-map-a-slice-order.md) — 03→A1→A3/A5→A2→A4→A6（**保持**）。
 - [身份/fingerprint](./issues/03-identity-fingerprint-contract.md) · [落地模块](./issues/10-land-identity-fingerprint-module.md) · [RN 元组](./issues/11-a1-rn-atomic-tuple.md)
-- [A1 Greenfield 基线](./issues/04-a1-greenfield-device.md) · [Expo 对标 12](./issues/12-expo-competitive-analysis.md) · [Dev Session 13](./issues/13-a1-dev-session-contract.md) · [Debug Host 13b](./issues/13b-debug-host-artifact.md)
+- [A1 Greenfield 基线](./issues/04-a1-greenfield-device.md) · [Expo 对标 12](./issues/12-expo-competitive-analysis.md)（**resolved**；bench [#19](https://github.com/client-platform-labs/rn/issues/19)；interop [#16](https://github.com/client-platform-labs/rn/issues/16)）· [Dev Session 13](./issues/13-a1-dev-session-contract.md) · [Debug Host 13b](./issues/13b-debug-host-artifact.md)
 - [A2](./issues/05-a2-brownfield.md) · [A3](./issues/06-a3-delivery-candidate.md) · [A4](./issues/07-a4-control-plane.md) · [A5](./issues/08-a5-client-fallback.md) · [A6](./issues/09-a6-quality-signal-bus.md)
 - [装包台 14](./issues/14-distribution-console.md)（A3 执行面）· [Expo 互操作 15](./issues/15-expo-interop-track.md)（低优口子）
 - [16 多 Bundle/多 Metro](./issues/16-multi-bundle-shell-dev.md) — **归属 A1+A2 深化**，非新图
@@ -147,7 +148,7 @@ A6 Quality     ←── 信号带 business_module + update_id
 
 | 波次 | 工作 | 归属切片 | 产出 |
 |------|------|----------|------|
-| **W1** | 票 13 | A1 | DevTransport、fail-fast、单 ABI（**进行中/部分完成**） |
+| **W1** | 票 13 | A1 | DevTransport、fail-fast、单 ABI（**resolved**） |
 | **W1** | 票 06 | A3 | 候选包 digest、双 SBOM 接口、同物晋级 |
 | **W1** | 票 08 | A5 | 选择器 + 槽位（合同按 **module** 建模） |
 | **W2** | 票 13b | A1 | Debug Host；温启动 SLA |

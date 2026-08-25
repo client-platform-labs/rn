@@ -1,12 +1,17 @@
 import { runBuild } from "./build.js";
+import type { DeliveryProfile } from "./types.js";
 import { DeliveryError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./util.js";
 
 const USAGE = `Usage: rn-delivery <command> [options]
 
 Delivery host for candidate packages. Do not use for store submit.
 
+Stage contract (fixed):
+  validate → compile → sign → test → attest → promote → submit
+
 Commands:
-  build [--platform android|ios|all]   Orchestrate debug candidate packages
+  build [--platform android|ios|all] [--profile debug-host|release]
+    Orchestrate candidate packages (compile stage). Default profile: debug-host.
   sign      Signing orchestration (not implemented)
   test      Gate trigger (not implemented)
   release   Promote / release-train steps (not implemented)
@@ -43,6 +48,19 @@ function parsePlatform(
   );
 }
 
+function parseProfile(args: string[]): DeliveryProfile | undefined {
+  const idx = args.indexOf("--profile");
+  if (idx === -1) return undefined;
+  const value = args[idx + 1];
+  if (value === "debug-host" || value === "release") {
+    return value;
+  }
+  throw new DeliveryError(
+    "rn-delivery build: --profile must be debug-host|release",
+    EXIT_USAGE,
+  );
+}
+
 export async function run(argv = process.argv): Promise<number> {
   const args = argv.slice(2);
   const help = args.includes("--help") || args.includes("-h");
@@ -69,8 +87,10 @@ export async function run(argv = process.argv): Promise<number> {
 
   try {
     if (cmd === "build") {
-      const platform = parsePlatform(args.slice(1));
-      await runBuild({ cwd: process.cwd(), platform });
+      const rest = args.slice(1);
+      const platform = parsePlatform(rest);
+      const profile = parseProfile(rest);
+      await runBuild({ cwd: process.cwd(), platform, profile });
       return EXIT_OK;
     }
 

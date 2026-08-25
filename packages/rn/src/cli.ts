@@ -236,6 +236,10 @@ export async function run(argv = process.argv): Promise<number> {
       "--no-active-arch-only",
       "Android: build all ABIs from gradle.properties (slower; default is single-ABI when one device)",
     )
+    .option(
+      "--modules <ids>",
+      "Parallel Metro for business_modules (comma-separated; requires .rn/dev-session.jsonc)",
+    )
     .action(
       async (opts: {
         android?: boolean;
@@ -247,6 +251,7 @@ export async function run(argv = process.argv): Promise<number> {
         transport?: string;
         device?: string;
         noActiveArchOnly?: boolean;
+        modules?: string;
       }) => {
         const platformFlags = [opts.android, opts.ios, opts.metroOnly].filter(Boolean);
         if (platformFlags.length > 1) {
@@ -258,10 +263,11 @@ export async function run(argv = process.argv): Promise<number> {
         if (
           (opts.noMetro || opts.stopMetro || opts.detachMetro) &&
           !opts.android &&
-          !opts.ios
+          !opts.ios &&
+          !opts.modules
         ) {
           throw new CliError(
-            "--no-metro, --stop-metro, and --detach-metro require --android or --ios",
+            "--no-metro, --stop-metro, and --detach-metro require --android, --ios, or --modules",
             EXIT_USAGE,
           );
         }
@@ -279,6 +285,7 @@ export async function run(argv = process.argv): Promise<number> {
             : undefined,
           device: opts.device,
           activeArchOnly: opts.noActiveArchOnly ? false : undefined,
+          modules: opts.modules,
         });
       },
     );

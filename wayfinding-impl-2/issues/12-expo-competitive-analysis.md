@@ -2,11 +2,13 @@
 
 Type: research + product (HITL)
 Mode: **HITL** — 研究收口前不 AFK 大规模实现
-Status: **ready-for-human** — 研究主体完成；Expo 同机基线待 bench 脚本实测
+Status: **resolved** (HITL 2026-08-25 · Q1′=A Q2′=A Q3=A)
 GitHub: #12
-Triage: P0 — 票 13 可 AFK
+Triage: done
 Blocked by: none
-Blocks: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md), A1 dev 体验硬化 PR
+Blocks: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md)（研究 sufficient 已放行）
+Follow-up: Expo 同机 bench → [#19](https://github.com/client-platform-labs/rn/issues/19)；互操作 TODO → [#16](https://github.com/client-platform-labs/rn/issues/16)
+
 Related: [04-a1-greenfield-device](./04-a1-greenfield-device.md), [06-a3-delivery-candidate](./06-a3-delivery-candidate.md), [08-a5-client-fallback](./08-a5-client-fallback.md), [05-a2-brownfield](./05-a2-brownfield.md), [07-capability-plugin-contract](../../wayfinding/issues/07-capability-plugin-contract.md), [CONTEXT 读者词典](../CONTEXT.md#读者词典expo--rn--交付), [全链路工业总纲 research/04](../research/04-industrial-full-lifecycle-scheme.md)
 
 ## Question
@@ -148,12 +150,17 @@ Related: [04-a1-greenfield-device](./04-a1-greenfield-device.md), [06-a3-deliver
 - [x] 指标注册表 + 目标值 + 部分实测（用户日志 2026-08-25）→ research/03 §2、§7
 - [x] DevTransport 合同草案 + A2 brownfield 兼容性说明 → [docs/adr/001](../docs/adr/001-dev-transport.md)
 - [x] 子票 13/13b/14/15 filed
-- [ ] 同机 Expo 对照基线跑全 → `scripts/bench-dev-session.sh`
-- [ ] Human sign-off：dev SLA 书面通过
+- [x] Human sign-off：dev SLA 书面通过（见 ## Answer）；Expo 同机对照 **不挡关** → [#19](https://github.com/client-platform-labs/rn/issues/19)
+- [ ] （迁出）同机 Expo 对照基线 → #19
+
+## Answer
+
+见 GitHub [#12 收口评论](https://github.com/client-platform-labs/rn/issues/12#issuecomment-5406915330)：不绑 Expo 运行时；SLA 默认锁定 + `devSla` 可覆盖阈值（fail-fast 机制不可关）；bench → #19；interop → #16。
 
 ---
 
 ## References
+
 
 - [Expo Dev Client](https://docs.expo.dev/versions/latest/sdk/dev-client/)
 - [Expo CLI networking](https://docs.expo.dev/more/expo-cli/#tunneling)

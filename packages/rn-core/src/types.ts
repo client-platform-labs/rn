@@ -133,3 +133,88 @@ export interface ComputedFingerprint {
   /** sha256 hex of canonical JSON of required fingerprint fields. */
   digest: string;
 }
+
+/** Per-module device slots (ADR-004/005): Active + Previous + embedded baseline. */
+export type UpdateSlotKind = "active" | "previous" | "baseline";
+
+/** Machine outcomes for JS train selector / channel gate (blueprint appendix). */
+export type SelectorBlockReason =
+  | "BLOCKED_INCOMPATIBLE"
+  | "BLOCKED_PENDING_CHANNEL_RULES"
+  | "POLICY_DENY"
+  | "NEEDS_NATIVE"
+  | "SLOT_EMPTY"
+  | "SLOT_EXCLUDED";
+
+export type JsReleaseGate = "needs-native" | "js-standard" | "js-gated";
+
+/**
+ * A JS-update candidate bound to one `business_module` (load-time identity).
+ * Fingerprint is shell-scoped; capabilities/channel are candidate-scoped.
+ */
+export interface JsUpdateCandidate {
+  business_module: string;
+  update_id: string;
+  runtime_fingerprint: RuntimeFingerprint;
+  hbcBytecodeVersion: number;
+  required_capabilities: string[];
+  target_artifact_lines: string[];
+  channel?: string;
+  release_gate?: JsReleaseGate;
+  compatibility_profile_id?: string;
+}
+
+/**
+ * Host/shell context presented to the selector (shared fingerprint + capability_set).
+ */
+export interface HostSelectorContext {
+  runtime_fingerprint: RuntimeFingerprint;
+  capability_set: readonly string[];
+  artifact_line: string;
+  /** Host Hermes HBC bytecode version (must match candidate). */
+  hbcBytecodeVersion: number;
+  host_support_window?: readonly string[];
+  /** When set with host_support_window, must be inside the window (P1). */
+  profile_label?: string;
+  /**
+   * Whether the active channel_profile allows the JS train.
+   * Omit to skip channel gate (unit tests / pre-channel hosts).
+   */
+  channel_js_allowed?: boolean;
+  channel_block_reason?: "BLOCKED_PENDING_CHANNEL_RULES" | "POLICY_DENY" | null;
+}
+
+/**
+ * Device slots for one business_module (ADR-004/005).
+ * `baseline` is required (shell-embedded); Active/Previous may be empty.
+ */
+export interface ModuleSlots {
+  business_module: string;
+  baseline: JsUpdateCandidate;
+  active?: JsUpdateCandidate | null;
+  previous?: JsUpdateCandidate | null;
+}
+
+export type GateJsCandidateResult =
+  | { ok: true }
+  | { ok: false; reason: SelectorBlockReason; detail: string };
+
+export interface SkippedSlot {
+  slot: UpdateSlotKind;
+  reason: SelectorBlockReason;
+  detail: string;
+}
+
+export type SelectFallbackSlotResult =
+  | {
+      ok: true;
+      slot: UpdateSlotKind;
+      candidate: JsUpdateCandidate;
+      skipped: SkippedSlot[];
+    }
+  | {
+      ok: false;
+      reason: "FAILED";
+      detail: string;
+      skipped: SkippedSlot[];
+    };

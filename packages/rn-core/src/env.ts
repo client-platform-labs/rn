@@ -1,0 +1,243 @@
+/**
+ * L-C env resolution (ticket #17 / ADR-005): shell profile + per-module overlay.
+ * Cascade: platformDefault ← shellProfile ← moduleOverlay ← runtimeOverride
+ */
+
+export const DEV_SESSION_SCHEMA_VERSION = 1;
+export const DEFAULT_MAIN_MODULE_ID = "main";
+export const DEFAULT_MAIN_METRO_PORT = 8081;
+
+/** Contract dimensions (C3) — industrial L-C surface. */
+export interface EnvDimensions {
+  apiBaseUrl?: string;
+  tenantId?: string;
+  /** e.g. dev | staging | prod */
+  environment?: string;
+  channelLabel?: string;
+  featureFlags?: Readonly<Record<string, boolean>>;
+  mockEnabled?: boolean;
+  timeoutMs?: number;
+  retryCount?: number;
+  logLevel?: "debug" | "info" | "warn" | "error";
+  sampleRate?: number;
+  /** Extension bag — still module-isolated. */
+  custom?: Readonly<Record<string, unknown>>;
+}
+
+export interface EnvProfile extends EnvDimensions {
+  id: string;
+}
+
+export interface ModuleDevBinding {
+  metroPort: number;
+  entry?: string;
+  envOverlay?: EnvDimensions;
+}
+
+export interface DevSessionConfig {
+  schemaVersion: number;
+  transport?: "auto" | "usb" | "wifi" | "lan";
+  /** Shell-level default env profile id → profiles map. */
+  activeEnvProfileId?: string;
+  envProfiles?: Readonly<Record<string, EnvProfile>>;
+  modules: Readonly<Record<string, ModuleDevBinding>>;
+}
+
+export type EnvResolveLayer =
+  | "platformDefault"
+  | "shellProfile"
+  | "moduleOverlay"
+  | "runtimeOverride";
+
+export interface ResolveEnvInput {
+  config: DevSessionConfig;
+  businessModule: string;
+  platformDefault?: EnvDimensions;
+  /** Dev Menu / CLI one-shot overrides (C5/C6). */
+  runtimeOverride?: EnvDimensions;
+}
+
+export interface ResolvedEnv {
+  businessModule: string;
+  effective: EnvDimensions;
+  /** Which layer last set each top-level key (observability C8). */
+  provenance: Readonly<Record<string, EnvResolveLayer>>;
+}
+
+const PLATFORM_DEFAULT: EnvDimensions = {
+  apiBaseUrl: "http://localhost:3000",
+  environment: "dev",
+  mockEnabled: false,
+  timeoutMs: 15_000,
+  retryCount: 2,
+  logLevel: "info",
+  sampleRate: 1,
+  featureFlags: {},
+  custom: {},
+};
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function mergeDims(
+  base: EnvDimensions,
+  overlay: EnvDimensions | undefined,
+  layer: EnvResolveLayer,
+  provenance: Record<string, EnvResolveLayer>,
+): EnvDimensions {
+  if (!overlay) {
+    return { ...base };
+  }
+  const out: EnvDimensions = { ...base };
+  const assign = <K extends keyof EnvDimensions>(key: K, value: EnvDimensions[K]) => {
+    if (value !== undefined) {
+      out[key] = value as never;
+      provenance[key] = layer;
+    }
+  };
+
+  assign("apiBaseUrl", overlay.apiBaseUrl);
+  assign("tenantId", overlay.tenantId);
+  assign("environment", overlay.environment);
+  assign("channelLabel", overlay.channelLabel);
+  assign("mockEnabled", overlay.mockEnabled);
+  assign("timeoutMs", overlay.timeoutMs);
+  assign("retryCount", overlay.retryCount);
+  assign("logLevel", overlay.logLevel);
+  assign("sampleRate", overlay.sampleRate);
+
+  if (overlay.featureFlags) {
+    out.featureFlags = { ...(base.featureFlags ?? {}), ...overlay.featureFlags };
+    provenance.featureFlags = layer;
+  }
+  if (overlay.custom) {
+    out.custom = { ...(base.custom ?? {}), ...overlay.custom };
+    provenance.custom = layer;
+  }
+  return out;
+}
+
+/**
+ * Resolve effective env for one business_module (C2/C4).
+ * Module overlays never leak across modules — caller must invoke per module.
+ */
+export function resolveEnv(input: ResolveEnvInput): ResolvedEnv {
+  const provenance: Record<string, EnvResolveLayer> = {};
+  let effective = mergeDims(
+    {},
+    input.platformDefault ?? PLATFORM_DEFAULT,
+    "platformDefault",
+    provenance,
+  );
+
+  const profileId = input.config.activeEnvProfileId;
+  const profile =
+    profileId && input.config.envProfiles
+      ? input.config.envProfiles[profileId]
+      : undefined;
+  if (profile) {
+    const { id: _id, ...dims } = profile;
+    effective = mergeDims(effective, dims, "shellProfile", provenance);
+  }
+
+  const moduleBinding = input.config.modules[input.businessModule];
+  if (!moduleBinding) {
+    throw new Error(
+      `unknown business_module "${input.businessModule}" — not in dev-session modules table`,
+    );
+  }
+  effective = mergeDims(
+    effective,
+    moduleBinding.envOverlay,
+    "moduleOverlay",
+    provenance,
+  );
+  effective = mergeDims(
+    effective,
+    input.runtimeOverride,
+    "runtimeOverride",
+    provenance,
+  );
+
+  return {
+    businessModule: input.businessModule,
+    effective,
+    provenance,
+  };
+}
+
+export function defaultModulePort(moduleId: string, index: number): number {
+  if (moduleId === DEFAULT_MAIN_MODULE_ID || index === 0) {
+    return DEFAULT_MAIN_METRO_PORT;
+  }
+  return DEFAULT_MAIN_METRO_PORT + index;
+}
+
+/** Build a starter dual-module session config (sample-demo / docs). */
+export function defaultDualModuleDevSession(options?: {
+  secondModuleId?: string;
+}): DevSessionConfig {
+  const second = options?.secondModuleId ?? "support";
+  return {
+    schemaVersion: DEV_SESSION_SCHEMA_VERSION,
+    transport: "auto",
+    activeEnvProfileId: "local",
+    envProfiles: {
+      local: {
+        id: "local",
+        apiBaseUrl: "http://192.168.2.2:3000",
+        environment: "dev",
+        tenantId: "local-tenant",
+      },
+      staging: {
+        id: "staging",
+        apiBaseUrl: "https://staging.example.com",
+        environment: "staging",
+        tenantId: "staging-tenant",
+      },
+    },
+    modules: {
+      [DEFAULT_MAIN_MODULE_ID]: {
+        metroPort: DEFAULT_MAIN_METRO_PORT,
+        entry: "index",
+        envOverlay: {
+          featureFlags: { tickets: true },
+        },
+      },
+      [second]: {
+        metroPort: DEFAULT_MAIN_METRO_PORT + 1,
+        entry: "index.support",
+        envOverlay: {
+          apiBaseUrl: "http://127.0.0.1:3001",
+          featureFlags: { tickets: false, supportChat: true },
+        },
+      },
+    },
+  };
+}
+
+export function assertModulesIsolated(
+  config: DevSessionConfig,
+  moduleA: string,
+  moduleB: string,
+): { ok: true } | { ok: false; detail: string } {
+  const oa = config.modules[moduleA]?.envOverlay?.apiBaseUrl;
+  const ob = config.modules[moduleB]?.envOverlay?.apiBaseUrl;
+  if (!oa || !ob || oa === ob) {
+    return { ok: true };
+  }
+  const a = resolveEnv({ config, businessModule: moduleA });
+  const b = resolveEnv({ config, businessModule: moduleB });
+  if (a.effective.apiBaseUrl !== oa || b.effective.apiBaseUrl !== ob) {
+    return {
+      ok: false,
+      detail: `expected ${oa} vs ${ob}, got ${a.effective.apiBaseUrl} vs ${b.effective.apiBaseUrl}`,
+    };
+  }
+  return { ok: true };
+}
+
+export function isEnvDimensions(v: unknown): v is EnvDimensions {
+  return v === undefined || isPlainObject(v);
+}

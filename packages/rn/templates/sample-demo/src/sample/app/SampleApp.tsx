@@ -16,6 +16,7 @@ import type {
 import { AboutScreen } from "../features/about/AboutScreen";
 import { CapabilitiesHomeScreen } from "../features/capabilities/CapabilitiesHomeScreen";
 import { WebViewDemoScreen } from "../features/capabilities/WebViewDemoScreen";
+import { ModulesEnvScreen } from "../features/modules/ModulesEnvScreen";
 import { TicketDetailScreen } from "../features/tickets/TicketDetailScreen";
 import { TicketFormScreen } from "../features/tickets/TicketFormScreen";
 import { TicketListScreen } from "../features/tickets/TicketListScreen";
@@ -147,6 +148,13 @@ export default function SampleApp() {
             component={CapabilitiesNavigator}
             options={{
               tabBarLabel: ({ focused }) => <TabLabel label="能力" focused={focused} />,
+            }}
+          />
+          <Tab.Screen
+            name="ModulesTab"
+            component={ModulesEnvScreen}
+            options={{
+              tabBarLabel: ({ focused }) => <TabLabel label="模块" focused={focused} />,
             }}
           />
           <Tab.Screen

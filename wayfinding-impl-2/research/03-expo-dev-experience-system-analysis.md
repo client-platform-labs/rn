@@ -1,6 +1,6 @@
 # Expo vs Client Platform — 全链路系统解剖
 
-Status: **draft v1**（票 [12](../issues/12-expo-competitive-analysis.md) 主交付物）  
+Status: **accepted v1**（票 [12](../issues/12-expo-competitive-analysis.md) HITL 2026-08-25 收口；Expo §9 实测见 [#19](https://github.com/client-platform-labs/rn/issues/19)；`devSla` 阈值可配置、fail-fast 机制不可关）  
 Last updated: 2026-08-25  
 读者词典：[CONTEXT §读者词典](../CONTEXT.md#读者词典expo--rn--交付)
 

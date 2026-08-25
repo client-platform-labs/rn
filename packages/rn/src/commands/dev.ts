@@ -17,7 +17,12 @@ import { CliError, EXIT_FAIL } from "../errors.js";
 import { androidHostChildEnv, probeAndroidHost } from "../host-env.js";
 import type { CliLogger } from "../logger.js";
 import {
+  listModulePorts,
+  loadDevSessionConfig,
+} from "../dev-session-config.js";
+import {
   type MetroAfterPlatform,
+  ensureMultiMetroSessions,
   runPlatformWithMetro,
 } from "../metro-orchestrator.js";
 import { commandExists, resolveNpx, runStreaming } from "../process.js";
@@ -102,6 +107,8 @@ export async function runDev(options: {
   transport?: DevTransportMode;
   device?: string;
   activeArchOnly?: boolean;
+  /** Comma-separated business_module ids → parallel Metro (#17). */
+  modules?: string;
 }): Promise<void> {
   const projectRoot = resolveProjectRoot(options.cwd);
   if (!hasReactNativeScripts(projectRoot)) {
@@ -124,12 +131,67 @@ export async function runDev(options: {
 
   const npx = resolveNpx();
   const metroAfter = resolveMetroAfterPlatform(options);
+
+  const moduleIds = options.modules
+    ? options.modules
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  if (moduleIds.length > 0) {
+    const sessionConfig = loadDevSessionConfig(projectRoot);
+    if (!sessionConfig) {
+      throw new CliError(
+        "`.rn/dev-session.jsonc` missing — run `rn demo add` or create the multi-module port table (map-a/#17)",
+        EXIT_FAIL,
+      );
+    }
+    const ports = listModulePorts(sessionConfig, moduleIds);
+    options.logger.writeHuman(
+      `Multi-Metro (#17): ${ports.map((p) => `${p.id}=:${p.port}`).join(", ")}`,
+    );
+    const sessions = await ensureMultiMetroSessions({
+      npx,
+      projectRoot,
+      logger: options.logger,
+      modules: ports,
+      noMetro: options.noMetro,
+      detached: options.detachMetro || Boolean(options.android || options.ios),
+    });
+
+    const androidHost = probeAndroidHost();
+    if (androidHost.adbPath) {
+      for (const s of sessions) {
+        const bridge = ensureMetroBridge({
+          port: s.port,
+          adbPath: androidHost.adbPath,
+        });
+        options.logger.writeHuman(
+          bridge.ok
+            ? `reverse :${s.port} (${s.moduleId})`
+            : `reverse :${s.port} skipped — ${bridge.message}`,
+        );
+      }
+    }
+
+    if (!options.android && !options.ios) {
+      options.logger.writeHuman(
+        "Multi-Metro running (detached). Attach shell with `rn dev --android` or open modules in Dev Menu.",
+      );
+      return;
+    }
+  }
+
   const metroBase = {
     npx,
     projectRoot,
     logger: options.logger,
-    noMetro: options.noMetro,
+    noMetro: options.noMetro || moduleIds.length > 0,
     after: metroAfter,
+    port: moduleIds.length > 0
+      ? listModulePorts(loadDevSessionConfig(projectRoot)!, moduleIds)[0]?.port
+      : undefined,
   };
 
   if (options.android) {

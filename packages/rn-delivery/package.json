@@ -14,9 +14,12 @@
     }
   },
   "types": "./dist/index.d.ts",
-  "files": ["bin", "dist"],
+  "files": ["bin", "dist", "schemas"],
   "engines": {
     "node": ">=22 <25"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
     "@client-platform/rn-core": "workspace:*"

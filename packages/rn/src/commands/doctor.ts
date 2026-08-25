@@ -164,6 +164,11 @@ export async function runDoctor(options: {
         manual: findings.filter((f) => f.plane === "manual"),
       },
       findings,
+      /** Ticket 13 — L2 Dev Session probe ids for jq filters */
+      devSession: findings.filter(
+        (f) =>
+          f.id.startsWith("dev-session-") || f.id === "android-bridge",
+      ),
     },
     project: {
       node: { version: process.versions.node, major, ok: nodeOk },

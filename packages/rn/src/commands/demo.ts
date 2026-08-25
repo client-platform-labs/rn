@@ -13,6 +13,10 @@ import { CliError, EXIT_FAIL } from "../errors.js";
 import type { CliLogger } from "../logger.js";
 import { runStreaming } from "../process.js";
 import {
+  ensureSampleDualModuleSession,
+  removeDevSessionConfig,
+} from "../dev-session-config.js";
+import {
   DEMO_APP_ENTRY_WIRE,
   DEMO_INDEX_GESTURE_IMPORT,
   DEMO_NPM_DEPS,
@@ -203,6 +207,8 @@ export async function runDemoAdd(options: {
   copyRecursive(path.join(templateDir, "src", "sample"), sampleDest);
   writeFileSync(path.join(projectRoot, appEntry), DEMO_APP_ENTRY_WIRE, "utf8");
 
+  const sessionFile = ensureSampleDualModuleSession(projectRoot);
+
   patchNativeProject(projectRoot, "add");
 
   await installDemoDeps(projectRoot, options.logger);
@@ -218,8 +224,10 @@ export async function runDemoAdd(options: {
   options.logger.writeHuman("Sample demo added.");
   options.logger.writeHuman(`  code: ${DEMO_SAMPLE_DIR}/`);
   options.logger.writeHuman(`  entry: ${appEntry} → SampleApp`);
+  options.logger.writeHuman(`  multi-module: ${sessionFile}`);
   options.logger.writeHuman("  remove: rn demo remove");
   options.logger.writeHuman("Next: rn dev --android");
+  options.logger.writeHuman("  optional: rn dev --modules main,support");
   options.logger.writeHuman("  optional: rn dev-support add  (debug FAB → Dev Menu)");
 }
 
@@ -242,6 +250,7 @@ export async function runDemoRemove(options: {
     options.logger.writeHuman(`  restore: ${state.backedUp.join(", ")}`);
     options.logger.writeHuman(`  delete: ${DEMO_SAMPLE_DIR}/`);
     options.logger.writeHuman(`  delete: ${DEMO_STATE_DIR}/`);
+    options.logger.writeHuman("  delete: .rn/dev-session.jsonc");
     return;
   }
 
@@ -251,6 +260,8 @@ export async function runDemoRemove(options: {
   if (existsSync(sampleDir)) {
     rmSync(sampleDir, { recursive: true, force: true });
   }
+
+  removeDevSessionConfig(projectRoot);
 
   await removeDemoDeps(projectRoot, options.logger);
 

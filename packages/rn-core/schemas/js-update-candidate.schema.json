@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform.local/rn/js-update-candidate.schema.json",
+  "title": "JsUpdateCandidate",
+  "type": "object",
+  "required": [
+    "business_module",
+    "update_id",
+    "runtime_fingerprint",
+    "hbcBytecodeVersion",
+    "required_capabilities",
+    "target_artifact_lines"
+  ],
+  "properties": {
+    "business_module": { "type": "string", "minLength": 1 },
+    "update_id": { "type": "string", "minLength": 1 },
+    "runtime_fingerprint": {
+      "type": "object",
+      "required": [
+        "rnExactTuple",
+        "hermesVmIdentity",
+        "hbcBytecodeVersion",
+        "newArchFlags",
+        "nativeAbiSurfaceDigest"
+      ],
+      "properties": {
+        "rnExactTuple": { "type": "string", "minLength": 1 },
+        "hermesVmIdentity": { "type": "string", "minLength": 1 },
+        "hbcBytecodeVersion": { "type": "integer" },
+        "newArchFlags": { "type": "object" },
+        "nativeAbiSurfaceDigest": { "type": "string", "minLength": 1 },
+        "officialCapabilityNativeLocks": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "hbcBytecodeVersion": { "type": "integer" },
+    "required_capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Must be ⊆ host.capability_set — never exact equality"
+    },
+    "target_artifact_lines": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "channel": { "type": "string", "minLength": 1 },
+    "release_gate": {
+      "type": "string",
+      "enum": ["needs-native", "js-standard", "js-gated"]
+    },
+    "compatibility_profile_id": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

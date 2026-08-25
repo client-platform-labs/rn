@@ -12,6 +12,7 @@ export type CapabilitiesStackParamList = {
 export type RootTabParamList = {
   TicketsTab: undefined;
   CapabilitiesTab: undefined;
+  ModulesTab: undefined;
   AboutTab: undefined;
 };
 

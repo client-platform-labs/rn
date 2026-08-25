@@ -1,9 +1,9 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useCallback, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 
 import type { TicketsStackParamList } from "../../app/navigation";
-import { listTickets } from "../../data/ticketStore";
+import { getTicketsSnapshot, notifyTicketsChanged, subscribeTickets } from "../../data/ticketStore";
 import type { WorkOrder } from "../../data/types";
 import {
   Badge,
@@ -19,10 +19,14 @@ import {
 type Props = NativeStackScreenProps<TicketsStackParamList, "TicketList">;
 
 export function TicketListScreen({ navigation }: Props) {
-  const [items, setItems] = useState(() => listTickets());
+  const items = useSyncExternalStore(
+    subscribeTickets,
+    getTicketsSnapshot,
+    getTicketsSnapshot,
+  );
 
   const refresh = useCallback(() => {
-    setItems(listTickets());
+    notifyTicketsChanged();
   }, []);
 
   return (
@@ -30,7 +34,7 @@ export function TicketListScreen({ navigation }: Props) {
       <View style={styles.header}>
         <Typography variant="display">工单</Typography>
         <Typography variant="muted" style={styles.subtitle}>
-          报修单示例 · 内存数据
+          报修单示例 · 内存数据（改 seed 会 Fast Refresh）
         </Typography>
         <Button
           label="新建工单"

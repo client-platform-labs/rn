@@ -1,0 +1,1 @@
+{"metric": "dev.failfast.no_device", "scenario": "no-device", "exit": 1, "elapsed_ms": 222, "elapsed_s": 0.222, "budget_ms": 3000, "gradle_started": false, "ok": true, "reasons": [], "ts": "20260825T074843Z"}

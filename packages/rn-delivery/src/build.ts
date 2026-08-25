@@ -1,6 +1,13 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+import { computeFingerprint } from "@client-platform/rn-core";
+
+import {
+  buildCandidateMetadata,
+  emptyDualSupplyChain,
+} from "./candidate.js";
+import type { CandidateMetadata, DeliveryProfile } from "./types.js";
 import {
   DeliveryError,
   EXIT_FAIL,
@@ -18,14 +25,21 @@ import {
 export async function runBuild(options: {
   cwd: string;
   platform?: "android" | "ios" | "all";
+  /** Reserved: debug-host (default for assembleDebug) vs release. */
+  profile?: DeliveryProfile;
 }): Promise<void> {
   const projectRoot = resolveProjectRoot(options.cwd);
   const { releaseId, manifest } = loadManifestOrEmpty(projectRoot);
   const platform = options.platform ?? "all";
+  const profile: DeliveryProfile = options.profile ?? "debug-host";
   const androidDir = path.join(projectRoot, "android");
   const iosDir = path.join(projectRoot, "ios");
 
-  const results: Array<Record<string, unknown>> = [];
+  const fingerprintDigest = manifest?.runtime_fingerprint
+    ? computeFingerprint(manifest.runtime_fingerprint).digest
+    : undefined;
+
+  const results: CandidateMetadata[] = [];
 
   if (platform === "android" || platform === "all") {
     if (!existsSync(androidDir)) {
@@ -70,14 +84,19 @@ export async function runBuild(options: {
       }
       const apk = findNewestApk(androidDir);
       const digest = apk ? sha256File(apk) : "pending";
-      const meta = {
+      const meta = buildCandidateMetadata({
         artifact_kind: manifest?.artifact_kind ?? "app-host",
+        artifact_line: manifest?.artifact_line,
         release_id: releaseId,
         platform: "android",
-        configuration: "debug",
+        profile,
+        configuration: profile === "debug-host" ? "debug" : "release",
         path: apk ?? null,
         digest,
-      };
+        stage: "compile",
+        runtime_fingerprint_digest: fingerprintDigest,
+        supply_chain: emptyDualSupplyChain(),
+      });
       results.push(meta);
       console.log(JSON.stringify(meta, null, 2));
     }
@@ -158,15 +177,20 @@ export async function runBuild(options: {
           EXIT_FAIL,
         );
       }
-      const meta = {
+      const meta = buildCandidateMetadata({
         artifact_kind: manifest?.artifact_kind ?? "app-host",
+        artifact_line: manifest?.artifact_line,
         release_id: releaseId,
         platform: "ios",
-        configuration: "Debug",
-        sdk: "iphonesimulator",
+        profile,
+        configuration:
+          profile === "debug-host" ? "Debug/iphonesimulator" : "Release",
         path: derived,
         digest: "pending:app-bundle-in-derived-data",
-      };
+        stage: "compile",
+        runtime_fingerprint_digest: fingerprintDigest,
+        supply_chain: emptyDualSupplyChain(),
+      });
       results.push(meta);
       console.log(JSON.stringify(meta, null, 2));
     }

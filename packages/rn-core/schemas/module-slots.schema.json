@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://client-platform.local/rn/module-slots.schema.json",
+  "title": "ModuleSlots",
+  "description": "Per business_module device slots: baseline (required) + Active + Previous (ADR-004/005)",
+  "type": "object",
+  "required": ["business_module", "baseline"],
+  "properties": {
+    "business_module": { "type": "string", "minLength": 1 },
+    "baseline": { "$ref": "js-update-candidate.schema.json" },
+    "active": {
+      "anyOf": [
+        { "$ref": "js-update-candidate.schema.json" },
+        { "type": "null" }
+      ]
+    },
+    "previous": {
+      "anyOf": [
+        { "$ref": "js-update-candidate.schema.json" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

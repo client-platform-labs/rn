@@ -146,7 +146,49 @@ export async function ensureMetroSession(options: {
   }
 
   options.logger.writeHuman(`Metro ready on :${port}`);
-  return { port, reused: false, startedByUs: true, child };
+  return {
+    port,
+    reused: false,
+    startedByUs: true,
+    child,
+  };
+}
+
+/**
+ * Start/reuse Metro for multiple modules (ticket #17 — parallel bundlers).
+ * Returns sessions in the same order as `modules`.
+ */
+export async function ensureMultiMetroSessions(options: {
+  npx: string;
+  projectRoot: string;
+  logger: CliLogger;
+  modules: Array<{ id: string; port: number }>;
+  env?: NodeJS.ProcessEnv;
+  noMetro?: boolean;
+  detached?: boolean;
+}): Promise<Array<MetroSession & { moduleId: string }>> {
+  if (options.modules.length === 0) {
+    throw new CliError("ensureMultiMetroSessions: modules list is empty", EXIT_FAIL);
+  }
+  const out: Array<MetroSession & { moduleId: string }> = [];
+  for (const mod of options.modules) {
+    options.logger.writeHuman(`Module ${mod.id} → Metro :${mod.port}`);
+    const session = await ensureMetroSession({
+      npx: options.npx,
+      projectRoot: options.projectRoot,
+      logger: options.logger,
+      port: mod.port,
+      env: options.env,
+      noMetro: options.noMetro,
+      // All but last may detach so we can start the next port in-process.
+      detached: options.detached || options.modules.length > 1,
+    });
+    out.push({ ...session, moduleId: mod.id });
+  }
+  options.logger.writeHuman(
+    `Multi-Metro ready: ${out.map((s) => `${s.moduleId}=:${s.port}`).join(", ")}`,
+  );
+  return out;
 }
 
 export type MetroAfterPlatform = "foreground" | "detach" | "stop";

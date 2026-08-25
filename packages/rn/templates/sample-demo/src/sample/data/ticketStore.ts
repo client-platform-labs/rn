@@ -1,3 +1,4 @@
+/* @refresh reset — seed edits must remount screens that cache list state */
 import type { TicketFormInput, WorkOrder } from "./types";
 
 const seed: WorkOrder[] = [
@@ -26,6 +27,33 @@ const seed: WorkOrder[] = [
 ];
 
 let tickets: WorkOrder[] = [...seed];
+/** Stable snapshot for useSyncExternalStore — must not allocate on every getSnapshot. */
+let snapshot: WorkOrder[] = sortedCopy(tickets);
+const listeners = new Set<() => void>();
+
+function sortedCopy(list: WorkOrder[]): WorkOrder[] {
+  return [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function emit(): void {
+  snapshot = sortedCopy(tickets);
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+/** For `useSyncExternalStore` — Fast Refresh / mutations both refresh UI. */
+export function subscribeTickets(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Stable reference until store mutates (required by useSyncExternalStore). */
+export function getTicketsSnapshot(): WorkOrder[] {
+  return snapshot;
+}
 
 function nextId(): string {
   const max = tickets.reduce((n, t) => Math.max(n, Number(t.id) || 0), 0);
@@ -33,7 +61,7 @@ function nextId(): string {
 }
 
 export function listTickets(): WorkOrder[] {
-  return [...tickets].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return getTicketsSnapshot();
 }
 
 export function getTicket(id: string): WorkOrder | undefined {
@@ -50,6 +78,7 @@ export function createTicket(input: TicketFormInput): WorkOrder {
     ...input,
   };
   tickets = [ticket, ...tickets];
+  emit();
   return ticket;
 }
 
@@ -68,6 +97,7 @@ export function updateTicket(
     updatedAt: new Date().toISOString(),
   };
   tickets = tickets.map((t) => (t.id === id ? updated : t));
+  emit();
   return updated;
 }
 
@@ -91,4 +121,10 @@ export function addAttachment(
 
 export function resetTicketsForDev(): void {
   tickets = [...seed];
+  emit();
+}
+
+/** Pull-to-refresh / manual UI sync without mutating data. */
+export function notifyTicketsChanged(): void {
+  emit();
 }
