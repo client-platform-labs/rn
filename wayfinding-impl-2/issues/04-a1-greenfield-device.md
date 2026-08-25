@@ -18,7 +18,7 @@ Blocked by: 01, 02, 03, 10, 11
 - `rnExactTuple` 形如 `0.87.<patch>+hermes-v1+newarch+codegen-locked`
 - 验收串：doctor → init → dev 真机 → delivery 候选包 → 安装
 - 默认 targets ios+android；Harmony 合同预留不进 A1 模板强制
-
+- **深化（地图 A Goals G1，非新切片）**：Dev Session（票 13/13b）、一壳多 Bundle + 多 Metro 并行（票 16 的 GF 部分）、`dev-session` 插件 ABI；详见 [map.md](../map.md) · [票 16](./16-multi-bundle-shell-dev.md)
 ## Answer
 
 （2026-08-21）A1 Greenfield 工业路径已落地：Community CLI 编排 init、扩 doctor、加 `rn dev`、delivery debug 候选编排；真机安装依赖本机 SDK。
