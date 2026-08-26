@@ -35,8 +35,11 @@ Unified inventory + dependency graph: [`docs/agents/afk-hitl-loop.md`](./docs/ag
 When the user says continue / 自动跑 / 一步到位 — run **without stepwise confirms**:
 
 ```bash
+# Map A Spine + AUTO-HITL
 node scripts/run-afk-hitl-loop.mjs ~/Work/my-rn-app
-# --plan to print graph only; --mode afk for CI/no device
+
+# Map B industrial depth (separate loop)
+node scripts/run-map-b-loop.mjs
 ```
 
 TRUE-HITL items are listed at the end only; they must not block the loop.

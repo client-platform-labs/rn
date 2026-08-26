@@ -38,8 +38,8 @@ node scripts/run-map-b-loop.mjs
 | B1 | #24 | CP Bearer auth | AFK | `verify-cp-auth.mjs` | ✅ landed |
 | B2 | #25 | XCFramework build **path** | AFK | `verify-bf-xcframework-build.mjs` | ✅ landed |
 | B3 | #26 | CP registry SQLite | AFK | `verify-cp-registry-sqlite.mjs` | ✅ landed |
-| B4 | #27 | P4/P6 BF native doctor | AFK | `verify-bf-native-doctor.mjs` | 🔄 open |
-| B5 | #28 | CP role matrix | AFK | `verify-cp-rbac.mjs` | 🔄 open |
+| B4 | #27 | P4/P6 BF native doctor | AFK | `verify-bf-native-doctor.mjs` | ✅ landed |
+| B5 | #28 | CP role matrix | AFK | `verify-cp-rbac.mjs` | ✅ landed |
 | B6 | #25 | XCFramework **binary** CI | deferred | 同 B2 + Xcode | blocked on CI Mac |
 | B7 | — | Harmony 真机 | blocked | — | DevEco |
 | B8 | — | CP Postgres multi-tenant | blocked | — | 产品 |
