@@ -6,11 +6,14 @@
 |-------|-----------|
 | **Why / contracts** | [blueprint/00-entry.md](../blueprint/00-entry.md) · P1–P17 [research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) |
 | **Map A tickets** | [wayfinding-impl-2/map.md](../wayfinding-impl-2/map.md) · GitHub [#18](https://github.com/client-platform-labs/rn/issues/18) |
+| **Map B** | [wayfinding-map-b/map.md](../wayfinding-map-b/map.md) · [#23](https://github.com/client-platform-labs/rn/issues/23) · [map-b-loop.md](./agents/map-b-loop.md) |
 | **GF/BF unity** | [agents/gf-bf-unified-model.md](./agents/gf-bf-unified-model.md) |
 | **Promotion levels** | [agents/enterprise-promotion-gates.md](./agents/enterprise-promotion-gates.md) |
 | **Process** | [agents/architecture-governance.md](./agents/architecture-governance.md) |
 
-**Maintenance:** Update **Current position** and milestone checkboxes when a GitHub issue closes or HITL signs. Do not fork a second issue tracker.
+**Maintenance:** Update **§9 Current position** and milestone checkboxes when a GitHub issue closes or HITL signs. Do not fork a second issue tracker.
+
+**Quick read (2026-08-26):** Map A **closed** (#18) · GF/BF **L5** · Map B **B1–B5 green** ([#23](https://github.com/client-platform-labs/rn/issues/23) open) · 双 loop：`run-afk-hitl-loop.mjs`（Spine）· `run-map-b-loop.mjs`（Map B）→ 详情 **§9**。
 
 ---
 
@@ -21,7 +24,7 @@
 ├── 已结：wayfinding-impl MVP（薄 CLI 合同、monorepo、rn-delivery stub）
 ├── 已结：蓝图五卷 + Map A 六切片决策（票 01–03、11）
 ├── 已结：身份脊柱 rn-core（fingerprint、manifest schema v2）
-└── 进行中：地图 A 真机 + 企业闭环（本脉络图）
+└── 已结：地图 A 真机 + 企业闭环（#18 · M10）
 ```
 
 **技术起点：**
@@ -39,7 +42,7 @@
 | L1 开发工业 | ✅ | ✅（debug-host HITL） |
 | L2–L3 候选 | ✅ | ✅ |
 | L4 可推广 | ✅ | ✅ |
-| L5 企业闭环 | ✅ | 🔄（共享 M9 脚本；BF 未单独立项） |
+| L5 企业闭环 | ✅ | ✅（共享 M9 · [bf-l5 HITL](./hitl/bf-l5-quality-gate-2026-08-26.md)） |
 
 ---
 
@@ -141,7 +144,7 @@ flowchart TB
 | **M8** | **全流程签字** | **L4** | #6+#7+#8 | §5.1 整串 HITL + block 各一次 | ✅ [HITL](./hitl/m8-l4-gf-2026-08-26.md) |
 | **M9** | 质量挡 promote | L5 | [#9](https://github.com/client-platform-labs/rn/issues/9) | A6 信号 **阻断** promote 一次 | ✅ [HITL](./hitl/m9-quality-gate-2026-08-26.md) |
 
-**当前 Spine 焦点：** M2 → M3 →（M5∥M6∥M7 可薄实现并行）→ M8。
+**当前 Spine 焦点：** M0–M10 **已结** — 回归见 [`afk-hitl-loop.md`](./agents/afk-hitl-loop.md) · 工业加深见 [`map-b-loop.md`](./agents/map-b-loop.md)。
 
 > M4 不在 Spine 上——见 §5.4。M3b 是 Branch，不替代 M3。
 
@@ -290,9 +293,9 @@ L-P 发布态复现          → A4 + A5
 | **开发会话** | `.rn/dev-session.jsonc` | 全 dev | 多 module 端口；协商版本；demo remove 零残留 | A1/#17 |
 | **企业门禁** | doctor L3e + governance script | CI | ADR-008 P0；无假交付命令 | #17/009 |
 | **参考 BF 桩** | `examples/brownfield-host` | 壳团队/测试 | doctor brownfield PASS；非生产宿主 | A2 |
-| **控制面** | Node+Web（未建） | 发布/on-call | 演示灰度/回滚/Kill per module | A4 |
-| **客户端兜底** | 选择器+槽位（部分） | App 运行时 | gateJsCandidate 真机；N/N-1 | A5 |
-| **质量总线** | schema+接入（未建） | CP promote | 信号挡晋级 | A6 |
+| **控制面** | `rn-delivery serve` + thin Web | 发布/on-call | file registry · Bearer · RBAC · SQLite opt-in；rollout/Kill UI 仍 Map C | A4 · Map B |
+| **客户端兜底** | 选择器+槽位+Failed UI | App 运行时 | `gateBundleLoad` · A5 verify | A5 |
+| **质量总线** | `quality_signal` + M9 gate | CP promote | 信号 **挡 promote**（thin）；E2E 挡晋级 → Map C | A6 |
 | **开发者文档** | `docs/guides/*` | 人 | module 无 GF/BF；壳 cheatsheet | — |
 
 ### 4.2 按角色（谁拿什么）
@@ -321,13 +324,12 @@ Depth:  A6 质量、#14 Debug Host、地图 B…
 ```
 
 ```text
-进度（相对 Spine）
-──────────────────
-M0–M1   [done GF]     合同 + dev 环
-M2–M3   [now]         交付候选「细管」接通
-M5–M8   [next]        CP + 客户端 + 全流程签字
-M3b     [after M2]    BF 同源脚本
-Depth   [parallel]    #14 #19 #17 余量
+进度（相对 Spine · 2026-08-26）
+────────────────────────────────
+M0–M10 + M3b/M8b/M4   [done]     Map A closed (#18)
+Map B B1–B5           [done]     CP/BF industrial thin slices
+Map B B6–B8           [backlog]  Xcode CI · Harmony · Postgres CP
+Map C/D               [未开]     控制面服务化 · 渠道 · 全量治理
 ```
 
 ### 6.1 Spine 上的 A1 段（Toolchain → 候选包）
@@ -378,7 +380,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 |----|--------|
 | 字段/状态机长什么样？ | `blueprint/` |
 | 这张地图有哪些票？ | `wayfinding-impl-2/map.md` |
-| 今天该做哪一步？ | **§5.2 Spine**（当前 M2）+ GitHub #20 · [spine-inventory.md](./spine-inventory.md) |
+| 今天该做哪一步？ | **§9 Current position** · Spine [`afk-hitl-loop.md`](./agents/afk-hitl-loop.md) · Map B [`map-b-loop.md`](./agents/map-b-loop.md) · [spine-inventory.md](./spine-inventory.md) |
 | 壳团队命令？ | [guides/shell-team-cheatsheet.md](./guides/shell-team-cheatsheet.md) |
 | Module 同学命令？ | [guides/module-developer.md](./guides/module-developer.md) |
 | 能不能对外说「可推广」？ | [enterprise-promotion-gates.md](./agents/enterprise-promotion-gates.md) |
@@ -391,10 +393,96 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 
 **As of 2026-08-26**
 
-- **Spine 位：** M0–M10 ✅ — GF **L5** · BF **L4**
-- **Branch：** M3b ✅ · M8b ✅ [#22]
-- **Depth 余量：** #19 bench · #5 AAR/bundlerUrl · #6/#7 真 sign/CP · #15 装包台 → **Map B**
-- **推广：** GF **L5**（企业闭环）· BF **L4**（可推广 module）
-- **切片粗估：** A1 ~75% · A2 ~40% · A3 ~45% · A4 ~15% · A5 ~35% · A6 ~25%（Spine bar）
+### 9.1 三层目的地
 
-*Map A 父票 #18：Spine 章节已结；切片 100% 与 Map B 见 [M10 HITL](./hitl/m10-map-a-spine-closure-2026-08-26.md)。*
+| 层级 | 状态 | 说明 |
+|------|------|------|
+| **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
+| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5 ✅ · B6 SKIP · B7/B8 BLOCKED |
+| **Map C/D** | ⬜ 未开 | 控制面服务化 · 七渠 · 多 module 隔离 · 合规加固（[research/01 §3](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md)） |
+| **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
+
+**对外口径：** 可称「单 module **可企业推广候选**（L4–L5 thin）」；**不可**称全国投产 / 全渠道 / Map C 能力已就绪。
+
+### 9.2 五平面 · 点亮情况
+
+```mermaid
+flowchart TB
+  subgraph Local["本地环 ✅"]
+    L1[rn · dev-session · doctor L3e/L3b/P4 thin]
+  end
+  subgraph CI["Delivery ✅ thin"]
+    D1[rn-delivery · metadata · HMAC sign · SBOM 槽]
+  end
+  subgraph CP["Control Plane ⚠️ thin"]
+    C1[serve API · Web console · Bearer · RBAC · SQLite]
+    C2[灰度/Kill UI · 真 CP 服务 ❌]
+  end
+  subgraph RT["Runtime ✅ thin"]
+    R1[RuntimeHost · gateBundleLoad · A5 槽位]
+  end
+  subgraph GV["Governance ✅"]
+    G1[fingerprint · ADR-008 P0 · governance CI]
+  end
+  Local --> CI --> CP --> RT
+  GV -.-> Local & CI & CP & RT
+```
+
+✅ = HITL/verify 绿 · ⚠️ = 薄 demo · ❌ = 未做或仅合同
+
+### 9.3 六切片完成度（Spine bar）
+
+| 切片 | 合同 | Spine HITL | 推广级 | 主要余量 |
+|------|------|------------|--------|----------|
+| **A1** GF | ~95% | ✅ | **L5** | 规模化运维 |
+| **A2** BF | ~95% | ✅ | **L5** | XCFramework 二进制 CI（B6） |
+| **A3** Delivery | ~85% | ✅ thin | **L4 thin** | 企业 attestation |
+| **A4** CP | ~75% | ✅ thin | demo | 全状态机 · 真服务（Map C） |
+| **A5** Fallback | ~90% | ✅ | **L5 thin** | 多 module 生产负载 |
+| **A6** Quality | ~60% | ✅ M9 | **L5 gate** | E2E 挡 promote（P7 · Map C） |
+
+票级进度：[wayfinding-impl-2/map.md](../wayfinding-impl-2/map.md)（Map A 全票 closed）。
+
+### 9.4 Spine + Branch（全绿）
+
+| 步 | 状态 | 证据 |
+|----|------|------|
+| M0–M2 | ✅ | governance · dev · release hygiene |
+| M3 · M8 · M9 · M10 | ✅ | [m3-gf](./hitl/m3-gf-2026-08-26.md) · [m8-l4-gf](./hitl/m8-l4-gf-2026-08-26.md) · [m9](./hitl/m9-quality-gate-2026-08-26.md) · [m10](./hitl/m10-map-a-spine-closure-2026-08-26.md) |
+| M3b · M8b · M4 | ✅ | [m3b-bf](./hitl/m3b-bf-2026-08-26.md) · [bf-l4](./hitl/bf-l4-bf-2026-08-26.md) · [m4](./hitl/m4-debug-host-2026-08-26.md) |
+| BF L5 | ✅ | [bf-l5](./hitl/bf-l5-quality-gate-2026-08-26.md) · loop `H-bf-l5` |
+
+**回归入口：** `node scripts/run-afk-hitl-loop.mjs ~/Work/my-rn-app` → [`afk-hitl-loop-latest.md`](./hitl/afk-hitl-loop-latest.md)
+
+### 9.5 Map B 工业切面
+
+索引：[wayfinding-map-b/map.md](../wayfinding-map-b/map.md) · loop：[`map-b-loop.md`](./agents/map-b-loop.md)
+
+| ID | 内容 | 状态 |
+|----|------|------|
+| B1–B3 | CP Bearer · XCF build path · SQLite | ✅ #24–#26 |
+| B4–B5 | P4/P6 native doctor · CP viewer/admin | ✅ #27–#28 |
+| B6 | XCFramework **binary** CI | SKIP（需 full Xcode） |
+| B7 | Harmony 真机 | BLOCKED（DevEco） |
+| B8 | CP Postgres 多租户 | BLOCKED（产品） |
+
+**回归入口：** `node scripts/run-map-b-loop.mjs` → [`map-b-loop-latest.md`](./hitl/map-b-loop-latest.md)
+
+### 9.6 P1–P17 · 合同 vs 落地（摘要）
+
+| 态 | 补丁 |
+|----|------|
+| **✅ 代码+验证** | P3 · P4 thin（B4）· P5 · P6 thin（B4）· P2 部分（block/promote 演练） |
+| **⚠️ 接口/薄** | P1 · P2 文案 · P7（M9 only）· P9（SBOM 生成 stub） |
+| **❌ Map C/D** | P8 · P10–P17 生产联动（E2E/SLO/渠道/合规） |
+
+合同权威：[research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) — **实现可分期，合同不砍**。
+
+### 9.7 距目标地 · 优先 backlog
+
+1. **实验台：** Gradle/SDK（`H-bf-consumer`）· Xcode CI（B6）· Harmony 设备（B7）
+2. **Map B 可 AFK：** CP rollout/Kill UI · P4 drift 全矩阵 · P6 native lint/Codegen diff
+3. **Map C kickoff：** 真 CP 服务 · P7 E2E 挡 promote · `channel_profile` 七渠
+4. **Map D：** 迁移工具链 · 合规叠加档 · 运维手册
+
+*上一结项：[M10 HITL](./hitl/m10-map-a-spine-closure-2026-08-26.md) · [M18 index](./hitl/m18-map-a-index-closure-2026-08-26.md) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open 直至 B6–B8/渠道余量挂接或 honest defer。*
