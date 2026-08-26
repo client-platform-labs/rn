@@ -8,7 +8,7 @@ import {
   listInstallableCandidates,
   loadRegistry,
 } from "./candidate-store.js";
-import { checkCpBearerAuth, resolveCpAuthToken } from "./cp-auth.js";
+import { checkCpBearerAuth, checkCpMutatingRole, resolveCpAuthToken, resolveCpRole } from "./cp-auth.js";
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
@@ -54,6 +54,7 @@ export async function runServe(options: {
   const port = options.port ?? 4040;
   const host = options.host ?? "127.0.0.1";
   const cpAuthToken = resolveCpAuthToken();
+  const cpRole = resolveCpRole();
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
@@ -62,6 +63,11 @@ export async function runServe(options: {
         const auth = checkCpBearerAuth(req.headers.authorization, cpAuthToken);
         if (!auth.ok) {
           sendJson(res, auth.status, { error: auth.error });
+          return false;
+        }
+        const role = checkCpMutatingRole(cpRole);
+        if (!role.ok) {
+          sendJson(res, role.status, { error: role.error });
           return false;
         }
         return true;
@@ -185,6 +191,9 @@ export async function runServe(options: {
       );
       if (cpAuthToken) {
         console.error("  CP auth: RN_CP_TOKEN set — mutating routes require Bearer");
+      }
+      if (cpAuthToken && cpRole === "viewer") {
+        console.error("  CP role: viewer — POST promote/block disabled (GET read-only)");
       }
       if (process.env.RN_CP_REGISTRY?.trim().toLowerCase() === "sqlite") {
         console.error("  CP registry: SQLite (.rn/delivery/registry.sqlite)");

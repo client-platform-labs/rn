@@ -14,6 +14,8 @@ import {
   type DevSessionConfig,
 } from "@client-platform/rn-core";
 
+import { evaluateBrownfieldNativeDoctor } from "./brownfield-native-doctor.js";
+
 export const HOST_PROFILE_RELATIVE = path.join(".rn", "host-profile.jsonc");
 
 export type DoctorProfile = "greenfield" | "brownfield" | "expo";
@@ -197,6 +199,8 @@ export function evaluateBrownfieldDoctor(options: {
       });
     }
   }
+
+  checks.push(...evaluateBrownfieldNativeDoctor(root));
 
   return checks;
 }

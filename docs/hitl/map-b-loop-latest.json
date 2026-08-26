@@ -1,0 +1,92 @@
+{
+  "map": "B",
+  "parentIssue": 23,
+  "pass": [
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5"
+  ],
+  "fail": [],
+  "skip": [
+    "B6"
+  ],
+  "blocked": [
+    "B7",
+    "B8"
+  ],
+  "ok": true,
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-08-26T14-07-20-143Z.jsonl",
+  "ts": "2026-08-26T14:07:22.843Z",
+  "inventory": [
+    {
+      "id": "B1",
+      "kind": "afk",
+      "title": "CP Bearer auth",
+      "issue": 24,
+      "verify": "scripts/verify-cp-auth.mjs",
+      "deps": []
+    },
+    {
+      "id": "B2",
+      "kind": "afk",
+      "title": "RnModuleStub XCFramework build path",
+      "issue": 25,
+      "verify": "scripts/verify-bf-xcframework-build.mjs",
+      "deps": []
+    },
+    {
+      "id": "B3",
+      "kind": "afk",
+      "title": "CP registry SQLite",
+      "issue": 26,
+      "verify": "scripts/verify-cp-registry-sqlite.mjs",
+      "deps": [
+        "B1"
+      ]
+    },
+    {
+      "id": "B4",
+      "kind": "afk",
+      "title": "P4/P6 BF native doctor",
+      "issue": 27,
+      "verify": "scripts/verify-bf-native-doctor.mjs",
+      "deps": []
+    },
+    {
+      "id": "B5",
+      "kind": "afk",
+      "title": "CP role matrix (viewer/admin)",
+      "issue": 28,
+      "verify": "scripts/verify-cp-rbac.mjs",
+      "deps": [
+        "B1"
+      ]
+    },
+    {
+      "id": "B6",
+      "kind": "deferred",
+      "title": "XCFramework binary artifact on CI",
+      "issue": 25,
+      "verify": "scripts/verify-bf-xcframework-build.mjs",
+      "deps": []
+    },
+    {
+      "id": "B7",
+      "kind": "blocked",
+      "title": "HarmonyOS 真机钢线",
+      "issue": null,
+      "verify": null,
+      "deps": []
+    },
+    {
+      "id": "B8",
+      "kind": "blocked",
+      "title": "CP Postgres / multi-tenant",
+      "issue": null,
+      "verify": null,
+      "deps": []
+    }
+  ]
+}

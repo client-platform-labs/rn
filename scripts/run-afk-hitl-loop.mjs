@@ -144,31 +144,6 @@ const STEPS = [
     run: () => runNode(path.join(repoRoot, "scripts/verify-cp-stub-api.mjs")),
   },
   {
-    id: "MapB-cp-auth",
-    kind: "afk",
-    title: "Map B CP Bearer auth",
-    issue: 24,
-    deps: ["CP"],
-    run: () => runNode(path.join(repoRoot, "scripts/verify-cp-auth.mjs")),
-  },
-  {
-    id: "MapB-xcf",
-    kind: "afk",
-    title: "Map B RnModuleStub XCFramework",
-    issue: 25,
-    run: () =>
-      runNode(path.join(repoRoot, "scripts/verify-bf-xcframework-build.mjs")),
-  },
-  {
-    id: "MapB-cp-sqlite",
-    kind: "afk",
-    title: "Map B CP registry SQLite",
-    issue: 26,
-    deps: ["CP"],
-    run: () =>
-      runNode(path.join(repoRoot, "scripts/verify-cp-registry-sqlite.mjs")),
-  },
-  {
     id: "Dist",
     kind: "afk",
     title: "#15 distribution console dry",

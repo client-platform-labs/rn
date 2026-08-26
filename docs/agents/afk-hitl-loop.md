@@ -39,7 +39,9 @@ node scripts/run-afk-hitl-loop.mjs --plan
 | **AUTO-HITL** | 有 `adb device` 即可脚本完成（install / reverse / tap） | Agent | 无设备 → SKIP（非 FAIL）；有设备失败 → FAIL |
 | **TRUE-HITL** | 必须人眼/人手（Harmony、生产 Web UX 演示） | Human | loop **永不阻塞**；只打印 TODO |
 
-**原则：** Spine + Map B thin 验收串能 AFK/AUTO 的一律进 loop；TRUE-HITL 只记账，不弹确认。
+**原则：** Spine 验收串能 AFK/AUTO 的一律进 loop；TRUE-HITL 只记账，不弹确认。
+
+**Map B 工业切面** 有独立 loop → [`map-b-loop.md`](./map-b-loop.md) · `node scripts/run-map-b-loop.mjs`（已从本 Spine loop 移除 MapB-* 步骤）。
 
 ---
 
@@ -95,17 +97,14 @@ node scripts/run-afk-hitl-loop.mjs --plan
 | M8b | #22 | `verify-bf-l4-steel-thread.mjs` | M3b | AFK |
 | M10 | #18 | `verify-m10-map-a-closure.mjs` | M8+M9+M8b | AFK |
 
-### CP + Map B AFK
+### CP AFK
 
 | ID | Issue | Script | Deps | Kind |
 |----|-------|--------|------|------|
 | CP | #7 | `verify-cp-stub-api.mjs` | — | AFK |
-| MapB-cp-auth | #24 | `verify-cp-auth.mjs` | CP | AFK |
-| MapB-cp-sqlite | #26 | `verify-cp-registry-sqlite.mjs` | CP | AFK |
-| MapB-xcf | #25 | `verify-bf-xcframework-build.mjs` | — | AFK |
 | Dist | #15 | `verify-distribution-console.mjs` | CP | AFK |
 
-### BF depth AFK (#5 closed · Map B 余量 P4/P6)
+Map B（B1–B8）→ [`map-b-loop.md`](./map-b-loop.md)
 
 | ID | Issue | Script | Deps | Kind |
 |----|-------|--------|------|------|

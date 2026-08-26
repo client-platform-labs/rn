@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { checkCpBearerAuth } from "../dist/cp-auth.js";
+import { checkCpBearerAuth, checkCpMutatingRole, resolveCpRole } from "../dist/cp-auth.js";
 
 describe("checkCpBearerAuth", () => {
   it("allows all when token unset", () => {
@@ -24,5 +24,26 @@ describe("checkCpBearerAuth", () => {
     assert.deepEqual(checkCpBearerAuth("Bearer secret", "secret"), {
       ok: true,
     });
+  });
+});
+
+describe("checkCpMutatingRole", () => {
+  it("viewer blocks mutate", () => {
+    const result = checkCpMutatingRole("viewer");
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.status, 403);
+  });
+
+  it("admin allows mutate", () => {
+    assert.deepEqual(checkCpMutatingRole("admin"), { ok: true });
+  });
+});
+
+describe("resolveCpRole", () => {
+  it("defaults to admin", () => {
+    const prev = process.env.RN_CP_ROLE;
+    delete process.env.RN_CP_ROLE;
+    assert.equal(resolveCpRole(), "admin");
+    if (prev) process.env.RN_CP_ROLE = prev;
   });
 });

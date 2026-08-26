@@ -1,7 +1,7 @@
 {
   "project": "/Users/xuwei/Work/my-rn-app",
-  "mode": "afk",
-  "adb": false,
+  "mode": "auto",
+  "adb": true,
   "pass": [
     "L0-gov",
     "L0-test",
@@ -26,23 +26,23 @@
     "A5",
     "M8b",
     "M10",
+    "H-warm",
+    "H-bundler",
+    "H-dist",
+    "H-dist-install",
     "H-bf-l5",
     "A-expo"
   ],
-  "fail": [],
-  "skip": [
-    "H-warm",
-    "H-bundler",
-    "H-bf-consumer",
-    "H-dist",
-    "H-dist-install"
+  "fail": [
+    "H-bf-consumer"
   ],
+  "skip": [],
   "todo": [
     "T-harmony"
   ],
-  "ok": true,
-  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/afk-hitl-loop-2026-08-26T13-54-59-429Z.jsonl",
-  "ts": "2026-08-26T13:55:09.082Z",
+  "ok": false,
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/afk-hitl-loop-2026-08-26T13-57-51-415Z.jsonl",
+  "ts": "2026-08-26T13:59:06.148Z",
   "inventory": [
     {
       "id": "L0-gov",

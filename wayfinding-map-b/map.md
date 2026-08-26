@@ -17,13 +17,18 @@ GitHub: #23 (`wayfinder:map`) — **open**
 
 ## 进度板（2026-08-26）
 
+**Loop：** `node scripts/run-map-b-loop.mjs` · 清单 [`docs/agents/map-b-loop.md`](../docs/agents/map-b-loop.md)
+
 | ID | GH | 标题 | Status | 验证 |
 |----|-----|------|--------|------|
 | B1 | [#24](https://github.com/client-platform-labs/rn/issues/24) | CP Bearer auth | **resolved** | `verify-cp-auth.mjs` |
 | B2 | [#25](https://github.com/client-platform-labs/rn/issues/25) | XCFramework build | **resolved** | `verify-bf-xcframework-build.mjs` |
 | B3 | [#26](https://github.com/client-platform-labs/rn/issues/26) | CP registry SQLite | **resolved** | `verify-cp-registry-sqlite.mjs` |
-| — | deferred | Harmony 真机 | open | DevEco 设备 |
-| — | deferred | CP 角色矩阵 | open | 产品排期 |
+| B4 | [#27](https://github.com/client-platform-labs/rn/issues/27) | P4/P6 BF native doctor | **in progress** | `verify-bf-native-doctor.mjs` |
+| B5 | [#28](https://github.com/client-platform-labs/rn/issues/28) | CP role matrix | **in progress** | `verify-cp-rbac.mjs` |
+| B6 | #25 | XCFramework binary CI | deferred | full Xcode |
+| B7 | — | Harmony 真机 | blocked | DevEco |
+| B8 | — | CP Postgres | blocked | 产品 |
 
 **Kickoff 已在 Map A 落地（不重复开票）：** 装包台 agent · CP Web thin · BF L5 · Expo bench
 
@@ -31,3 +36,4 @@ GitHub: #23 (`wayfinder:map`) — **open**
 
 - **如无必要，勿增实体** — Map B 不新增 `rn` 公开 CLI；脚本 + `rn-delivery` 扩展
 - Spine 绿：`node scripts/run-afk-hitl-loop.mjs ~/Work/my-rn-app`
+- Map B 绿：`node scripts/run-map-b-loop.mjs`
