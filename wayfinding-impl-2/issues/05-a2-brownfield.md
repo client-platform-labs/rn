@@ -29,6 +29,8 @@ Brownfield **必须**实现与 Greenfield 相同的 **`DevSessionController` / B
 - [x] 参考文档：`prototype/reference-skeleton/examples/hosts/brownfield/README.md`
 - [x] `examples/brownfield-host`：TS demo + Android `SurfaceHostAdapter.kt` stub + host-profile
 - [x] `rn doctor --profile brownfield`
-- [ ] 原生三层宿主（完整 Gradle / RCTRootView 嵌入）
-- [ ] `rn-module` 制品行打包
-- [ ] 真机可装可跑 RN Surface
+- [x] 原生 RCT / Gradle 薄切片（`verify-bf-gradle` · `verify-bf-rct-host` · bundlerUrl HITL）
+- [x] `rn-module` Android AAR 制品行薄切片（`findNewestAar` · `verify-bf-rn-module` · [HITL](../../docs/hitl/bf-rn-module-aar-2026-08-26.md)）
+- [ ] 宿主 BOM 消费 AAR / 生产级三层壳接线
+- [ ] iOS XCFramework · 真机宿主集成 DoD（深度）
+- [ ] P4 全量 AGP/NDK doctor · P6 ABI 硬门禁

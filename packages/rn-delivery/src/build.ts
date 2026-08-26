@@ -16,6 +16,7 @@ import {
   EXIT_FAIL,
   findAndroidSdkRoot,
   findNewestApk,
+  findNewestAar,
   findWorkspaceOrProject,
   findXcodeScheme,
   loadManifestOrEmpty,
@@ -85,8 +86,9 @@ export async function runBuild(options: {
         );
       }
       const assembleTask = androidAssembleGradleTask(profile);
+      const wantsRnModule = manifest?.artifact_kind === "rn-module";
       console.error(
-        `rn-delivery build: assembling Android ${profile === "release" ? "release" : "debug"} APK via Gradle (${assembleTask})…`,
+        `rn-delivery build: assembling Android ${profile === "release" ? "release" : "debug"} ${wantsRnModule ? "AAR" : "APK"} via Gradle (${assembleTask})…`,
       );
       const code = await runStreaming(gradlew, [assembleTask], {
         cwd: androidDir,
@@ -101,19 +103,27 @@ export async function runBuild(options: {
           EXIT_FAIL,
         );
       }
-      const apk = findNewestApk(androidDir);
-      const digest = apk ? sha256File(apk) : "pending";
+      const artifactKind = wantsRnModule
+        ? ("rn-module" as const)
+        : hostArtifactKindForProfile(profile);
+      const artifactPath = wantsRnModule
+        ? findNewestAar(androidDir)
+        : findNewestApk(androidDir);
+      if (wantsRnModule && !artifactPath) {
+        throw new DeliveryError(
+          "artifact_kind rn-module but no .aar under android/ — use a com.android.library module (see examples/brownfield-host)",
+          EXIT_FAIL,
+        );
+      }
+      const digest = artifactPath ? sha256File(artifactPath) : "pending";
       const meta = buildCandidateMetadata({
-        artifact_kind:
-          manifest?.artifact_kind === "rn-module"
-            ? "rn-module"
-            : hostArtifactKindForProfile(profile),
+        artifact_kind: artifactKind,
         artifact_line: manifest?.artifact_line,
         release_id: releaseId,
         platform: "android",
         profile,
         configuration: profile === "debug-host" ? "debug" : "release",
-        path: apk ?? null,
+        path: artifactPath ?? null,
         digest,
         stage: "compile",
         runtime_fingerprint_digest: fingerprintDigest,

@@ -192,6 +192,17 @@ export function validateCandidateMetadata(
     }
   }
 
+  if (v.artifact_kind === "rn-module") {
+    if (
+      v.platform === "android" &&
+      typeof v.path === "string" &&
+      v.path.length > 0 &&
+      !v.path.endsWith(".aar")
+    ) {
+      errors.push("rn-module android path must end with .aar");
+    }
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }

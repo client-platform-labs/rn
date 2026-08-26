@@ -159,6 +159,14 @@ const STEPS = [
     run: () => runNode(path.join(repoRoot, "scripts/verify-bf-gradle.mjs")),
   },
   {
+    id: "BF-aar",
+    kind: "afk",
+    title: "#5 BF rn-module AAR",
+    issue: 5,
+    deps: ["BF-gradle"],
+    run: () => runNode(path.join(repoRoot, "scripts/verify-bf-rn-module.mjs")),
+  },
+  {
     id: "M2",
     kind: "afk",
     title: "M2 release hygiene",

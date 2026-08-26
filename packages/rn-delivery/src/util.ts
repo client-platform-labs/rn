@@ -110,6 +110,41 @@ export function findNewestApk(androidDir: string): string | undefined {
   return found[0]?.path;
 }
 
+/**
+ * Locate newest Android library AAR under android/ (P5 / rn-module).
+ * Prefers paths under outputs/aar/; falls back to any .aar under androidDir.
+ */
+export function findNewestAar(androidDir: string): string | undefined {
+  if (!existsSync(androidDir)) return undefined;
+  const found: Array<{ path: string; mtime: number; preferred: boolean }> = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (
+        entry.name === "node_modules" ||
+        entry.name === ".git" ||
+        entry.name === ".gradle"
+      ) {
+        continue;
+      }
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile() && entry.name.endsWith(".aar")) {
+        const preferred = full.includes(
+          `${path.sep}outputs${path.sep}aar${path.sep}`,
+        );
+        found.push({ path: full, mtime: statSync(full).mtimeMs, preferred });
+      }
+    }
+  };
+  walk(androidDir);
+  const pool = found.some((f) => f.preferred)
+    ? found.filter((f) => f.preferred)
+    : found;
+  pool.sort((a, b) => b.mtime - a.mtime);
+  return pool[0]?.path;
+}
+
 export function findXcodeScheme(iosDir: string): string | undefined {
   const entries = readdirSync(iosDir);
   const xcodeproj = entries.find((e) => e.endsWith(".xcodeproj"));

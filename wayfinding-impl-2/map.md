@@ -42,7 +42,7 @@ GitHub: #18 (`wayfinder:map`)
 | 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **resolved** | DevTransport HITL |
 | 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | **resolved** | [M4 HITL](../docs/hitl/m4-debug-host-2026-08-26.md) |
 | 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro | task | **in-progress** | GF L-C 齐；BF 协议挂 #5 |
-| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **in-progress** | L4 pipe + RCT scaffold；AAR 余量 |
+| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **in-progress** | L4+RCT+AAR thin；BOM/XCFramework 余量 |
 | 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **in-progress** | L4 thin HITL；真 sign 余量 |
 | 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **resolved** | [A5 HITL](../docs/hitl/a5-client-fallback-2026-08-26.md) |
 | 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane | task | open | file stub only → Map B |

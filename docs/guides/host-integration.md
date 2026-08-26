@@ -137,8 +137,8 @@ TS contract: `createBrownfieldReferenceHost` in `@client-platform/rn-core` — t
 ### BF gaps (as of Map A progress)
 
 - [x] Gradle RCT host scaffold + `assembleDebug` HITL ([#5](https://github.com/client-platform-labs/rn/issues/5) · [bf-rct-host](../hitl/bf-rct-host-2026-08-26.md))
-- [ ] Full BF M8 steel-thread re-HITL ([#22](https://github.com/client-platform-labs/rn/issues/22))
-- [ ] `rn-module` AAR packaging via `rn-delivery` (L3/L4)
+- [x] `rn-module` AAR thin slice ([bf-rn-module-aar](../hitl/bf-rn-module-aar-2026-08-26.md) · `verify-bf-rn-module`)
+- [ ] Host BOM consume AAR / XCFramework · full integrate DoD
 - [ ] Release host without DevSession symbols (shared #20 gate)
 
 ---
