@@ -42,7 +42,7 @@ GitHub: #18 (`wayfinder:map`)
 | 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **resolved** | DevTransport HITL |
 | 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | **resolved** | [M4 HITL](../docs/hitl/m4-debug-host-2026-08-26.md) |
 | 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro | task | **resolved** | GF L-C · BF 协议挂 #5 |
-| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **open** | L5 · AAR · [BOM consume](../docs/hitl/bf-bom-consume-2026-08-26.md)；XCFramework 余量 |
+| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **open** | AAR publish · iOS stub；XCFramework binary 余量 |
 | 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **resolved** | L4 thin HITL |
 | 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **resolved** | [A5 HITL](../docs/hitl/a5-client-fallback-2026-08-26.md) |
 | 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane | task | **resolved** | file CP + thin Web |
@@ -56,7 +56,7 @@ GitHub: #18 (`wayfinder:map`)
 | 切片 | 合同 | Spine HITL | 备注 |
 |------|------|------------|------|
 | A1 | ~95% | ✅ L5 | M4 debug-host · #19 bench |
-| A2 | ~85% | ✅ L5 pipe | #5 open — XCFramework / Maven publish |
+| A2 | ~90% | ✅ L5 pipe | #5 open — XCFramework binary · device integrate |
 | A3 | ~85% | ✅ L4 thin | promote/block · 装包台 |
 | A4 | ~75% | ✅ thin | file CP + Web demo |
 | A5 | ~90% | ✅ L5 thin | 槽位持久化·Failed UI |

@@ -1,6 +1,7 @@
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
+    id("maven-publish")
 }
 
 android {
@@ -29,4 +30,23 @@ android {
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+                groupId = "com.clientplatform.rn"
+                artifactId = "rn-module-stub"
+                version = "0.1.0"
+            }
+        }
+        repositories {
+            maven {
+                name = "local"
+                url = uri("${rootProject.layout.projectDirectory.dir("publish/maven-local")}")
+            }
+        }
+    }
 }

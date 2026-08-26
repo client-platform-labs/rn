@@ -139,7 +139,8 @@ TS contract: `createBrownfieldReferenceHost` in `@client-platform/rn-core` — t
 - [x] Gradle RCT host scaffold + `assembleDebug` HITL ([#5](https://github.com/client-platform-labs/rn/issues/5) · [bf-rct-host](../hitl/bf-rct-host-2026-08-26.md))
 - [x] `rn-module` AAR thin slice ([bf-rn-module-aar](../hitl/bf-rn-module-aar-2026-08-26.md) · `verify-bf-rn-module`)
 - [x] Host BOM consume AAR ([bf-bom-consume](../hitl/bf-bom-consume-2026-08-26.md) · `verify-bf-bom-consume`)
-- [ ] XCFramework · Maven publish · full production integrate DoD
+- [x] AAR flatDir/maven publish ([bf-aar-publish-ios-stub](../hitl/bf-aar-publish-ios-stub-2026-08-26.md))
+- [ ] XCFramework binary · device consumer integrate · P4/P6 depth
 - [ ] Release host without DevSession symbols (shared #20 gate)
 
 ---

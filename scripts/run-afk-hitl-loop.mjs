@@ -175,6 +175,21 @@ const STEPS = [
     run: () => runNode(path.join(repoRoot, "scripts/verify-bf-bom-consume.mjs")),
   },
   {
+    id: "BF-publish",
+    kind: "afk",
+    title: "#5 BF AAR flatDir/maven publish",
+    issue: 5,
+    deps: ["BF-bom"],
+    run: () => runNode(path.join(repoRoot, "scripts/verify-bf-aar-publish.mjs")),
+  },
+  {
+    id: "BF-ios",
+    kind: "afk",
+    title: "#5 BF iOS rn-module stub",
+    issue: 5,
+    run: () => runNode(path.join(repoRoot, "scripts/verify-bf-ios-stub.mjs")),
+  },
+  {
     id: "M2",
     kind: "afk",
     title: "M2 release hygiene",
