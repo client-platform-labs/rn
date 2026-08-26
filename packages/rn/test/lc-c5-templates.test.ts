@@ -46,4 +46,17 @@ describe("L-C C5 templates", () => {
     assert.match(screen, /simulate destroy support/);
     assert.match(screen, /mount support interval/);
   });
+
+  it("A5 FailedFallbackScreen binds presentFallbackUi fields", () => {
+    const screen = readFileSync(
+      path.join(
+        root,
+        "templates/sample-demo/src/sample/features/modules/FailedFallbackScreen.tsx",
+      ),
+      "utf8",
+    );
+    assert.match(screen, /FailedFallbackScreen/);
+    assert.match(screen, /Module unavailable/);
+    assert.match(screen, /skipped/);
+  });
 });

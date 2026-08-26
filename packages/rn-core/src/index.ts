@@ -84,6 +84,31 @@ export {
 export type { SelectFallbackSlotOptions } from "./selector.js";
 
 export {
+  MODULE_SLOTS_DIR,
+  loadModuleSlots,
+  moduleSlotsPath,
+  saveModuleSlots,
+} from "./module-slots-store.js";
+export type { LoadModuleSlotsResult } from "./module-slots-store.js";
+
+export {
+  canRetryDownload,
+  createDownloadRetryBudget,
+  excludeSlotsByBlockedUpdates,
+  excludeSlotsFromHealth,
+  mergeExcludeSlots,
+  presentFallbackUi,
+  recordDownloadAttempt,
+  verifyArtifactDigest,
+} from "./fallback-runtime.js";
+export type {
+  DownloadRetryBudget,
+  FallbackUiModel,
+  HealthFailureKind,
+  SlotHealthFailure,
+} from "./fallback-runtime.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,

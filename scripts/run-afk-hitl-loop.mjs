@@ -237,6 +237,16 @@ const STEPS = [
       ]),
   },
   {
+    id: "A5",
+    kind: "afk",
+    title: "A5 client fallback",
+    issue: 8,
+    run: () =>
+      runNode(path.join(repoRoot, "scripts/verify-a5-fallback.mjs"), [
+        projectRoot,
+      ]),
+  },
+  {
     id: "M8b",
     kind: "afk",
     title: "M8b BF L4 steel-thread",

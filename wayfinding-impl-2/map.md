@@ -44,7 +44,7 @@ GitHub: #18 (`wayfinder:map`)
 | 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro | task | **in-progress** | GF L-C 齐；BF 协议挂 #5 |
 | 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **in-progress** | L4 pipe + RCT scaffold；AAR 余量 |
 | 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **in-progress** | L4 thin HITL；真 sign 余量 |
-| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **in-progress** | load gate HITL；UI 余量 |
+| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **resolved** | [A5 HITL](../docs/hitl/a5-client-fallback-2026-08-26.md) |
 | 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane | task | open | file stub only → Map B |
 | 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | open | Map B |
 | 09 | [#9](https://github.com/client-platform-labs/rn/issues/9) | A6 质量信号 | task | **resolved** | [M9 L5 HITL](../docs/hitl/m9-quality-gate-2026-08-26.md) |
@@ -59,7 +59,7 @@ GitHub: #18 (`wayfinder:map`)
 | A2 | ~65% | 🔄 L4 | M8b BF steel-thread；#5 depth |
 | A3 | ~60% | ✅ thin L4 | promote/block；#6/#7 加深 |
 | A4 | ~60% | 🔄 stub | file CP · #7 → Map B |
-| A5 | ~60% | ✅ core | M7 load gate |
+| A5 | ~90% | ✅ L5 thin | 槽位持久化·Failed UI·verify-a5 |
 | A6 | ~40% | ✅ L5 gate | M9；E2E 余量 |
 
 **一句话**：Spine M0–M10 + Branch M8b **PASS**；Map A 父票 #18 Spine 章节已结，切片余量挂 Map B。

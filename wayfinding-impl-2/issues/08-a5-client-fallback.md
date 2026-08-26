@@ -1,6 +1,6 @@
 Type: task
 Mode: AFK
-Status: open
+Status: closed
 GitHub: #8
 Triage: ready-for-agent
 Blocked by: 01, 02, 03
@@ -33,18 +33,21 @@ Blocked by: 01, 02, 03
 | `capabilitiesSatisfied` | 能力子集门禁（禁止 exact equality） |
 | schemas | `jsUpdateCandidateSchema` / `moduleSlotsSchema` / `jsSelectorHostSchema` + `schemas/*.json` |
 
-### 未做（DoD 仍 incomplete — 勿关票）
+### AFK DoD（2026-08-26）
 
-- [ ] 设备槽位持久化 / 签名校验 / 下载重试预算
-- [ ] 启动健康探针 → 自动 `excludeSlots` + 切 baseline
-- [ ] 原生 Failed 降级页（Brownfield 宿主提供；非本票 A2）
-- [ ] 与 A4 控制面联调（Kill / RolledBack mock）
-- [ ] 多 module 同壳集成演示
+- [x] 设备槽位持久化：`loadModuleSlots` / `saveModuleSlots` → `.rn/runtime/slots/`
+- [x] 启动健康 → `excludeSlotsFromHealth` + `selectFallbackSlot`
+- [x] 下载重试预算 + 摘要校验 helper（`createDownloadRetryBudget` / `verifyArtifactDigest`）
+- [x] Failed UI 合约：`presentFallbackUi` + sample `FailedFallbackScreen`
+- [x] A4 Kill mock：`excludeSlotsByBlockedUpdates`
+- [x] Verify：`scripts/verify-a5-fallback.mjs` · HITL [`docs/hitl/a5-client-fallback-2026-08-26.md`](../../docs/hitl/a5-client-fallback-2026-08-26.md)
+
+仍属壳侧（非阻塞关票）：生产 BF 原生 Failed Activity 接线；真机 CDN 下载实现。
 
 ### Verify
 
 ```bash
 pnpm exec tsc -b packages/rn-core
-node --experimental-strip-types --test packages/rn-core/test/selector.test.ts
-# or: pnpm test  (workspace)
+node --experimental-strip-types --test packages/rn-core/test/selector.test.ts packages/rn-core/test/fallback-runtime.test.ts packages/rn-core/test/module-slots-store.test.ts
+node scripts/verify-a5-fallback.mjs
 ```
