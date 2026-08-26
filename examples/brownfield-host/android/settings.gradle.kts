@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "brownfield-host-stub"
 include(":stub")
+include(":consumer")

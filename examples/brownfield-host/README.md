@@ -12,7 +12,8 @@ TS + Android **SurfaceHost stub** sharing Greenfield Dev Session protocol (ADR-0
 | `.rn/dev-session.jsonc` | Dual-module port table (`main:8081`, `support:8082`) |
 | `src/demo.ts` | `createBrownfieldReferenceHost` demo |
 | `android/.../SurfaceHostAdapter.kt` | Native-push adapter stub |
-| `android/stub/` | Gradle library module (compile slice, #5) |
+| `android/stub/` | Gradle library module → rn-module AAR |
+| `android/consumer/` | Host app consuming `:stub` (BOM thin slice) |
 
 ## Commands
 
@@ -28,6 +29,8 @@ node ../../scripts/apply-brownfield-host-stub.mjs .
 pnpm exec rn doctor --profile brownfield
 node ../../scripts/verify-m3b-brownfield.mjs .
 node ../../scripts/verify-bf-gradle.mjs
+node ../../scripts/verify-bf-rn-module.mjs
+node ../../scripts/verify-bf-bom-consume.mjs
 
 # On an rn init shell — native launcher + RnSurfaceActivity (RCT)
 node ../../scripts/apply-brownfield-host-stub.mjs /path/to/shell
@@ -37,6 +40,6 @@ node ../../scripts/verify-bf-rct-host.mjs /path/to/shell
 
 ## Not in this slice
 
-- Dedicated `examples/brownfield-host` APK (use rn init shell + scaffold above)
-- `rn-module` AAR packaging
-- Device install
+- Dedicated consumer device install HITL
+- Maven-published rn-module coordinates
+- iOS XCFramework consumer

@@ -6,7 +6,7 @@ Map A **#18 closed** — Spine + six-slice thin DoD done (GF/BF **L5**). **Map A
 |------|-------|--------------|-------------|
 | CP Web UX depth | [#7](https://github.com/client-platform-labs/rn/issues/7) closed thin | RBAC / rollout UI | Product schedules Map B |
 | Harmony 真机 | Map B | No DevEco / Harmony device in lab | Hardware + SDK available |
-| BF host BOM integrate | [#5](https://github.com/client-platform-labs/rn/issues/5) | AAR contract landed; consumer wiring open | BF integrate sprint |
+| BF host BOM integrate | [#5](https://github.com/client-platform-labs/rn/issues/5) | **Android thin landed** — `:consumer` → `:stub` | XCFramework · Maven publish |
 
 **Landed (Map B kickoff thin):** 装包台 agent · CP `/v1/candidates` + Web · BF bundlerUrl · BF L5 gate — see [map-b-kickoff.md](./map-b-kickoff.md).
 

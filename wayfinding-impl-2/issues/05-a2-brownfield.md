@@ -31,6 +31,7 @@ Brownfield **必须**实现与 Greenfield 相同的 **`DevSessionController` / B
 - [x] `rn doctor --profile brownfield`
 - [x] 原生 RCT / Gradle 薄切片（`verify-bf-gradle` · `verify-bf-rct-host` · bundlerUrl HITL）
 - [x] `rn-module` Android AAR 制品行薄切片（`findNewestAar` · `verify-bf-rn-module` · [HITL](../../docs/hitl/bf-rn-module-aar-2026-08-26.md)）
-- [ ] 宿主 BOM 消费 AAR / 生产级三层壳接线
-- [ ] iOS XCFramework · 真机宿主集成 DoD（深度）
+- [x] 宿主 BOM 消费 AAR 薄切片（`:consumer` → `project(":stub")` · [HITL](../../docs/hitl/bf-bom-consume-2026-08-26.md)）
+- [ ] iOS XCFramework · 生产级 Maven/flatDir 发布
+- [ ] 真机 consumer 宿主集成 DoD（深度）
 - [ ] P4 全量 AGP/NDK doctor · P6 ABI 硬门禁
