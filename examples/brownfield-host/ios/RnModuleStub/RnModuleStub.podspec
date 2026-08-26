@@ -8,6 +8,10 @@ Pod::Spec.new do |s|
   s.platform         = :ios, '15.0'
   s.source           = { :path => '.' }
   s.swift_version    = '5.9'
-  s.source_files     = 'Sources/RnModuleStub/**/*.swift'
-  # s.vendored_frameworks = 'RnModuleStub.xcframework'  # Map B / #5 depth
+  xc = 'build/RnModuleStub.xcframework'
+  if File.exist?(xc)
+    s.vendored_frameworks = xc
+  else
+    s.source_files = 'Sources/RnModuleStub/**/*.swift'
+  end
 end

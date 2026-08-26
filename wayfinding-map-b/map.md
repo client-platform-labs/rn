@@ -20,7 +20,7 @@ GitHub: #23 (`wayfinder:map`) — **open**
 | ID | GH | 标题 | Status | 验证 |
 |----|-----|------|--------|------|
 | B1 | [#24](https://github.com/client-platform-labs/rn/issues/24) | CP Bearer auth | **resolved** | `verify-cp-auth.mjs` |
-| — | deferred | XCFramework binary | open | Map B + Xcode |
+| B2 | [#25](https://github.com/client-platform-labs/rn/issues/25) | XCFramework build | **resolved** | `verify-bf-xcframework-build.mjs` |
 | — | deferred | Harmony 真机 | open | DevEco 设备 |
 | — | deferred | CP 持久化 / RBAC 角色 | open | 产品排期 |
 

@@ -4,7 +4,7 @@ Map A **fully closed** (#18 + #5). **Map B only:** Harmony · XCFramework binary
 
 | Item | Why deferred | Resume when |
 |------|--------------|-------------|
-| XCFramework binary | iOS source pod stub landed; no CI binary yet | Map B + Xcode pipeline |
+| XCFramework binary | Build script + verify ([#25](https://github.com/client-platform-labs/rn/issues/25)); binary needs Xcode | CI Mac runner with Xcode |
 | Harmony 真机 | No DevEco device in lab | Hardware + SDK |
 | CP Web RBAC | Thin Bearer on mutating routes ([#24](https://github.com/client-platform-labs/rn/issues/24)) | Role matrix / OAuth | Product schedules |
 | P4/P6 BF doctor | Thin L3b only | Map B hard gates |

@@ -152,6 +152,14 @@ const STEPS = [
     run: () => runNode(path.join(repoRoot, "scripts/verify-cp-auth.mjs")),
   },
   {
+    id: "MapB-xcf",
+    kind: "afk",
+    title: "Map B RnModuleStub XCFramework",
+    issue: 25,
+    run: () =>
+      runNode(path.join(repoRoot, "scripts/verify-bf-xcframework-build.mjs")),
+  },
+  {
     id: "Dist",
     kind: "afk",
     title: "#15 distribution console dry",

@@ -29,8 +29,8 @@ step(
 const podspec = readFileSync(path.join(iosRoot, "RnModuleStub.podspec"), "utf8");
 step("podspec names RnModuleStub", podspec.includes("RnModuleStub"));
 step(
-  "podspec documents XCFramework deferral",
-  podspec.includes("XCFramework") || podspec.includes("vendored_frameworks"),
+  "podspec supports XCFramework or source fallback",
+  podspec.includes("RnModuleStub.xcframework") && podspec.includes("source_files"),
 );
 
 const swift = readFileSync(

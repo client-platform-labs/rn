@@ -16,7 +16,7 @@ TS + Android **SurfaceHost stub** sharing Greenfield Dev Session protocol (ADR-0
 | `android/consumer/` | Host app consuming `:stub` (project BOM) |
 | `android/consumer-flatdir/` | flatDir AAR from `publish/aar/` |
 | `android/consumer-maven/` | maven-local `com.clientplatform.rn:rn-module-stub` |
-| `ios/RnModuleStub/` | iOS source pod stub (XCFramework binary deferred) |
+| `ios/RnModuleStub/` | Swift Package + podspec (XCFramework via Map B build script) |
 
 ## Commands
 
@@ -36,6 +36,9 @@ node ../../scripts/verify-bf-rn-module.mjs
 node ../../scripts/verify-bf-bom-consume.mjs
 node ../../scripts/verify-bf-aar-publish.mjs
 node ../../scripts/verify-bf-ios-stub.mjs
+node ../../scripts/verify-bf-xcframework-build.mjs
+# Full Xcode.app only:
+bash ../../scripts/build-bf-rn-module-xcframework.sh
 
 # On an rn init shell — native launcher + RnSurfaceActivity (RCT)
 node ../../scripts/apply-brownfield-host-stub.mjs /path/to/shell
@@ -47,4 +50,4 @@ node ../../scripts/verify-bf-rct-host.mjs /path/to/shell
 
 - Dedicated consumer device install HITL
 - Maven-published rn-module coordinates
-- iOS XCFramework consumer
+- iOS host integrate HITL (XCFramework build script landed — run on Xcode Mac)
