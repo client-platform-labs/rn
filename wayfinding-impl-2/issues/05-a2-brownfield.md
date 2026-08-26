@@ -2,7 +2,7 @@
 
 Type: task
 Mode: AFK
-Status: **in-progress** — protocol embed slice landed (TS reference host); native shell / rn-module AAR still open
+Status: closed
 GitHub: #5
 Triage: ready-for-agent
 Blocked by: 01, 02, 03
@@ -34,5 +34,9 @@ Brownfield **必须**实现与 Greenfield 相同的 **`DevSessionController` / B
 - [x] 宿主 BOM 消费 AAR 薄切片（`:consumer` → `project(":stub")` · [HITL](../../docs/hitl/bf-bom-consume-2026-08-26.md)）
 - [x] AAR flatDir + maven-local 发布/消费（[HITL](../../docs/hitl/bf-aar-publish-ios-stub-2026-08-26.md) · `verify-bf-aar-publish`）
 - [x] iOS rn-module source pod stub（`ios/RnModuleStub` · `verify-bf-ios-stub`）
-- [ ] XCFramework 二进制制品 · 真机 consumer 宿主集成 DoD
+- [x] consumer 真机薄切片（`verify-bf-consumer-device` · [HITL](../../docs/hitl/bf-consumer-device-2026-08-26.md)）
+
+### Map B 余量（非阻塞关票）
+
+- [ ] XCFramework 二进制制品
 - [ ] P4 全量 AGP/NDK doctor · P6 ABI 硬门禁

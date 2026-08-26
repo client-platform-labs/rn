@@ -140,7 +140,8 @@ TS contract: `createBrownfieldReferenceHost` in `@client-platform/rn-core` — t
 - [x] `rn-module` AAR thin slice ([bf-rn-module-aar](../hitl/bf-rn-module-aar-2026-08-26.md) · `verify-bf-rn-module`)
 - [x] Host BOM consume AAR ([bf-bom-consume](../hitl/bf-bom-consume-2026-08-26.md) · `verify-bf-bom-consume`)
 - [x] AAR flatDir/maven publish ([bf-aar-publish-ios-stub](../hitl/bf-aar-publish-ios-stub-2026-08-26.md))
-- [ ] XCFramework binary · device consumer integrate · P4/P6 depth
+- [x] consumer device smoke ([bf-consumer-device](../hitl/bf-consumer-device-2026-08-26.md) · #5 closed)
+- [ ] Map B: XCFramework binary · P4/P6 depth
 - [ ] Release host without DevSession symbols (shared #20 gate)
 
 ---

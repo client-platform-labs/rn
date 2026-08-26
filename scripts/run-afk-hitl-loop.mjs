@@ -190,6 +190,15 @@ const STEPS = [
     run: () => runNode(path.join(repoRoot, "scripts/verify-bf-ios-stub.mjs")),
   },
   {
+    id: "BF-consumer",
+    kind: "afk",
+    title: "#5 BF consumer static",
+    issue: 5,
+    deps: ["BF-publish"],
+    run: () =>
+      runNode(path.join(repoRoot, "scripts/verify-bf-consumer-device.mjs")),
+  },
+  {
     id: "M2",
     kind: "afk",
     title: "M2 release hygiene",
@@ -335,6 +344,17 @@ const STEPS = [
         [projectRoot, "--device", ...extra],
       );
     },
+  },
+  {
+    id: "H-bf-consumer",
+    kind: "auto",
+    title: "AUTO BF consumer-flatdir device",
+    issue: 5,
+    deps: ["BF-consumer"],
+    run: () =>
+      runNode(path.join(repoRoot, "scripts/verify-bf-consumer-device.mjs"), [
+        "--device",
+      ]),
   },
   {
     id: "H-dist",
