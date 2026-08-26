@@ -25,9 +25,9 @@ GitHub: #18 (`wayfinder:map`)
 | **to-tickets** | 可执行票 | **权威 = GitHub Issues**（[`docs/agents/issue-tracker.md`](../docs/agents/issue-tracker.md)）；地图父票 [#18](https://github.com/client-platform-labs/rn/issues/18)；本地 `issues/*.md` 仅为历史/可选镜像 |
 | **实现 / 验收** | 代码 + 真机 DoD | **部分**：身份模块 + A1 基线 CLI + DevTransport 已在 main |
 
-### 进度板（2026-08-26 · Spine closure）
+### 进度板（2026-08-26 · Map A index closed · #18）
 
-面板：[Map #18](https://github.com/client-platform-labs/rn/issues/18) · Spine gate: `verify-m10-map-a-closure.mjs` · [M10 HITL](../docs/hitl/m10-map-a-spine-closure-2026-08-26.md)
+面板：[Map #18](https://github.com/client-platform-labs/rn/issues/18)（**closed**）· Spine gate: `verify-m10-map-a-closure.mjs` · [M10 HITL](../docs/hitl/m10-map-a-spine-closure-2026-08-26.md) · [M18 index HITL](../docs/hitl/m18-map-a-index-closure-2026-08-26.md)
 
 | ID | GH | 标题 | 阶段 | Status | 实现粗估 |
 |----|-----|------|------|--------|----------|
@@ -37,32 +37,32 @@ GitHub: #18 (`wayfinder:map`)
 | 10 | [#10](https://github.com/client-platform-labs/rn/issues/10) | rn-core fingerprint 落地 | task | **resolved** | **代码已在 main** |
 | 11 | [#11](https://github.com/client-platform-labs/rn/issues/11) | RN 原子元组 | grilling | **resolved** | 合同完成 |
 | 04 | [#4](https://github.com/client-platform-labs/rn/issues/4) | A1 Greenfield 基线 | task | **resolved** | **L5 HITL** · M4 debug-host |
-| 12 | [#12](https://github.com/client-platform-labs/rn/issues/12) | Expo 对标研究 | research | **resolved** | SLA 锁定；bench→[#19](https://github.com/client-platform-labs/rn/issues/19) |
-| 12b | [#19](https://github.com/client-platform-labs/rn/issues/19) | Expo 同机 bench | task | open | Depth |
+| 12 | [#12](https://github.com/client-platform-labs/rn/issues/12) | Expo 对标研究 | research | **resolved** | SLA 锁定；bench [#19](https://github.com/client-platform-labs/rn/issues/19) |
+| 12b | [#19](https://github.com/client-platform-labs/rn/issues/19) | Expo 同机 bench | task | **resolved** | JSONL bench HITL |
 | 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **resolved** | DevTransport HITL |
 | 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | **resolved** | [M4 HITL](../docs/hitl/m4-debug-host-2026-08-26.md) |
-| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro | task | **in-progress** | GF L-C 齐；BF 协议挂 #5 |
-| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **in-progress** | L4+RCT+AAR thin；BOM/XCFramework 余量 |
-| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **in-progress** | L4 thin HITL；真 sign 余量 |
+| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro | task | **resolved** | GF L-C · BF 协议挂 #5 |
+| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **open** | L5 pipe · RCT · [AAR thin](../docs/hitl/bf-rn-module-aar-2026-08-26.md)；BOM 余量 |
+| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **resolved** | L4 thin HITL |
 | 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **resolved** | [A5 HITL](../docs/hitl/a5-client-fallback-2026-08-26.md) |
-| 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane | task | open | file stub only → Map B |
-| 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | open | Map B |
+| 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane | task | **resolved** | file CP + thin Web |
+| 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | **resolved** | distribution agent |
 | 09 | [#9](https://github.com/client-platform-labs/rn/issues/9) | A6 质量信号 | task | **resolved** | [M9 L5 HITL](../docs/hitl/m9-quality-gate-2026-08-26.md) |
-| 15 | [#16](https://github.com/client-platform-labs/rn/issues/16) | Expo 互操作口子 | task | open | 低优 |
+| 15 | [#16](https://github.com/client-platform-labs/rn/issues/16) | Expo 互操作口子 | task | **resolved** | expo doctor/migrate |
 | — | [#20](https://github.com/client-platform-labs/rn/issues/20)–[#22](https://github.com/client-platform-labs/rn/issues/22) | Enterprise gates | task | **resolved** | Spine M2–M9 + M8b |
 
 **切片完成度（Spine 推广 bar · 2026-08-26）**
 
 | 切片 | 合同 | Spine HITL | 备注 |
 |------|------|------------|------|
-| A1 | ~90% | ✅ L5 | M4 debug-host · M9 quality |
-| A2 | ~65% | 🔄 L4 | M8b BF steel-thread；#5 depth |
-| A3 | ~60% | ✅ thin L4 | promote/block；#6/#7 加深 |
-| A4 | ~60% | 🔄 stub | file CP · #7 → Map B |
-| A5 | ~90% | ✅ L5 thin | 槽位持久化·Failed UI·verify-a5 |
-| A6 | ~40% | ✅ L5 gate | M9；E2E 余量 |
+| A1 | ~95% | ✅ L5 | M4 debug-host · #19 bench |
+| A2 | ~75% | ✅ L5 pipe | #5 open — BOM/XCFramework integrate |
+| A3 | ~85% | ✅ L4 thin | promote/block · 装包台 |
+| A4 | ~75% | ✅ thin | file CP + Web demo |
+| A5 | ~90% | ✅ L5 thin | 槽位持久化·Failed UI |
+| A6 | ~60% | ✅ L5 gate | M9 |
 
-**一句话**：Spine M0–M10 + Branch M8b **PASS**；Map A 父票 #18 Spine 章节已结，切片余量挂 Map B。
+**一句话**：Spine M0–M10 + Branch M8b **PASS**；**#18 已结**；Map A 深度余量仅 **#5**；Harmony / CP 生产化 → Map B。
 
 ---
 

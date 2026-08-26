@@ -1,6 +1,6 @@
 # Map B kickoff (2026-08-26)
 
-**Parent:** Map A spine closed ([M10](./hitl/m10-map-a-spine-closure-2026-08-26.md) · #18).  
+**Parent:** Map A index closed ([M18](./hitl/m18-map-a-index-closure-2026-08-26.md) · #18).  
 **Promotion bar:** GF **L5** · BF **L5**.  
 **Deferred:** [map-b-deferred.md](./map-b-deferred.md) (Harmony · CP Web).
 

@@ -17,20 +17,20 @@
 | M8 L4 steel-thread | ✅ | ✅ | [m8](./m8-l4-gf-2026-08-26.md) · [bf-l4](./bf-l4-bf-2026-08-26.md) |
 | M9 L5 quality gate | ✅ | ✅ (shared scripts) | [m9](./m9-quality-gate-2026-08-26.md) |
 
-**Promotion bar:** GF **L5** · BF **L4**
+**Promotion bar:** GF **L5** · BF **L5**
 
-## Six slices — honest DoD (Spine bar)
+## Six slices — honest DoD (Spine bar · index sync 2026-08-26)
 
-| Slice | Spine 验收 | 状态 | 余量 → Map B / Depth |
-|-------|------------|------|----------------------|
-| **A1** GF | init·doctor·dev·release·debug-host HITL | ✅ L5 dev | #19 Expo bench |
-| **A2** BF | brownfield doctor·RCT scaffold·L4 pipe | 🔄 L4 | #5 rn-module AAR·bundlerUrl |
-| **A3** Delivery | 七阶段合同·候选·promote/block HITL | ✅ thin | #6 真 sign · #15 装包台 |
-| **A4** CP | file stub registry·promote state | 🔄 stub | #7 Node+Web |
-| **A5** Fallback | gateJsCandidate·load gate HITL | ✅ core | Failed UI·持久化 |
-| **A6** Quality | signal blocks promote HITL | ✅ L5 gate | E2E ingest·perf |
+| Slice | Spine 验收 | 状态 | 余量 |
+|-------|------------|------|------|
+| **A1** GF | init·doctor·dev·release·debug-host HITL | ✅ L5 | — |
+| **A2** BF | doctor·RCT·L5 pipe·AAR thin | ✅ L5 pipe | **#5** BOM/XCFramework |
+| **A3** Delivery | 七阶段·候选·promote/block·装包台 | ✅ L4 thin | 真 sign 企业化 |
+| **A4** CP | file registry·thin Web | ✅ thin | RBAC → Map B |
+| **A5** Fallback | selector·persist·Failed UI | ✅ L5 thin | BF native Failed Activity |
+| **A6** Quality | signal blocks promote | ✅ L5 gate | E2E ingest |
 
-**Map A 结项口径（本 gate）：** Spine M0–M9 + Branch M8b 证据齐全，可对外说 **「GF 企业闭环 L5 / BF 可推广 L4」**；**不**宣称 A4 Web 控制台或 Harmony 真机完成。
+**Map A 结项口径：** Spine M0–M10 + Branch M8b + six-slice thin DoD — **#18 closed** ([M18 index](./m18-map-a-index-closure-2026-08-26.md)). **不**宣称 Harmony 真机或 CP 生产 RBAC。
 
 ## Automated gate
 
@@ -39,17 +39,15 @@ node scripts/verify-m10-map-a-closure.mjs ~/Work/my-rn-app
 # M10 spine closure: PASS
 ```
 
-## Map B 挂接（下一地图）
+## Map B 挂接
 
-| 切面 | 挂接票 | 说明 |
-|------|--------|------|
-| HarmonyOS 真机 | 地图 B | 合同已预留 platform |
-| 装包台 / 渠道生产化 | #15 | A3 执行面 |
-| 真 CP + Web | #7 | 替换 file stub |
-| Expo 对标 bench | #19 | Depth SLA |
+| 切面 | 说明 |
+|------|------|
+| HarmonyOS 真机 | 地图 B · [map-b-deferred](../map-b-deferred.md) |
+| CP Web / RBAC 生产化 | Map B depth |
+| BF host integrate | **#5** (Map A depth) |
 
 ## Verdict
 
-**M10 / Map A Spine closure — PASS** (2026-08-26)
-
-*Parent map #18 remains open for slice 余量 tickets; this gate closes the **Spine-first** chapter.*
+**M10 / Map A Spine closure — PASS** (2026-08-26)  
+**M18 / Map A index — CLOSED** (2026-08-26)

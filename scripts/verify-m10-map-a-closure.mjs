@@ -43,7 +43,10 @@ const hitl = [
   "docs/hitl/m3b-bf-2026-08-26.md",
   "docs/hitl/m4-debug-host-2026-08-26.md",
   "docs/hitl/bf-l4-bf-2026-08-26.md",
+  "docs/hitl/a5-client-fallback-2026-08-26.md",
+  "docs/hitl/bf-rn-module-aar-2026-08-26.md",
   "docs/hitl/m10-map-a-spine-closure-2026-08-26.md",
+  "docs/hitl/m18-map-a-index-closure-2026-08-26.md",
 ];
 for (const rel of hitl) {
   step(`HITL ${path.basename(rel)}`, existsSync(path.join(repoRoot, rel)));
