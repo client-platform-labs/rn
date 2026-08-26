@@ -9,8 +9,11 @@ import { runDemoAdd, runDemoRemove } from "./commands/demo.js";
 import { runDevSupportAdd, runDevSupportRemove } from "./commands/dev-support.js";
 import { runDev } from "./commands/dev.js";
 import { runDoctor } from "./commands/doctor.js";
+import { parseDoctorProfile } from "./brownfield-doctor.js";
 import { runHostAndroid } from "./commands/host-android.js";
-import { runInit } from "./commands/init.js";
+import { runInit, parseInitStarter } from "./commands/init.js";
+import { runModuleInit, runModuleLink } from "./commands/module.js";
+import { runMigrate } from "./commands/migrate.js";
 import { runPluginList } from "./commands/plugin.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
 import { CliError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./errors.js";
@@ -57,11 +60,26 @@ export async function run(argv = process.argv): Promise<number> {
       "--strict",
       "fail when L1 device-build packages (or Xcode on macOS) are missing",
     )
-    .action(async (opts: { strict?: boolean }) => {
+    .option(
+      "--profile <name>",
+      "greenfield (default) | brownfield | expo — profile-specific contract checks",
+      "greenfield",
+    )
+    .action(async (opts: { strict?: boolean; profile?: string }) => {
+      let profile;
+      try {
+        profile = parseDoctorProfile(opts.profile);
+      } catch (err) {
+        throw new CliError(
+          err instanceof Error ? err.message : String(err),
+          EXIT_USAGE,
+        );
+      }
       await runDoctor({
         cwd: process.cwd(),
         logger: loggerFromArgv(argv),
         strict: Boolean(opts.strict),
+        profile,
       });
     });
 
@@ -131,6 +149,11 @@ export async function run(argv = process.argv): Promise<number> {
       "force npm registry for Community CLI (also CLIENT_PLATFORM_NPM_REGISTRY)",
     )
     .option("--demo", "after init, implant the sample demo (rn demo add)")
+    .option(
+      "--starter <name>",
+      'topology-b (default, shell + modules/main) | inline-main (path A onboarding)',
+      "topology-b",
+    )
     .action(
       async (
         directory: string | undefined,
@@ -140,8 +163,18 @@ export async function run(argv = process.argv): Promise<number> {
           isolatedNpmrc?: boolean;
           npmRegistry?: string;
           demo?: boolean;
+          starter?: string;
         },
       ) => {
+        let starter;
+        try {
+          starter = parseInitStarter(opts.starter);
+        } catch (err) {
+          throw new CliError(
+            err instanceof Error ? err.message : String(err),
+            EXIT_USAGE,
+          );
+        }
         const cwd = directory ? path.resolve(directory) : process.cwd();
         await runInit({
           cwd,
@@ -151,6 +184,57 @@ export async function run(argv = process.argv): Promise<number> {
           isolatedNpmrc: Boolean(opts.isolatedNpmrc),
           npmRegistry: opts.npmRegistry,
           demo: Boolean(opts.demo),
+          starter,
+        });
+      },
+    );
+
+  const moduleCmd = program
+    .command("module")
+    .description("Business module workspaces (ADR-005 topology B — not app-hosts)");
+  moduleCmd
+    .command("init")
+    .description("Scaffold modules/<id> and link into .rn/dev-session.jsonc")
+    .argument("<moduleId>", "business_module id (e.g. checkout)")
+    .option("--no-link", "scaffold only; do not write dev-session")
+    .option("--metro-port <port>", "Metro port for this module", (v) =>
+      Number.parseInt(v, 10),
+    )
+    .option("--dry-run", "print plan without changes")
+    .action(
+      async (
+        moduleId: string,
+        opts: { link?: boolean; metroPort?: number; dryRun?: boolean },
+      ) => {
+        await runModuleInit({
+          cwd: process.cwd(),
+          moduleId,
+          logger: loggerFromArgv(argv),
+          link: opts.link !== false,
+          metroPort: opts.metroPort,
+          dryRun: Boolean(opts.dryRun),
+        });
+      },
+    );
+  moduleCmd
+    .command("link")
+    .description("Link an existing modules/<id> into .rn/dev-session.jsonc")
+    .argument("<moduleId>", "business_module id")
+    .option("--metro-port <port>", "Metro port", (v) => Number.parseInt(v, 10))
+    .option("--entry <path>", "Metro entry relative to project root")
+    .option("--dry-run", "print plan without changes")
+    .action(
+      async (
+        moduleId: string,
+        opts: { metroPort?: number; entry?: string; dryRun?: boolean },
+      ) => {
+        await runModuleLink({
+          cwd: process.cwd(),
+          moduleId,
+          logger: loggerFromArgv(argv),
+          metroPort: opts.metroPort,
+          entry: opts.entry,
+          dryRun: Boolean(opts.dryRun),
         });
       },
     );
@@ -305,6 +389,27 @@ export async function run(argv = process.argv): Promise<number> {
     .action(() => {
       runConfigValidate({ cwd: process.cwd(), logger: loggerFromArgv(argv) });
     });
+
+  program
+    .command("migrate")
+    .description("Migration advisors (v1: dry-run only; never mutates files)")
+    .argument("[source]", "shorthand source (expo)")
+    .option("--from <source>", "migration source (expo)")
+    .option("--dry-run", "report track recommendations without modifying files")
+    .action(
+      async (
+        positionalSource: string | undefined,
+        opts: { from?: string; dryRun?: boolean },
+      ) => {
+        await runMigrate({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          from: opts.from,
+          positionalSource,
+          dryRun: Boolean(opts.dryRun),
+        });
+      },
+    );
 
   if (shouldLoadPluginCommands(argv)) {
     await registerCliCommandPlugins(program, logger);

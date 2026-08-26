@@ -2,7 +2,7 @@ export const HOST_SUPPORTED_API_VERSIONS = [1] as const;
 
 export const MANIFEST_FILENAME = "client-platform.manifest.jsonc";
 
-export type PluginKind = "cli-command" | "native" | "prebuild";
+export type PluginKind = "cli-command" | "native" | "prebuild" | "dev-session";
 
 export interface PluginRecord {
   id: string;
@@ -26,7 +26,11 @@ export interface PluginRegisterContext<Program = unknown> {
 export type TargetOs = "ios" | "android" | "harmonyos";
 
 /** Dual-train artifact kinds (P5 / identity spine). */
-export type ArtifactKind = "app-host" | "rn-module" | "js-update";
+export type ArtifactKind =
+  | "app-host"
+  | "app-host-debug"
+  | "rn-module"
+  | "js-update";
 
 /** New Architecture / runtime switch surface inside a fingerprint. */
 export type NewArchFlags = Readonly<Record<string, unknown>>;
@@ -54,11 +58,23 @@ export const RN_GREENFIELD_MAJOR_MINOR = "0.87";
 /** Pinned Community CLI / template train for `rn init` orchestration. */
 export const RN_GREENFIELD_INIT_VERSION = "0.87.0";
 
+/** Optional cross-ecosystem interop blocks (ADR-003). */
+export interface ExpoInteropConfig {
+  sdkVersion?: string;
+  runtimeVersionMap?: Record<string, string>;
+}
+
+export interface InteropConfig {
+  expo?: ExpoInteropConfig;
+}
+
 export interface ProjectManifest {
   schemaVersion: number;
   product: "rn";
   targets: TargetOs[];
   plugins: string[];
+  /** Optional interop extension points (validated when present). */
+  interop?: InteropConfig;
   /** Identity spine (required for schemaVersion >= 2). */
   release_id?: string;
   artifact_line?: string;

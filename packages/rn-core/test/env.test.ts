@@ -4,7 +4,10 @@ import { describe, it } from "node:test";
 import {
   assertModulesIsolated,
   defaultDualModuleDevSession,
+  negotiateDevSessionProtocol,
+  resolveDevSessionProtocolVersion,
   resolveEnv,
+  DEV_SESSION_PROTOCOL_VERSION,
 } from "../src/env.ts";
 
 describe("resolveEnv cascade", () => {
@@ -46,5 +49,30 @@ describe("resolveEnv cascade", () => {
 
   it("throws on unknown module", () => {
     assert.throws(() => resolveEnv({ config, businessModule: "nope" }));
+  });
+
+  it("writes current protocol version on default dual session", () => {
+    assert.equal(config.devSessionProtocolVersion, DEV_SESSION_PROTOCOL_VERSION);
+  });
+});
+
+describe("negotiateDevSessionProtocol", () => {
+  it("accepts current protocol", () => {
+    const r = negotiateDevSessionProtocol({ peer: DEV_SESSION_PROTOCOL_VERSION });
+    assert.equal(r.ok, true);
+    if (r.ok) assert.equal(r.version, DEV_SESSION_PROTOCOL_VERSION);
+  });
+
+  it("rejects unsupported peer", () => {
+    const r = negotiateDevSessionProtocol({ peer: 99 });
+    assert.equal(r.ok, false);
+    if (!r.ok) assert.match(r.reason, /unsupported/);
+  });
+
+  it("defaults omitted config field to current", () => {
+    assert.equal(
+      resolveDevSessionProtocolVersion({ schemaVersion: 1 }),
+      DEV_SESSION_PROTOCOL_VERSION,
+    );
   });
 });

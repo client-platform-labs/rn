@@ -105,8 +105,12 @@ print(json.dumps({
     log "=== warm reload (Metro must already be running) ==="
     log "Edit a JS file and measure HMR; record dev.warm.reload in research/03 §9"
     ;;
+  warm-reinstall)
+    log "=== warm reinstall (metric: dev.warm.reinstall) ==="
+    node "${BASH_SOURCE%/*}/bench-dev-warm-reinstall.mjs" "$PROJECT_DIR"
+    ;;
   *)
-    echo "Usage: $0 <cold|no-device|warm-reload> [project_dir]" >&2
+    echo "Usage: $0 <cold|no-device|warm-reload|warm-reinstall> [project_dir]" >&2
     echo "  no-device  measure dev.failfast.no_device (≤${FAILFAST_MS}ms, no Gradle)" >&2
     exit 2
     ;;

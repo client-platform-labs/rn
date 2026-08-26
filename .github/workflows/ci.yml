@@ -18,6 +18,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      - run: node scripts/check-architecture-governance.mjs
+      - run: node scripts/verify-cp-stub-api.mjs
+      - run: node scripts/verify-distribution-console.mjs
+      - run: node scripts/run-afk-hitl-loop.mjs --mode afk --plan
+      - run: node scripts/run-afk-hitl-loop.mjs --mode afk
       - run: pnpm exec rn doctor
       - run: pnpm exec rn init --dry-run
       - run: pnpm exec rn plugin list

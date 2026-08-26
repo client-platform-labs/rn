@@ -21,6 +21,12 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  examples/brownfield-host:
+    dependencies:
+      '@client-platform/rn-core':
+        specifier: workspace:*
+        version: link:../../packages/rn-core
+
   examples/pure-rn-demo: {}
 
   packages/rn:
@@ -46,6 +52,12 @@ importers:
       '@client-platform/rn-core':
         specifier: workspace:*
         version: link:../rn-core
+
+  plugins/rn-plugin-example-dev-session:
+    dependencies:
+      '@client-platform/rn-core':
+        specifier: workspace:*
+        version: link:../../packages/rn-core
 
   plugins/rn-plugin-example-hello: {}
 

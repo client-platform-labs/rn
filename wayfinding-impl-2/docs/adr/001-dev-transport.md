@@ -36,3 +36,16 @@ Related: 票 [13](../../issues/13-a1-dev-session-contract.md), [research/04 §5]
 pnpm test  # android-dev-bridge + dev + doctor
 rn dev --android --transport lan --dry-run  # 票 13 后
 ```
+
+## Principles compliance
+
+Normative: [ADR-009](./009-architecture-principles-governance.md) · [engineering-principles](../../../docs/agents/engineering-principles.md)
+
+| Check | Assessment |
+|-------|------------|
+| **Plane** | Dev toolchain only; no delivery artifact |
+| **YAGNI** | Single DevTransport API; tunnel deferred |
+| **Door** | One-way: GF/BF must share transport — no per-slice adb fork |
+| **Dev vs delivery** | Metro reachability only; not release |
+| **GF/BF** | Same protocol for greenfield and brownfield |
+| **Evidence** | doctor L2 transport + `pnpm test` |

@@ -2,7 +2,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   computeFingerprint,
+  DEV_SESSION_PROTOCOL_VERSION,
   discoverPlugins,
+  evaluateReleaseSourceHygiene,
   findManifestRoot,
   findWorkspaceRoot,
   isGreenfieldRnTrain,
@@ -15,6 +17,14 @@ import { defaultInstallHome } from "../install-home.js";
 import type { CliLogger } from "../logger.js";
 import { probeMetroBridge } from "../android-dev-bridge.js";
 import { probeAndroidHost } from "../host-env.js";
+import { loadDevSessionConfig } from "../dev-session-config.js";
+import {
+  evaluateBrownfieldDoctor,
+  parseDoctorProfile,
+  type DoctorProfile,
+} from "../brownfield-doctor.js";
+import { evaluateEnterpriseDoctor } from "../enterprise-doctor.js";
+import { evaluateExpoDoctor } from "../expo-doctor.js";
 import {
   collectPreflightFindings,
   evaluatePreflight,
@@ -43,9 +53,11 @@ export async function runDoctor(options: {
   cwd: string;
   logger: CliLogger;
   strict?: boolean;
+  profile?: DoctorProfile;
 }): Promise<void> {
   const { cwd, logger } = options;
   const strict = Boolean(options.strict);
+  const profile: DoctorProfile = options.profile ?? "greenfield";
   const issues: string[] = [];
   const home = defaultInstallHome();
 
@@ -150,10 +162,79 @@ export async function runDoctor(options: {
     onWarn: (message) => logger.warn(message),
   });
 
+  let devSessionSummary:
+    | {
+        present: true;
+        protocol: number;
+        cliProtocol: number;
+        ports: Record<string, number>;
+      }
+    | { present: false } = { present: false };
+  let sessionConfig: ReturnType<typeof loadDevSessionConfig> = null;
+  try {
+    sessionConfig = loadDevSessionConfig(cwd);
+    if (sessionConfig) {
+      const ports: Record<string, number> = {};
+      for (const [id, b] of Object.entries(sessionConfig.modules)) {
+        ports[id] = b.metroPort;
+      }
+      devSessionSummary = {
+        present: true,
+        protocol:
+          sessionConfig.devSessionProtocolVersion ?? DEV_SESSION_PROTOCOL_VERSION,
+        cliProtocol: DEV_SESSION_PROTOCOL_VERSION,
+        ports,
+      };
+    }
+  } catch (err) {
+    issues.push(err instanceof Error ? err.message : String(err));
+  }
+
+  const brownfieldChecks =
+    profile === "brownfield"
+      ? evaluateBrownfieldDoctor({
+          projectRoot: cwd,
+          session: sessionConfig,
+        })
+      : [];
+
+  const expoChecks =
+    profile === "expo" ? evaluateExpoDoctor(cwd) : [];
+
+  for (const check of brownfieldChecks) {
+    if (!check.ok && (check.blocking || strict)) {
+      issues.push(`[brownfield] ${check.summary}`);
+    }
+  }
+
+  for (const check of expoChecks) {
+    if (!check.ok && (check.blocking || strict)) {
+      issues.push(`[expo] ${check.summary}`);
+    }
+  }
+
+  const enterpriseChecks = evaluateEnterpriseDoctor({
+    projectRoot: cwd,
+    session: sessionConfig,
+  });
+  for (const check of enterpriseChecks) {
+    if (!check.ok && (check.blocking || strict)) {
+      issues.push(`[enterprise] ${check.summary}`);
+    }
+  }
+
+  const releaseChecks = evaluateReleaseSourceHygiene(cwd);
+  for (const check of releaseChecks) {
+    if (!check.ok && check.blocking) {
+      issues.push(`[release] ${check.summary}`);
+    }
+  }
+
   const ok = issues.length === 0;
   const payload = {
     ok,
     strict,
+    profile,
     installHome: home,
     host: {
       cliOk: host.cliOk,
@@ -175,6 +256,11 @@ export async function runDoctor(options: {
       packages,
       manifest,
       plugins,
+      multiMetro: devSessionSummary,
+      brownfield: brownfieldChecks,
+      expo: expoChecks,
+      enterprise: enterpriseChecks,
+      releaseHygiene: releaseChecks,
     },
     autofix: {
       available: false,
@@ -186,6 +272,7 @@ export async function runDoctor(options: {
     logger.writeMachine(payload);
   } else {
     logger.writeHuman("rn doctor");
+    logger.writeHuman(`profile: ${profile}`);
     printHostLayers(logger, findings);
     logger.writeHuman("");
     logger.writeHuman(
@@ -247,6 +334,59 @@ export async function runDoctor(options: {
         );
       }
     }
+
+    if (devSessionSummary.present) {
+      const ports = Object.entries(devSessionSummary.ports)
+        .map(([id, port]) => `${id}=:${port}`)
+        .join(", ");
+      logger.writeHuman(
+        `  [OK  ] .rn/dev-session.jsonc protocol=${devSessionSummary.protocol} (cli=${devSessionSummary.cliProtocol}) · ${ports}`,
+      );
+    } else {
+      logger.writeHuman("  [INFO] .rn/dev-session.jsonc: (none)");
+    }
+
+    if (profile === "brownfield") {
+      logger.writeHuman("");
+      logger.writeHuman("L3b Brownfield contract (map-a/#5)");
+      for (const check of brownfieldChecks) {
+        logger.writeHuman(
+          `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,
+        );
+      }
+    }
+
+    if (profile === "expo") {
+      logger.writeHuman("");
+      logger.writeHuman("L3x Expo interop (ADR-003 / map-a/#16)");
+      for (const check of expoChecks) {
+        logger.writeHuman(
+          `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "WARN"}] ${check.summary}`,
+        );
+      }
+    }
+
+    logger.writeHuman("");
+    logger.writeHuman("L3e Enterprise P0 gates (ADR-008)");
+    for (const check of enterpriseChecks) {
+      logger.writeHuman(
+        `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,
+      );
+    }
+
+    logger.writeHuman("");
+    logger.writeHuman("L3f Release hygiene (M2 / G-P0)");
+    for (const check of releaseChecks) {
+      logger.writeHuman(
+        `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,
+      );
+    }
+    if (releaseChecks.some((c) => !c.ok)) {
+      logger.writeHuman(
+        "  hint: run rn dev-support remove before rn-delivery build --profile release",
+      );
+    }
+
     logger.writeHuman(
       "  [INFO] autofix: not available (safe autofix TODO; unsafe never)",
     );

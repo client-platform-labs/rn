@@ -1,0 +1,64 @@
+package {{APP_PACKAGE}}
+
+import android.os.Bundle
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import com.clientplatform.rn.brownfield.SurfaceHostAdapter
+
+/**
+ * Native-owned launcher (#5 brownfield). RN surfaces open via RnSurfaceActivity.
+ */
+class BrownfieldShellActivity : AppCompatActivity() {
+
+  private val mainBundlerUrl = "http:" + "//127.0.0.1:8081"
+  private val supportBundlerUrl = "http:" + "//127.0.0.1:8082"
+
+  private val surfaceHost = SurfaceHostAdapter(
+    openNativeSurface = { moduleId, bundlerUrl ->
+      startActivity(
+        RnSurfaceActivity.intent(
+          this,
+          moduleId = moduleId,
+          bundlerUrl = bundlerUrl,
+        ),
+      )
+    },
+    destroyNativeSurface = { _ ->
+      // Minimal slice: host may finish RnSurfaceActivity from native back stack later.
+    },
+  )
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    val layout = LinearLayout(this).apply {
+      orientation = LinearLayout.VERTICAL
+      val pad = (16 * resources.displayMetrics.density).toInt()
+      setPadding(pad, pad, pad, pad)
+    }
+    layout.addView(
+      TextView(this).apply {
+        text = "Brownfield native shell (#5)"
+        textSize = 18f
+      },
+    )
+    layout.addView(
+      Button(this).apply {
+        text = "Open RN surface (main · port 8081)"
+        setOnClickListener {
+          surfaceHost.open("main", mainBundlerUrl)
+        }
+      },
+    )
+    layout.addView(
+      Button(this).apply {
+        text = "Open RN surface (support · port 8082)"
+        setOnClickListener {
+          surfaceHost.open("support", supportBundlerUrl)
+        }
+      },
+    )
+    setContentView(layout)
+  }
+}

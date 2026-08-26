@@ -2,7 +2,7 @@
 
 Type: task
 Mode: AFK
-Status: open
+Status: **in-progress** — protocol embed slice landed (TS reference host); native shell / rn-module AAR still open
 GitHub: #5
 Triage: ready-for-agent
 Blocked by: 01, 02, 03
@@ -21,3 +21,14 @@ Brownfield **必须**实现与 Greenfield 相同的 **`DevSessionController` / B
 - 壳内切换焦点 / override
 
 差异仅限 `SurfaceHost` 由原生导航打开。**禁止**「棕地只支持单 8081」分支。协议版本与 GF Debug Host 协商（`devSessionProtocolVersion`）。
+
+## AFK 进度
+
+- [x] `createBrownfieldReferenceHost` + `createBundlerResolver` in `rn-core`（与 GF 同协议）
+- [x] GF↔BF 同协议测试套件（`runtime-host.test.ts`）
+- [x] 参考文档：`prototype/reference-skeleton/examples/hosts/brownfield/README.md`
+- [x] `examples/brownfield-host`：TS demo + Android `SurfaceHostAdapter.kt` stub + host-profile
+- [x] `rn doctor --profile brownfield`
+- [ ] 原生三层宿主（完整 Gradle / RCTRootView 嵌入）
+- [ ] `rn-module` 制品行打包
+- [ ] 真机可装可跑 RN Surface

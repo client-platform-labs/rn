@@ -109,10 +109,10 @@ describe("candidate metadata", () => {
     assert.equal(ok.ok, true);
   });
 
-  it("accepts debug-host app-host compile output shape", () => {
+  it("accepts debug-host app-host-debug compile output shape", () => {
     const meta = buildCandidateMetadata({
       release_id: "rel-1",
-      artifact_kind: "app-host",
+      artifact_kind: "app-host-debug",
       platform: "android",
       profile: "debug-host",
       digest: SEALED,
@@ -214,5 +214,6 @@ describe("dual SBOM/attest interfaces", () => {
     assert.equal(supply.js_update.attest, undefined);
     assert.equal(supplyChainTrainForKind("js-update"), "js_update");
     assert.equal(supplyChainTrainForKind("app-host"), "host");
+    assert.equal(supplyChainTrainForKind("app-host-debug"), "host");
   });
 });

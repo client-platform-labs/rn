@@ -20,6 +20,8 @@ import {
   listModulePorts,
   loadDevSessionConfig,
 } from "../dev-session-config.js";
+import { writeDevSessionContributions } from "../dev-session-plugins.js";
+import { DEV_SUPPORT_MODULE_DIR } from "../dev-support/constants.js";
 import {
   type MetroAfterPlatform,
   ensureMultiMetroSessions,
@@ -147,10 +149,29 @@ export async function runDev(options: {
         EXIT_FAIL,
       );
     }
-    const ports = listModulePorts(sessionConfig, moduleIds);
+    const ports = listModulePorts(sessionConfig, moduleIds, projectRoot);
     options.logger.writeHuman(
       `Multi-Metro (#17): ${ports.map((p) => `${p.id}=:${p.port}`).join(", ")}`,
     );
+    const supportRoot = path.join(
+      projectRoot,
+      DEV_SUPPORT_MODULE_DIR,
+      "DevSupportRoot.tsx",
+    );
+    if (existsSync(supportRoot)) {
+      const contrib = await writeDevSessionContributions(projectRoot, {
+        cwd: projectRoot,
+        logger: {
+          info: (m) => options.logger.writeHuman(m),
+          warn: (m) => options.logger.warn(m),
+        },
+      });
+      if (contrib) {
+        options.logger.writeHuman(
+          `Dev Session plugins: ${contrib.menuItems.length} menu contribution(s)`,
+        );
+      }
+    }
     const sessions = await ensureMultiMetroSessions({
       npx,
       projectRoot,
@@ -190,7 +211,8 @@ export async function runDev(options: {
     noMetro: options.noMetro || moduleIds.length > 0,
     after: metroAfter,
     port: moduleIds.length > 0
-      ? listModulePorts(loadDevSessionConfig(projectRoot)!, moduleIds)[0]?.port
+      ? listModulePorts(loadDevSessionConfig(projectRoot)!, moduleIds, projectRoot)[0]
+          ?.port
       : undefined,
   };
 

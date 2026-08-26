@@ -58,6 +58,7 @@ export function defaultGateTracks(kind: ArtifactKind): GateTrack[] {
       return ["js", "cross-cutting"];
     case "rn-module":
     case "app-host":
+    case "app-host-debug":
       return ["native", "js", "cross-cutting"];
     default: {
       const _exhaustive: never = kind;

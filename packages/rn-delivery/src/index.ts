@@ -37,6 +37,7 @@ export {
   attachSbomSlot,
   buildCandidateMetadata,
   emptyDualSupplyChain,
+  hostArtifactKindForProfile,
   supplyChainTrainForKind,
   validateCandidateMetadata,
 } from "./candidate.js";

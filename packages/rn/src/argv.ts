@@ -5,6 +5,7 @@ const CORE_ROOT_COMMANDS = new Set([
   "host",
   "init",
   "dev",
+  "module",
   "plugin",
   "config",
   "self",

@@ -1,0 +1,53 @@
+package {{APP_PACKAGE}}
+
+import android.net.Uri
+import android.os.Bundle
+import com.facebook.react.ReactActivity
+import com.facebook.react.ReactActivityDelegate
+import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
+import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.facebook.react.packagerconnection.PackagerConnectionSettings
+
+/**
+ * Brownfield RN surface — RCT host pushed by native navigation (#5).
+ * Open via SurfaceHostAdapter / BrownfieldShellActivity, not as app launcher.
+ */
+class RnSurfaceActivity : ReactActivity() {
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    intent?.getStringExtra(EXTRA_BUNDLER_URL)?.let { bundlerUrl ->
+      if (BuildConfig.DEBUG) {
+        applyDebugBundlerUrl(bundlerUrl)
+      }
+    }
+    super.onCreate(savedInstanceState)
+  }
+
+  override fun getMainComponentName(): String = COMPONENT_NAME
+
+  override fun createReactActivityDelegate(): ReactActivityDelegate =
+    DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  private fun applyDebugBundlerUrl(bundlerUrl: String) {
+    val uri = Uri.parse(bundlerUrl)
+    val host = uri.host ?: return
+    val port = if (uri.port > 0) uri.port else 8081
+    PackagerConnectionSettings(applicationContext).debugServerHost = "$host:$port"
+  }
+
+  companion object {
+    const val COMPONENT_NAME = "{{MAIN_COMPONENT}}"
+    const val EXTRA_MODULE_ID = "business_module"
+    const val EXTRA_BUNDLER_URL = "bundler_url"
+
+    fun intent(
+      context: android.content.Context,
+      moduleId: String,
+      bundlerUrl: String,
+    ): android.content.Intent =
+      android.content.Intent(context, RnSurfaceActivity::class.java).apply {
+        putExtra(EXTRA_MODULE_ID, moduleId)
+        putExtra(EXTRA_BUNDLER_URL, bundlerUrl)
+      }
+  }
+}

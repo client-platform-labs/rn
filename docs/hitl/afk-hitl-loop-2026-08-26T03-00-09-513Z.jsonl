@@ -1,0 +1,22 @@
+{"id":"L0-gov","kind":"afk","status":"pass","ms":62,"issue":null,"detail":"architecture-governance: PASS","ts":"2026-08-26T03:00:09.581Z"}
+{"id":"L0-test","kind":"afk","status":"pass","ms":2204,"issue":null,"detail":"$ tsc -b && node --experimental-strip-types --test packages/rn-core/test/*.test.ts packages/rn/test/*.test.ts packages/rn-delivery/test/*.test.ts","ts":"2026-08-26T03:00:11.786Z"}
+{"id":"M4c","kind":"afk","status":"pass","ms":113,"issue":14,"detail":"m4 debug-host verify\n\n[OK] hostArtifactKindForProfile(debug-host)\n[OK] hostArtifactKindForProfile(release)\n[OK] validate app-host-debug + debug-host profile\n[OK] reject app-host on debug-host native profile — debug-host native candidates must use artifact_kind app-host-debug\n[OK] schema includes app-host-debug\n[OK] debug-host guide present\n\nverify-debug-host: PASS","ts":"2026-08-26T03:00:11.900Z"}
+{"id":"CP","kind":"afk","status":"pass","ms":705,"issue":7,"detail":"OK health\nOK GET /v1/registry\nOK GET /v1/registry/staging\nOK GET /v1/candidates\nOK POST /v1/promote rejects missing staging\nOK POST /v1/block rejects unknown digest\nverify-cp-stub-api: PASS","ts":"2026-08-26T03:00:12.605Z"}
+{"id":"Dist","kind":"afk","status":"pass","ms":859,"issue":15,"detail":"[OK] listInstallableCandidates — count=1\n[OK] distribution-console-agent dry-run\n[OK] install audit jsonl\n[OK] audit has digest + operator\n[OK] GET /v1/candidates\n\nverify-distribution-console: PASS","ts":"2026-08-26T03:00:13.464Z"}
+{"id":"BF-gradle","kind":"afk","status":"pass","ms":52,"issue":5,"detail":"bf-gradle verify\n\n[OK] file settings.gradle.kts\n[OK] file build.gradle.kts\n[OK] file stub/build.gradle.kts\n[OK] file src/main/java/com/clientplatform/rn/brownfield/SurfaceHostAdapter.kt\n[SKIP] gradle not on PATH — structure check only\n\nverify-bf-gradle: PASS","ts":"2026-08-26T03:00:13.516Z"}
+{"id":"M2","kind":"afk","status":"pass","ms":52,"issue":20,"detail":"release hygiene: PASS","ts":"2026-08-26T03:00:13.568Z"}
+{"id":"M3","kind":"afk","status":"pass","ms":102,"issue":21,"detail":"steel-thread verify: PASS (automated gates)","ts":"2026-08-26T03:00:13.670Z"}
+{"id":"M3b","kind":"afk","status":"fail","ms":506,"issue":22,"detail":"m3b verify: FAIL","ts":"2026-08-26T03:00:14.176Z"}
+{"id":"BF-rct","kind":"afk","status":"fail","ms":223,"issue":5,"detail":"verify-bf-rct-host: FAIL","ts":"2026-08-26T03:00:14.399Z"}
+{"id":"M8","kind":"afk","status":"pass","ms":914,"issue":null,"detail":"L4 verify: PASS (automated gates)","ts":"2026-08-26T03:00:15.313Z"}
+{"id":"M9","kind":"afk","status":"pass","ms":533,"issue":9,"detail":"quality-gate verify: PASS","ts":"2026-08-26T03:00:15.846Z"}
+{"id":"M8b","kind":"afk","status":"skip","why":"deps failed: M3b","ts":"2026-08-26T03:00:15.846Z"}
+{"id":"M10","kind":"afk","status":"skip","why":"deps failed: M8,M9,M8b","ts":"2026-08-26T03:00:15.846Z"}
+{"id":"H-warm","kind":"auto","status":"pass","ms":295,"issue":19,"detail":"bench-expo-parity: wrote 2 rows → /Users/xuwei/Work/client-platform-labs/rn/docs/bench/expo-vs-rn-20260826.jsonl","ts":"2026-08-26T03:00:16.141Z"}
+{"id":"H-bundler","kind":"auto","status":"skip","why":"deps failed: BF-rct","ts":"2026-08-26T03:00:16.141Z"}
+{"id":"H-dist","kind":"auto","status":"pass","ms":53,"issue":15,"detail":"{\n  \"action\": \"dry-run\",\n  \"lane\": \"production\",\n  \"digest\": \"7717f98b8cd835c310220b90e6e7c38785312fd4b772bead2b2b9f54c5734fe6\",\n  \"artifact_kind\": \"app-host\",\n  \"path\": \"/Users/xuwei/Work/my-rn-app/android/app/build/outputs/apk/release/app-release.apk\"\n}","ts":"2026-08-26T03:00:16.194Z"}
+{"id":"T-expo-cold","kind":"true","status":"todo","title":"#19 Expo cold first_screen same-machine timing","issue":19,"ts":"2026-08-26T03:00:16.194Z"}
+{"id":"T-expo-interop","kind":"true","status":"todo","title":"#16 Expo interop track (product)","issue":16,"ts":"2026-08-26T03:00:16.194Z"}
+{"id":"T-harmony","kind":"true","status":"todo","title":"Map B Harmony device","issue":null,"ts":"2026-08-26T03:00:16.194Z"}
+{"id":"T-cp-web","kind":"true","status":"todo","title":"#7 CP Web console UX","issue":7,"ts":"2026-08-26T03:00:16.194Z"}
+{"id":"T-bf-l5","kind":"true","status":"todo","title":"BF L5 quality-gate HITL (separate)","issue":null,"ts":"2026-08-26T03:00:16.194Z"}

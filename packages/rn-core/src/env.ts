@@ -4,6 +4,14 @@
  */
 
 export const DEV_SESSION_SCHEMA_VERSION = 1;
+/**
+ * Wire protocol between CLI / GF Debug Host / BF embedded DevSessionController.
+ * Independent of `schemaVersion` (file shape) so GF↔BF can negotiate without
+ * forcing every config-field bump to break hosts.
+ */
+export const DEV_SESSION_PROTOCOL_VERSION = 1;
+export const DEV_SESSION_PROTOCOL_MIN = 1;
+export const DEV_SESSION_PROTOCOL_MAX = 1;
 export const DEFAULT_MAIN_MODULE_ID = "main";
 export const DEFAULT_MAIN_METRO_PORT = 8081;
 
@@ -36,11 +44,64 @@ export interface ModuleDevBinding {
 
 export interface DevSessionConfig {
   schemaVersion: number;
+  /** Shared GF/BF Dev Session wire version (ADR-006). */
+  devSessionProtocolVersion?: number;
   transport?: "auto" | "usb" | "wifi" | "lan";
   /** Shell-level default env profile id → profiles map. */
   activeEnvProfileId?: string;
   envProfiles?: Readonly<Record<string, EnvProfile>>;
   modules: Readonly<Record<string, ModuleDevBinding>>;
+}
+
+export type DevSessionProtocolNegotiateResult =
+  | { ok: true; version: number }
+  | {
+      ok: false;
+      reason: string;
+      peer: number;
+      supportedMin: number;
+      supportedMax: number;
+    };
+
+/**
+ * Negotiate `devSessionProtocolVersion` between this binary and a peer
+ * (project config, BF host, or Debug Host). Fail-fast outside supported range.
+ */
+export function negotiateDevSessionProtocol(options: {
+  /** Peer's advertised protocol version (from config or handshake). */
+  peer: number;
+  supportedMin?: number;
+  supportedMax?: number;
+}): DevSessionProtocolNegotiateResult {
+  const supportedMin = options.supportedMin ?? DEV_SESSION_PROTOCOL_MIN;
+  const supportedMax = options.supportedMax ?? DEV_SESSION_PROTOCOL_MAX;
+  const peer = options.peer;
+  if (!Number.isInteger(peer) || peer < 1) {
+    return {
+      ok: false,
+      reason: `invalid peer protocol version ${String(peer)}`,
+      peer,
+      supportedMin,
+      supportedMax,
+    };
+  }
+  if (peer < supportedMin || peer > supportedMax) {
+    return {
+      ok: false,
+      reason: `devSessionProtocolVersion ${peer} unsupported (this binary supports ${supportedMin}–${supportedMax})`,
+      peer,
+      supportedMin,
+      supportedMax,
+    };
+  }
+  return { ok: true, version: peer };
+}
+
+/** Resolve protocol version from config; default to current when omitted (legacy files). */
+export function resolveDevSessionProtocolVersion(
+  config: Pick<DevSessionConfig, "devSessionProtocolVersion" | "schemaVersion">,
+): number {
+  return config.devSessionProtocolVersion ?? DEV_SESSION_PROTOCOL_VERSION;
 }
 
 export type EnvResolveLayer =
@@ -181,6 +242,7 @@ export function defaultDualModuleDevSession(options?: {
   const second = options?.secondModuleId ?? "support";
   return {
     schemaVersion: DEV_SESSION_SCHEMA_VERSION,
+    devSessionProtocolVersion: DEV_SESSION_PROTOCOL_VERSION,
     transport: "auto",
     activeEnvProfileId: "local",
     envProfiles: {

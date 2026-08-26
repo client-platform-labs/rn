@@ -1,26 +1,89 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSyncExternalStore } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { colors, typography } from "../../ui";
-import { probeModuleEnv, SAMPLE_DEV_SESSION } from "../../modules/envProbe";
+import {
+  getDisposeProbeSnapshot,
+  mountDevSupportInterval,
+  resetDisposeProbe,
+  simulateModuleDestroy,
+  subscribeDisposeProbe,
+  unmountDevSupportInterval,
+} from "../../modules/disposeProbe";
+import {
+  getActiveProfileId,
+  getSampleEnvSnapshot,
+  probeModuleEnv,
+  SAMPLE_DEV_SESSION,
+  subscribeSampleEnv,
+} from "../../modules/envProbe";
 
 /**
  * Dual-module L-C / port table surface for map-a/#17 sample.
- * Removed with `rn demo remove`.
+ * Includes P0.1 dispose probe sampling (dev).
  */
 export function ModulesEnvScreen() {
+  useSyncExternalStore(subscribeSampleEnv, getSampleEnvSnapshot);
+  const dispose = useSyncExternalStore(
+    subscribeDisposeProbe,
+    getDisposeProbeSnapshot,
+  );
+  const profileId = getActiveProfileId();
   const main = probeModuleEnv("main");
   const support = probeModuleEnv("support");
+
+  const runDestroySample = async (moduleId: "main" | "support") => {
+    const result = await simulateModuleDestroy(moduleId);
+    if (result.ok) {
+      Alert.alert("dispose OK", `${moduleId}: no active handles after destroy`);
+    } else {
+      Alert.alert("dispose FAIL", result.reason);
+    }
+  };
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <Text style={styles.title}>多 Module · L-C / Metro</Text>
       <Text style={styles.sub}>
-        合同：main→:{SAMPLE_DEV_SESSION.modules.main.metroPort} · support→:
-        {SAMPLE_DEV_SESSION.modules.support.metroPort}（见 .rn/dev-session.jsonc）
+        profile={profileId} · main→:{SAMPLE_DEV_SESSION.modules.main.metroPort} ·
+        support→:{SAMPLE_DEV_SESSION.modules.support.metroPort}
       </Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>main（壳 profile + overlay）</Text>
+        <Text style={styles.cardTitle}>P0.1 dispose probe</Text>
+        <Text style={styles.mono}>{JSON.stringify(dispose, null, 2)}</Text>
+        <View style={styles.row}>
+          <Pressable
+            style={styles.btnSecondary}
+            onPress={() => mountDevSupportInterval()}
+          >
+            <Text style={styles.btnText}>mount support interval</Text>
+          </Pressable>
+          <Pressable
+            style={styles.btnSecondary}
+            onPress={() => unmountDevSupportInterval()}
+          >
+            <Text style={styles.btnText}>unmount support interval</Text>
+          </Pressable>
+        </View>
+        <View style={styles.row}>
+          <Pressable
+            style={styles.btn}
+            onPress={() => void runDestroySample("support")}
+          >
+            <Text style={styles.btnText}>simulate destroy support</Text>
+          </Pressable>
+          <Pressable style={styles.btnSecondary} onPress={() => resetDisposeProbe()}>
+            <Text style={styles.btnText}>reset probes</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.hint}>
+          HITL: mount → simulate destroy (expect FAIL) → unmount → reset → simulate (OK)
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>main（壳 profile + overlay + override）</Text>
         <Text style={styles.mono}>{JSON.stringify(main, null, 2)}</Text>
       </View>
 
@@ -30,7 +93,8 @@ export function ModulesEnvScreen() {
       </View>
 
       <Text style={styles.hint}>
-        CLI：rn dev --modules main,support · 卸载：rn demo remove
+        长按 DEV → C5 切 profile / 改 apiBaseUrl / 重置 · CLI：rn dev --modules
+        main,support
       </Text>
     </ScrollView>
   );
@@ -56,4 +120,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   hint: { ...typography.caption, color: colors.inkSubtle, marginTop: 8 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  btn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  btnSecondary: {
+    backgroundColor: colors.inkMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  btnText: { ...typography.caption, color: "#fff", fontWeight: "600" },
 });

@@ -25,17 +25,19 @@ rn init
 ```
 
 Lifecycle: `rn doctor` · `rn self update` · `rn self uninstall --yes`  
-Details: [docs/cli-distribution.md](./docs/cli-distribution.md) · [docs/a1-greenfield.md](./docs/a1-greenfield.md)
+Details: [docs/cli-distribution.md](./docs/cli-distribution.md) · [docs/guides/](./docs/guides/README.md) (module vs host)
 
 ## Documents
 
+- [Developer guides](./docs/guides/README.md) — **module developer** · **[shell team cheatsheet](./docs/guides/shell-team-cheatsheet.md)** · host integration
 - [Blueprint entry](./blueprint/00-entry.md)
 - [Implementation map](./wayfinding-impl/map.md)
 - [Blueprint wayfinding map](./wayfinding/map.md) (closed)
 - [Roadmap](./ROADMAP.md)
 - [Architecture charter](./docs/architecture.md)
+- **[Architecture roadmap](./docs/architecture-roadmap.md)** — 起点/终点/里程碑/交付验收脉络图
 - [MVP scaffold (install)](./docs/mvp-scaffold.md)
-- [A1 Greenfield acceptance](./docs/a1-greenfield.md)
+- [A1 smoke entry](./docs/a1-greenfield.md) → [guides](./docs/guides/README.md)
 - [Domain glossary](./wayfinding/CONTEXT.md)
 - Throwaway skeleton: `prototype/reference-skeleton/`
 

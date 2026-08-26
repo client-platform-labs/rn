@@ -1,0 +1,7 @@
+// Brownfield host profile (map-a/#5). Consumed by `rn doctor --profile brownfield`.
+{
+  "schemaVersion": 1,
+  "profile": "brownfield",
+  "devSessionProtocolVersion": 1,
+  "notes": "Native SurfaceHost stub under android/; TS host via @client-platform/rn-core"
+}

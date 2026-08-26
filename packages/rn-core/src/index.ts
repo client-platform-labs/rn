@@ -11,9 +11,11 @@ export {
 export type {
   ArtifactKind,
   ComputedFingerprint,
+  ExpoInteropConfig,
   GateJsCandidateResult,
   HostSelectorContext,
   IdentitySpine,
+  InteropConfig,
   JsArtifactMatrix,
   JsReleaseGate,
   JsUpdateCandidate,
@@ -85,13 +87,19 @@ export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,
+  DEV_SESSION_PROTOCOL_MAX,
+  DEV_SESSION_PROTOCOL_MIN,
+  DEV_SESSION_PROTOCOL_VERSION,
   DEV_SESSION_SCHEMA_VERSION,
   defaultDualModuleDevSession,
   defaultModulePort,
+  negotiateDevSessionProtocol,
+  resolveDevSessionProtocolVersion,
   resolveEnv,
 } from "./env.js";
 export type {
   DevSessionConfig,
+  DevSessionProtocolNegotiateResult,
   EnvDimensions,
   EnvProfile,
   EnvResolveLayer,
@@ -101,6 +109,133 @@ export type {
 } from "./env.js";
 
 export {
+  buildContributionsFile,
+  createContributionRegistry,
+  createDevSessionController,
+  DEV_SESSION_PLUGIN_API_VERSION,
+} from "./dev-session-plugin.js";
+export type {
+  DevSessionContributionsFile,
+  DevSessionController,
+  DevSessionMenuAction,
+  DevSessionMenuContribution,
+  DevSessionPluginContext,
+  DevSessionPluginRegister,
+} from "./dev-session-plugin.js";
+
+export {
+  assertSharedDevSessionProtocol,
+  createBrownfieldReferenceHost,
+  createBundlerResolver,
+  createGreenfieldReferenceHost,
+  createReferenceRuntimeHost,
+} from "./runtime-host.js";
+export type {
+  BundlerBinding,
+  BundlerResolver,
+  HostSurfaceKind,
+  OpenSurfaceFn,
+  RuntimeHost,
+  SurfaceHost,
+} from "./runtime-host.js";
+
+export {
+  createModuleDisposeRegistry,
+  createSurfaceLifecycleController,
+  triageJsFault,
+} from "./surface-lifecycle.js";
+export type {
+  DisposeFn,
+  JsFaultKind,
+  ModuleDisposeRegistry,
+  SurfaceLifecycleController,
+  SurfacePhase,
+} from "./surface-lifecycle.js";
+
+export { createModuleEventBus } from "./module-event-bus.js";
+export type {
+  ModuleBusEnvelope,
+  ModuleBusHandler,
+  ModuleEventBus,
+} from "./module-event-bus.js";
+
+export {
+  bindDisposeProbe,
+  createDisposeProbe,
+} from "./dispose-probe.js";
+export type { DisposeProbe, DisposeProbeHandle } from "./dispose-probe.js";
+
+export {
+  MODULE_BUNDLE_HEADER,
+  MODULE_BUNDLE_KIND_HEADER,
+  validateBundleArtifact,
+} from "./bundle-artifact.js";
+export type { ModuleBundleArtifact, ModuleBundleKind } from "./bundle-artifact.js";
+
+export { gateBundleLoad } from "./bundle-load-gate.js";
+export type {
+  BundleLoadArtifact,
+  BundleLoadGateResult,
+  BundleSignatureStatus,
+} from "./bundle-load-gate.js";
+
+export {
+  createQualitySignal,
+  formatQualitySignalLine,
+} from "./observability.js";
+export type {
+  QualitySignalAttribution,
+  QualitySignalKind,
+} from "./observability.js";
+
+export {
+  evaluateQualityPromoteGate,
+  isPromoteBlockingSignalKind,
+  PROMOTE_BLOCKING_SIGNAL_KINDS,
+  qualitySignalMatchesCandidate,
+} from "./quality-promote-gate.js";
+export type {
+  PromoteGateCandidate,
+  QualityPromoteGateResult,
+} from "./quality-promote-gate.js";
+
+export {
+  DEFAULT_SHELL_CHANGE_MATRIX,
+  resolveShellChangeAction,
+  shouldBlockPromotion,
+} from "./shell-change-matrix.js";
+export type {
+  JsRevalidateAction,
+  ShellChangeKind,
+  ShellChangeRule,
+} from "./shell-change-matrix.js";
+
+export {
   findWorkspaceRoot,
   listWorkspacePackageJsonFiles,
 } from "./workspace.js";
+
+export {
+  evaluateReleaseSourceHygiene,
+  releaseSourceHygieneOk,
+  scanApkReleaseHygiene,
+  RELEASE_DEV_SUPPORT_MARKER,
+  RELEASE_DEV_SUPPORT_MODULE_DIR,
+  RELEASE_DEV_SUPPORT_STATE_FILE,
+} from "./release-hygiene.js";
+export type { ReleaseHygieneCheck } from "./release-hygiene.js";
+
+export {
+  EXPO_SDK_TO_RN_TRAIN,
+  evaluateRuntimeVersionFingerprintNote,
+  evaluateSdkRnDrift,
+  parseExpoSdkMajor,
+  parseRnMajorMinor,
+  snapshotExpoPackageJson,
+  validateExpoInteropConfig,
+} from "./expo-interop.js";
+export type {
+  ExpoPackageSnapshot,
+  RuntimeVersionFingerprintNote,
+  SdkRnDriftResult,
+} from "./expo-interop.js";

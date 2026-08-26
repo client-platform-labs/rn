@@ -1,0 +1,32 @@
+// Sample multi-module Dev Session for brownfield reference host (map-a/#5+#17).
+{
+  "schemaVersion": 1,
+  "devSessionProtocolVersion": 1,
+  "transport": "auto",
+  "activeEnvProfileId": "local",
+  "envProfiles": {
+    "local": {
+      "id": "local",
+      "apiBaseUrl": "http://127.0.0.1:3000",
+      "environment": "dev",
+      "tenantId": "bf-local"
+    }
+  },
+  "modules": {
+    "main": {
+      "metroPort": 8081,
+      "entry": "index",
+      "envOverlay": {
+        "featureFlags": { "host": true }
+      }
+    },
+    "support": {
+      "metroPort": 8082,
+      "entry": "index.support",
+      "envOverlay": {
+        "apiBaseUrl": "http://127.0.0.1:3001",
+        "featureFlags": { "host": false, "supportChat": true }
+      }
+    }
+  }
+}

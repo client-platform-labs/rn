@@ -35,16 +35,24 @@ _Avoid_: 为赶进度发明第二套「临时」架构
 _Avoid_: 把本图当成整个产品终点
 
 **Greenfield（本图）**:
-纯 RN 独立 App 工业路径：可 init、dev、构建、装包、进入交付阶段合同。
-_Avoid_: 仅 JSONC 骨架冒充工程
+纯 RN 独立 App 工业路径：可 init、dev、构建、装包、进入交付阶段合同。仓拓扑工业默认见 **壳 workspace + 外置 module workspace**（ADR-005 B）；`rn init` 今日单树为 onboarding 快捷形。
+_Avoid_: 仅 JSONC 骨架冒充工程; 把「业务源码必须进壳仓」写成常态
 
 **Brownfield（本图）**:
-原生宿主嵌入 RN 的一等路径；按蓝图宿主契约落地（深度由票 01 钉），非文档占位。
+原生宿主嵌入 RN 的一等路径；按蓝图宿主契约落地（深度由票 01 钉），非文档占位。在默认 B 下与 GF 同为「纯宿主 + link modules」。
 _Avoid_: 「示例空壳」代替可推广宿主路径
 
+**壳 workspace（shell workspace）**:
+`product_app` / `app-host` 工程树：原生 + Runtime / DevSession 端口表与 module **link**；工业默认 **不含**业务 module 源码。
+_Avoid_: 把所有业务 JS 长期堆进壳仓当多业务线默认
+
+**module workspace**:
+一个 `business_module` 的独立 RN/JS 工程（可 Metro、可出 `js-update`）；含默认的 `main`；**不是**第二个可上架 `app-host`。
+_Avoid_: 为每个离线包再 `rn init` 完整商店 App; 用「页面目录」冒充 module 工程边界
+
 **样板 Demo（sample demo）**:
-可植入 pure-rn 工程的完整使用示例面（工单 CRUD、端能力 stub、H5/外链）；非 Runtime SDK、非官方能力包本身；命令 `rn init --demo` / `rn demo add|remove`。
-_Avoid_: 把样板当成生产业务域；把样板 scheme 当成系统族正式合同
+可植入 pure-rn 工程的完整使用示例面（工单 CRUD、端能力 stub、H5/外链）；非 Runtime SDK、非官方能力包本身；命令 `rn init --demo` / `rn demo add|remove`。多 module 源码塞进壳树属 **教学耦合**，非工业仓默认（ADR-005 B）。
+_Avoid_: 把样板当成生产业务域；把样板 scheme 当成系统族正式合同；把样板目录结构当成 module 仓拓扑合同
 
 **样板命名空间（cpl-sample）**:
 Demo 专用 deep link 前缀（如 `cpl-sample://ticket/:id`）；仅教学与自测；正式跨 App 规则另立项。
@@ -67,16 +75,28 @@ _Avoid_: 仅 USB adb reverse；无设备仍跑 Gradle；把 trust-in-production 
 _Avoid_: 硬编码 `adb reverse` 为唯一路径
 
 **一壳多 Bundle（multi-bundle shell）**:
-一个 `product_app`（壳）接入多个 `business_module`，每个 module 是可热更的离线 JS Bundle；**独立** `update_id`/槽位/灰度/Kill/**Metro 端口**；**共享**壳级 `runtime_fingerprint`。多 Metro **并行** + 壳内切换为一等（非进阶）。见 [ADR-005](./docs/adr/005-multi-bundle-shell.md)、[ADR-006](./docs/adr/006-unified-multi-metro-debug.md)、票 [16](./issues/16-multi-bundle-shell-dev.md)。
-_Avoid_: 平台假设「一 App 一 OTA / 一 Metro」；给 module 假装独立 RN/Hermes 版本；Brownfield 另写一套只支持 8081 的 debug
+一个 `product_app`（壳）接入多个 `business_module`，每个 module 是可热更的离线 JS Bundle；**独立** `update_id`/槽位/灰度/Kill/**Metro 端口**；**共享**壳级 `runtime_fingerprint` 与 **单套** `RuntimeHost`（非每包一 Runtime）。多 Metro **并行** + 壳内切换为一等（非进阶）。仓拓扑默认 **B**（`main` 亦外置 module workspace）。风险与推广门禁见 [ADR-008](./docs/adr/008-multi-bundle-runtime-risks.md)。见 [ADR-005](./docs/adr/005-multi-bundle-shell.md)、[ADR-006](./docs/adr/006-unified-multi-metro-debug.md)、[ADR-007](./docs/adr/007-cross-module-communication.md)、票 [16](./issues/16-multi-bundle-shell-dev.md)。
+_Avoid_: 平台假设「一 App 一 OTA / 一 Metro」；给 module 假装独立 RN/Hermes 版本；默认多 Runtime；Brownfield 另写一套只支持 8081 的 debug；默认要求业务源码进壳仓；无 P0 门禁却宣称可企业推广
+
+**跨 module 总线（host event bus）**:
+壳提供的类型化 pub-sub / 导航回传通道；业务事件 schema 可协议包/插件注册。见 [ADR-007](./docs/adr/007-cross-module-communication.md)。
+_Avoid_: Bundle 互 import 业务实现；无契约裸桥；把总线做成可卸载的「可选插件」导致壳无通道
+
+**module 分区存储**:
+壳提供的 KV/DB/文件原语，按 `business_module` 隔离并带 ACL；跨包共享须显式授权。见 ADR-007。
+_Avoid_: 默认同堆共享可变全局；无 ACL 的公共磁盘目录当集成总线
+
+**多 Bundle 运行时风险门禁**:
+单 Runtime 共命运下的平台必交清单（全局污染、dispose、指纹窗、观测归因、发布矩阵等）；缺 P0 不得宣称可企业推广。见 [ADR-008](./docs/adr/008-multi-bundle-runtime-risks.md)。
+_Avoid_: 只写 wiki 愿望清单；把业务自觉当隔离方案
 
 **DevSessionController**:
 Debug 期统一调试控制面（端口表、BundlerResolver、焦点 module、override）；挂在 `RuntimeHost` 上；**Greenfield 与 Brownfield 同协议版本**。
 _Avoid_: 调试逻辑写死在 Activity/Fragment；GF/BF 两套 bundler 协议
 
 **业务模块（business_module）**:
-壳内一个 RN Surface / 离线包身份；发布单维度 `release_unit = app × module × train × channel`（P12）。
-_Avoid_: 用页面路由名冒充 module 发布身份
+壳内一个 RN Surface / 离线包身份；发布单维度 `release_unit = app × module × train × channel`（P12）。源码落在 **module workspace**；投放可为 baseline 预置或远程 OTA（同 `js-update` 合同）。
+_Avoid_: 用页面路由名冒充 module 发布身份；用第二套可上架 App 冒充 module
 
 **Dev 调试分层**:
 按变更面：L-N 壳原生 / L-J 模块 JS（多 Metro）/ L-C 环境配置 / L-O OTA 槽位 / L-P 发布态复现等；见 [research/04 §13](./research/04-industrial-full-lifecycle-scheme.md)。
@@ -129,7 +149,7 @@ _Avoid_: 用样板 stub 或社区库冒充 L1
 | **manifest** | `client-platform.manifest.jsonc`：平台身份/能力合同；**不是** Expo 的 `app.json`。 |
 | **runtime_fingerprint** | 机读「这份载荷能否在该宿主上跑」（RN 元组、Hermes、New Arch、Codegen 等）。 |
 | **双列车** | **宿主列车**（商店原生包，慢）与 **JS 列车**（OTA/业务 JS，快）；回滚语义分岔（P2）。 |
-| **Greenfield / Brownfield** | 绿地 = 新建纯 RN App；棕地 = **已有原生 App** 内嵌 RN Surface / `rn-module`。 |
+| **Greenfield / Brownfield** | 绿地 = 新建纯 RN **壳**（工业默认再 link 外置 modules，含 `main`）；棕地 = **已有原生 App** 内嵌 RN Surface / `rn-module`。仓拓扑见 ADR-005 B。 |
 | **L0 / L1** | L0 = 开发支撑（如 Dev Support）；L1 = 官方能力包（相机、媒体等正式合同）。 |
 | **Dev Session** | 一次完整本地开发会话（Metro + 装包/连接设备）；票 [13](./issues/13-a1-dev-session-contract.md)。 |
 | **DevTransport** | 设备连 Metro 的方式：`usb`（adb reverse）、`wifi-adb`、`lan`（局域网 bundler URL）。 |

@@ -37,3 +37,16 @@ Related: [research/04 §7.1](../../research/04-industrial-full-lifecycle-scheme.
 
 - 集成测试：不匹配 fingerprint 的 update 不加载
 - 回滚：Previous 槽在 N 失败后可加载
+
+## Principles compliance
+
+Normative: [ADR-009](./009-architecture-principles-governance.md) · [engineering-principles](../../../docs/agents/engineering-principles.md)
+
+| Check | Assessment |
+|-------|------------|
+| **Plane** | Delivery + control plane + client fallback (A5) |
+| **YAGNI** | Reuse blueprint release state machine; no third offline protocol |
+| **Door** | One-way: channel + slot semantics are contract |
+| **Dev vs delivery** | Signed HBC artifacts only; no dev Metro in channel |
+| **GF/BF** | Per-module slots apply to both host shapes |
+| **Evidence** | Fingerprint mismatch tests + rollback integration |

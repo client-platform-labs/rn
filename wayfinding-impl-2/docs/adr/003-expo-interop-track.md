@@ -35,3 +35,16 @@ Related: [research/04 §8](../../research/04-industrial-full-lifecycle-scheme.md
 
 - 核心代码 **零** 默认 `expo` 依赖
 - 票 15 跟踪 migrate/doctor 扩展；优先级低于票 13、A3、A5、A4
+
+## Principles compliance
+
+Normative: [ADR-009](./009-architecture-principles-governance.md) · [engineering-principles](../../../docs/agents/engineering-principles.md)
+
+| Check | Assessment |
+|-------|------------|
+| **Plane** | Optional interop track; zero default Expo dependency |
+| **YAGNI** | v1 docs + types only; no `eas` clone commands |
+| **Door** | Two-way: can defer; extension points explicit |
+| **Dev vs delivery** | Adapter reads Expo; does not write authoritative manifest |
+| **GF/BF** | Interop orthogonal to host shape |
+| **Evidence** | Ticket 15 tracking; no default `expo` in core |

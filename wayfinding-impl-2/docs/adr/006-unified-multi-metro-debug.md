@@ -77,7 +77,7 @@ Debug Host / 嵌入式 Dev Support **必须**提供：
 | 如何 **打开** Surface | — | GF：App 根导航；BF：原生路由 push |
 | 谁 **拥有** 主 Activity | — | GF：RN；BF：原生 |
 | 构建产物 | — | GF：`app-host`；BF：`rn-module` + 宿主工程 |
-| 工程师日常目录 | — | GF：单 repo；BF：宿主 monorepo + module packages |
+| 工程师日常目录 | — | **默认**：壳 workspace（纯宿主）+ **外置** module workspaces（含 `main`）；GF/BF 同构。Onboarding 快捷：单树 inline-main（非常态，见 ADR-005） |
 
 ```text
                     ┌─────────────────────────────┐
@@ -118,3 +118,16 @@ Debug Host / 嵌入式 Dev Support **必须**提供：
 - 同时启动 8081+8082；壳内打开两 module；各自 HMR 互不串  
 - 同一套 port table 在 GF 样板与 BF 参考宿主上行为一致（协议测试）  
 - 无设备时 fail-fast 仍在 L-N；多 Metro 启动不依赖已装壳（可先起 bundler）
+
+## Principles compliance
+
+Normative: [ADR-009](./009-architecture-principles-governance.md) · [engineering-principles](../../../docs/agents/engineering-principles.md)
+
+| Check | Assessment |
+|-------|------------|
+| **Plane** | Dev session / toolchain; unified DevSessionController |
+| **YAGNI** | One module ↔ one Metro; no fake multi-root single Metro |
+| **Door** | One-way: `devSessionProtocolVersion` shared GF/BF |
+| **Dev vs delivery** | Bundler URLs are dev-only; slots/baseline separate |
+| **GF/BF** | Same port table, resolver, DevTransport — UI adapter only differs |
+| **Evidence** | Parallel 8081+8082 HMR isolation + protocol tests |

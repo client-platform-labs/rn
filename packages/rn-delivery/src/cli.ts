@@ -1,5 +1,16 @@
 import { runBuild } from "./build.js";
-import type { DeliveryProfile } from "./types.js";
+import { runPromote } from "./promote.js";
+import { runBlock, runRelease } from "./release.js";
+import {
+  runSignalClear,
+  runSignalList,
+  runSignalRecord,
+} from "./quality-signals.js";
+import { runSign } from "./sign.js";
+import { runServe } from "./serve.js";
+import type { DeliveryPlatform, DeliveryProfile } from "./types.js";
+import { runUpdate } from "./update.js";
+import { runValidate } from "./validate.js";
 import { DeliveryError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./util.js";
 
 const USAGE = `Usage: rn-delivery <command> [options]
@@ -11,11 +22,28 @@ Stage contract (fixed):
 
 Commands:
   build [--platform android|ios|all] [--profile debug-host|release]
-    Orchestrate candidate packages (compile stage). Default profile: debug-host.
-  sign      Signing orchestration (not implemented)
+    App-host compile (Gradle/xcodebuild). Writes .rn/delivery/last-candidate.json.
+  update --module <id> [--profile release]
+    Per-module js-update bundle (compile). Not Metro dev output.
+  sign [--candidate <path>]
+    Thin sign stage: digest-seal signature + stub SBOM slot (M5).
+  validate [--candidate <path>]
+    Release preflight: hygiene + metadata (+ signature for js-update).
+  release [--platform android|ios] [--candidate <path>] [--install]
+    Promote candidate to staging (file CP stub); --install for app-host APK only.
+  promote [--digest <sha256>] [--candidate <path>]
+    Same-artifact promote: staging → production (M6).
+  block [--candidate <path>] [--reason <text>]
+    Block candidate in registry (rollback drill).
+  signal record --module <id> --update-id <id> --kind crash|js_error|anr|perf|custom [--detail <text>]
+    Append quality signal (M9 — does not block compile).
+  signal list
+    List recorded quality signals.
+  signal clear
+    Clear quality signal store (HITL / drill reset).
+  serve [--port <n>] [--host <addr>]
+    Thin CP HTTP over .rn/delivery/registry.json (#7 demo API).
   test      Gate trigger (not implemented)
-  release   Promote / release-train steps (not implemented)
-  update    JS train / update channel (not implemented)
   submit    Store submit backends (not implemented — never use for stores)
 
 Global:
@@ -26,39 +54,85 @@ Exit: 0 help/success | 1 failure / not implemented | 2 usage
 
 const KNOWN = new Set([
   "build",
-  "sign",
-  "test",
-  "release",
   "update",
+  "sign",
+  "validate",
+  "release",
+  "promote",
+  "block",
+  "signal",
+  "serve",
+  "test",
   "submit",
 ]);
+
+function flagValue(args: string[], flag: string): string | undefined {
+  const idx = args.indexOf(flag);
+  if (idx === -1) return undefined;
+  return args[idx + 1];
+}
+
+function hasFlag(args: string[], flag: string): boolean {
+  return args.includes(flag);
+}
 
 function parsePlatform(
   args: string[],
 ): "android" | "ios" | "all" | undefined {
-  const idx = args.indexOf("--platform");
-  if (idx === -1) return undefined;
-  const value = args[idx + 1];
+  const value = flagValue(args, "--platform");
+  if (value === undefined) return undefined;
   if (value === "android" || value === "ios" || value === "all") {
     return value;
   }
   throw new DeliveryError(
-    "rn-delivery build: --platform must be android|ios|all",
+    "rn-delivery: --platform must be android|ios|all",
+    EXIT_USAGE,
+  );
+}
+
+function parseReleasePlatform(
+  args: string[],
+): DeliveryPlatform | undefined {
+  const value = flagValue(args, "--platform");
+  if (value === undefined) return undefined;
+  if (value === "android" || value === "ios") {
+    return value;
+  }
+  throw new DeliveryError(
+    "rn-delivery release: --platform must be android|ios",
     EXIT_USAGE,
   );
 }
 
 function parseProfile(args: string[]): DeliveryProfile | undefined {
-  const idx = args.indexOf("--profile");
-  if (idx === -1) return undefined;
-  const value = args[idx + 1];
+  const value = flagValue(args, "--profile");
+  if (value === undefined) return undefined;
   if (value === "debug-host" || value === "release") {
     return value;
   }
   throw new DeliveryError(
-    "rn-delivery build: --profile must be debug-host|release",
+    "rn-delivery: --profile must be debug-host|release",
     EXIT_USAGE,
   );
+}
+
+function requireModule(args: string[]): string {
+  const moduleId = flagValue(args, "--module");
+  if (!moduleId?.trim()) {
+    throw new DeliveryError(
+      "rn-delivery update: --module <business_module> required",
+      EXIT_USAGE,
+    );
+  }
+  return moduleId.trim();
+}
+
+function requireFlag(args: string[], flag: string, hint: string): string {
+  const value = flagValue(args, flag);
+  if (!value?.trim()) {
+    throw new DeliveryError(hint, EXIT_USAGE);
+  }
+  return value.trim();
 }
 
 export async function run(argv = process.argv): Promise<number> {
@@ -86,12 +160,118 @@ export async function run(argv = process.argv): Promise<number> {
   }
 
   try {
+    const rest = args.slice(1);
+
     if (cmd === "build") {
-      const rest = args.slice(1);
-      const platform = parsePlatform(rest);
-      const profile = parseProfile(rest);
-      await runBuild({ cwd: process.cwd(), platform, profile });
+      await runBuild({
+        cwd: process.cwd(),
+        platform: parsePlatform(rest),
+        profile: parseProfile(rest),
+      });
       return EXIT_OK;
+    }
+
+    if (cmd === "update") {
+      await runUpdate({
+        cwd: process.cwd(),
+        module: requireModule(rest),
+        profile: parseProfile(rest) ?? "release",
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "sign") {
+      await runSign({
+        cwd: process.cwd(),
+        candidatePath: flagValue(rest, "--candidate"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "validate") {
+      await runValidate({
+        cwd: process.cwd(),
+        candidatePath: flagValue(rest, "--candidate"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "release") {
+      await runRelease({
+        cwd: process.cwd(),
+        install: hasFlag(rest, "--install"),
+        platform: parseReleasePlatform(rest),
+        candidatePath: flagValue(rest, "--candidate"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "promote") {
+      await runPromote({
+        cwd: process.cwd(),
+        digest: flagValue(rest, "--digest"),
+        candidatePath: flagValue(rest, "--candidate"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "block") {
+      await runBlock({
+        cwd: process.cwd(),
+        reason: flagValue(rest, "--reason"),
+        platform: parseReleasePlatform(rest),
+        candidatePath: flagValue(rest, "--candidate"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "serve") {
+      const portRaw = flagValue(rest, "--port");
+      await runServe({
+        cwd: process.cwd(),
+        port: portRaw ? Number(portRaw) : undefined,
+        host: flagValue(rest, "--host"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "signal") {
+      const sub = rest[0];
+      const subArgs = rest.slice(1);
+      if (sub === "record") {
+        await runSignalRecord({
+          cwd: process.cwd(),
+          module: requireFlag(
+            subArgs,
+            "--module",
+            "signal record: --module <business_module> required",
+          ),
+          updateId: requireFlag(
+            subArgs,
+            "--update-id",
+            "signal record: --update-id required",
+          ),
+          kind: requireFlag(
+            subArgs,
+            "--kind",
+            "signal record: --kind crash|js_error|anr|perf|custom required",
+          ),
+          detail: flagValue(subArgs, "--detail"),
+        });
+        return EXIT_OK;
+      }
+      if (sub === "list") {
+        await runSignalList({ cwd: process.cwd() });
+        return EXIT_OK;
+      }
+      if (sub === "clear") {
+        await runSignalClear({ cwd: process.cwd() });
+        return EXIT_OK;
+      }
+      throw new DeliveryError(
+        "rn-delivery signal: use record|list|clear",
+        EXIT_USAGE,
+      );
     }
 
     console.error(

@@ -101,4 +101,24 @@ describe("discoverPlugins", () => {
     assert.equal(warnings.length, 1);
     assert.match(warnings[0] ?? "", /apiVersion/);
   });
+
+  it("discovers kind dev-session", async () => {
+    const root = await writeWorkspace({
+      plugins: [
+        {
+          dir: "plugins/dev-session-ex",
+          name: "@test/dev-session-ex",
+          clientPlatform: {
+            id: "ex-ds",
+            kind: "dev-session",
+            apiVersion: 1,
+            export: "./dist/register.js",
+          },
+        },
+      ],
+    });
+    const records = await discoverPlugins({ cwd: root });
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.kind, "dev-session");
+  });
 });

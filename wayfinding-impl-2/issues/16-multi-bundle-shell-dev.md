@@ -2,7 +2,7 @@
 
 Type: task / product
 Mode: HITL → AFK
-Status: **in-progress** — HITL 合同已收口；GF AFK 切片 1 落地中
+Status: **in-progress** — HITL 齐；GF AFK 切片 2（metro 分配置 + Dev Menu L-C）落地
 GitHub: #17
 Triage: ready-for-agent
 Blocked by: [13-a1-dev-session-contract](./13-a1-dev-session-contract.md)（**resolved** · 仅 GF·L-N）
@@ -17,18 +17,33 @@ Related: [ADR-005](../docs/adr/005-multi-bundle-shell.md), [ADR-006](../docs/adr
 3. 实现序：先 GF → 再 BF 同协议  
 4. sample-demo 双 module；**`rn demo remove` 必须零残留**（含 `.rn/dev-session.jsonc`）  
 5. 端口：`main→8081`，其后 `8082+`；配置可覆盖  
+6. **仓拓扑（同日补钉）**：工业默认 **B** — 壳纯宿主，`main` 亦外置 module workspace；A=`inline-main` 仅 starter。见 [ADR-005](../docs/adr/005-multi-bundle-shell.md)  
+7. **单 Runtime · 多 Bundle** + 跨 module 通信：[ADR-005](../docs/adr/005-multi-bundle-shell.md) + [ADR-007](../docs/adr/007-cross-module-communication.md)  
+8. **运行时风险与推广 P0/P1**：[ADR-008](../docs/adr/008-multi-bundle-runtime-risks.md)（R1–R18；缺 P0 不得宣称可企业推广）  
 
-### AFK 进度（切片 1）
+### AFK 进度
 
 - [x] `rn-core` `resolveEnv` + 隔离单测（C2/C4/C5）  
 - [x] `.rn/dev-session.jsonc` 读写；`rn demo add/remove` 写入/删除  
 - [x] `rn dev --modules a,b` + `ensureMultiMetroSessions` + 多端口 reverse  
 - [x] sample「模块」Tab：main/support L-C 对照
 - [x] 真机/本机验收：`rn demo remove|add` + `rn dev --modules main,support`（2026-08-25 my-rn-app：8081+8082 + reverse）  
-- [ ] 每 module 独立 metro.config / 双入口 HMR 不串包（自动化）  
-- [ ] Dev Menu ABI 插件 + Effective config 面板（C5/C8 完整）  
-- [ ] BF 参考宿主同协议（#5）  
-- [ ] `devSessionProtocolVersion` 协商  
+- [x] 每 module `.rn/metro/<id>.config.cjs`（`cacheVersion` 隔离）+ `index.support.js`；`demo remove` 清理  
+- [x] Dev Support：长按 DEV → Effective config + **C5**（切 profile / override / 重置）；插件菜单；**勿用 DevMenu.addItem**  
+- [x] 双入口 HMR 自动化：`verifyDualBundleIsolation` + `scripts/verify-multi-metro-hmr.mjs`（curl 两 bundle + 改 support 文件互不串；`RN_HMR_PROJECT` 跑 live）  
+- [x] `devSessionProtocolVersion` 协商（`negotiateDevSessionProtocol` + load fail-fast + doctor 端口表）  
+- [x] 正式 `dev-session` 插件 ABI（`kind: "dev-session"` + `createDevSessionController` + contributions → Dev Support；C5 UI 仍延后）  
+- [x] 第三方样例插件 `rn-plugin-example-dev-session` 注册 Dev Menu 项（热插拔）  
+- [x] L-C C5 面板可改：切 profile / 单键 override(`apiBaseUrl`) / 重置（sample `envProbe` 运行时 + Dev Support）  
+- [x] BF 参考宿主同协议（#5 · TS `createBrownfieldReferenceHost`；原生壳仍开）  
+- [x] GF 与 BF 同一协议测试套件（`runtime-host.test.ts`）  
+- [x] **工业 P0（ADR-008）合同 + CLI**：`destroy→dispose` / `ModuleEventBus` / `gateBundleLoad` / quality attribution / shell-change matrix；`rn module init|link`；`rn init` 默认 topology B；`rn doctor` L3e  
+- [x] dispose 泄漏探针 + sample「模块」Tab 抽样（`disposeProbe.ts` · simulate destroy）  
+- [x] Metro per-module `X-RN-Bundle-Kind: base` 合同（delta 类型在 rn-core）  
+- [x] 真机：Android `my-rn-app` · 模块 Tab → simulate destroy → Alert **dispose OK**（2026-08-26）  
+- [x] 真机 leak 路径：mount support interval → destroy **FAIL** → unmount → destroy **OK**（2026-08-26）  
+- [x] `rn-core` base/delta 制品合同（`ModuleBundleArtifact` + `validateBundleArtifact`）；**交付实现归 rn-delivery**（已撤试验性 `rn module seal`）  
+- [ ] 多团队发布演练（rn-delivery + 控制面晋级/阻断）  
 
 ## Question
 
@@ -88,12 +103,12 @@ Related: [ADR-005](../docs/adr/005-multi-bundle-shell.md), [ADR-006](../docs/adr
 
 ## 工业 DoD（产品级，非仅 ADR）
 
-- [ ] `devSessionProtocolVersion` 协商  
-- [ ] 双 module 并行 HMR 不串包（自动化）  
-- [ ] GF 与 BF 同一协议测试套件  
+- [x] `devSessionProtocolVersion` 协商  
+- [x] 双 module 并行 HMR 不串包（自动化 · live script + gated test）  
+- [x] GF 与 BF 同一协议测试套件  
 - [ ] Release 构建无 DevSession 符号/菜单  
-- [ ] `rn doctor` 输出端口表与连接态  
-- [ ] 至少一个第三方 `dev-session` 插件可注册 Dev Menu 项（热插拔证明）
+- [x] `rn doctor` 输出端口表与连接态（协议 + modules 端口；Metro 连接态仍靠 L2 probe）  
+- [x] 至少一个第三方 `dev-session` 插件可注册 Dev Menu 项（热插拔证明 · example-dev-session）
 
 ## Architecture（验收用）
 

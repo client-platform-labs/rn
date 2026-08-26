@@ -1,0 +1,13 @@
+---
+description: Synthesized architecture + CLI constraints for Map A (not ad-hoc slogans)
+alwaysApply: true
+---
+
+# Engineering principles
+
+Read [`docs/agents/engineering-principles.md`](../../docs/agents/engineering-principles.md) when adding CLI, rn-core types, or delivery-related code.
+
+1. **如无必要，勿增实体** — No new commands/types/packages unless they serve a committed capability. PoCs use scripts or local experiments, not `rn` / `rn-delivery` public CLI.
+2. **中间临时产物不要污染最终交付产物** — Dev Metro, sample probes, and `.rn/*` dev config are not shippable artifacts. Contracts in `rn-core`; pack/sign/promote only in `rn-delivery` + control plane.
+
+Reject: dev Metro fetch as “release”, fake delivery commands in `rn`, sample code depended on by delivery.

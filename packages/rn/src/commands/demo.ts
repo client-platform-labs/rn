@@ -16,6 +16,7 @@ import {
   ensureSampleDualModuleSession,
   removeDevSessionConfig,
 } from "../dev-session-config.js";
+import { removeDevSessionContributions } from "../dev-session-plugins.js";
 import {
   DEMO_APP_ENTRY_WIRE,
   DEMO_INDEX_GESTURE_IMPORT,
@@ -251,6 +252,8 @@ export async function runDemoRemove(options: {
     options.logger.writeHuman(`  delete: ${DEMO_SAMPLE_DIR}/`);
     options.logger.writeHuman(`  delete: ${DEMO_STATE_DIR}/`);
     options.logger.writeHuman("  delete: .rn/dev-session.jsonc");
+    options.logger.writeHuman("  delete: .rn/metro/");
+    options.logger.writeHuman("  delete: index.support.js");
     return;
   }
 
@@ -262,6 +265,7 @@ export async function runDemoRemove(options: {
   }
 
   removeDevSessionConfig(projectRoot);
+  removeDevSessionContributions(projectRoot);
 
   await removeDemoDeps(projectRoot, options.logger);
 

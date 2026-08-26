@@ -74,7 +74,7 @@ Last updated: 2026-08-25
 |---------|----------------|---------------|----------|----------|----------|
 | `dev.cold.first_screen` | 空目录首次 dev 到真机首屏 | **[待测]** SDK 57 + Dev Client 冷构建 | ≤ Expo + 10% 或书面豁免 | **[实测]** ~4–20min（Gradle 四 ABI + SDK 下载） | `bench-dev-session.sh cold` |
 | `dev.warm.reload` | 保存 JS → 真机可见更新 | **[待测]** ~1–3s | ≤ Expo p95 | **[待测]** Metro HMR 正常时应同级 | HMR 探针 / 手动秒表 |
-| `dev.warm.reinstall` | Dev Host 已装，仅推 bundle | **[待测]** 秒级 | ≤ 10s p95 | **gap**：无 Dev Host，仍 Gradle | 票 13 后测 |
+| `dev.warm.reinstall` | Dev Host 已装，仅推 bundle | **[待测]** 秒级 | ≤ 10s p95 | **[实测]** ~43ms（adb reverse + Metro 200，无 Gradle） | `bench-dev-warm-reinstall.mjs` · M4 HITL |
 | `dev.native.incremental` | 无 native 变更再跑 `dev --android` | **[待测]** 应 skip 或 <30s | ≤ 30s 或 skip install | **gap**：全量 `run-android` | Gradle `--dry-run` / 计时 |
 | `dev.failfast.no_device` | 无 authorized device | **[待测]** <10s | **≤ 3s** | **[实测] gap**：~4min 后 install 失败 | `expect_fail_fast.sh` |
 | `dev.transport.setup` | 桥接 Metro↔设备 | **[待测]** LAN 默认可用 | ≤ 5s | **[代码]** USB reverse only | bridge 单测 + e2e |
@@ -373,11 +373,12 @@ L5 A4 ─────► 晋级/回滚演示（differentiate 变现）
 
 | 指标 | Expo | my-rn-app / rn CLI | 目标 | 日期 | 证据 |
 |------|------|-------------------|------|------|------|
-| `dev.cold.first_screen` | 待测 | **[实测]** ~4min+（含 SDK/NDK 下载 + 四 ABI） | ≤ Expo+10% | 2026-08-25 | 用户会话日志 |
-| `dev.failfast.no_device` | 待测 | **[实测] gap** ~238s 后 install 失败 | ≤3s | 2026-08-25 | 用户会话日志 |
+| `dev.cold.first_screen` | **[实测]** ~347s（SDK57 Dev Client `expo run:android` 含 Gradle） | **[实测]** ~4min+（含 SDK/NDK 下载 + 四 ABI） | ≤ Expo+10% | 2026-08-26 | expo-bench · `docs/bench/expo-vs-rn-20260826.jsonl` |
+| `dev.failfast.no_device` | 待测（本轮未断 adb） | **[实测] gap** ~238s 后 install 失败 | ≤3s | 2026-08-25 | 用户会话日志 |
 | `dev.session.uptime` | N/A | **[代码] pass** foreground 不杀 Metro | 100% | 2026-08-25 | metro-orchestrator 修复 |
-| `dev.transport.modes` | 3 | **[代码] 1**（USB） | 3 | 2026-08-25 | android-dev-bridge.ts |
-| `dev.warm.reload` | 待测 | 待测（Metro 就绪后应同级） | ≤ Expo | — | — |
+| `dev.transport.modes` | **3**（USB/LAN/tunnel） | **[代码] 1**（USB） | 3 | 2026-08-26 | Expo docs + HITL USB |
+| `dev.warm.reload` | **[实测]** bundle ~2.7s（708 modules） | 待测（Metro 就绪后应同级） | ≤ Expo | 2026-08-26 | expo-bench Metro log |
+| `dev.warm.reinstall` | 待测 | **[实测]** ~43ms（debug-host + adb reverse） | ≤10s | 2026-08-26 | M4 HITL · `bench-dev-warm-reinstall.mjs` |
 | `identity.manifest_coverage` | N/A | **[代码] 100%** | 100% | 2026-08-25 | init 路径 |
 
 ---

@@ -1,0 +1,37 @@
+{
+  "project": "/Users/xuwei/Work/my-rn-app",
+  "mode": "afk",
+  "adb": true,
+  "pass": [
+    "L0-gov",
+    "L0-test",
+    "M4c",
+    "CP",
+    "Dist",
+    "BF-gradle",
+    "M2",
+    "M3",
+    "M3b",
+    "BF-rct",
+    "M8",
+    "M9",
+    "M8b",
+    "M10",
+    "H-bf-l5",
+    "A-expo"
+  ],
+  "fail": [],
+  "skip": [
+    "H-warm",
+    "H-bundler",
+    "H-dist",
+    "H-dist-install"
+  ],
+  "todo": [
+    "T-harmony",
+    "T-cp-web"
+  ],
+  "ok": true,
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/afk-hitl-loop-2026-08-26T09-15-20-009Z.jsonl",
+  "ts": "2026-08-26T09:15:32.369Z"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@client-platform/rn-plugin-example-dev-session",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Example discoverable dev-session plugin (map-a/#17 hot-plug proof)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "dependencies": {
+    "@client-platform/rn-core": "workspace:*"
+  },
+  "clientPlatform": {
+    "id": "example-dev-session",
+    "kind": "dev-session",
+    "apiVersion": 1,
+    "export": "./dist/register.js"
+  }
+}

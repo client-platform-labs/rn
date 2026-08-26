@@ -62,18 +62,20 @@ export function spawnMetroProcess(options: {
   env?: NodeJS.ProcessEnv;
   /** Detached daemon — survives CLI exit (used with --detach-metro). */
   detached?: boolean;
+  /** Per-module metro config path (map-a/#17 cache isolation). */
+  metroConfig?: string;
 }): ChildProcess {
-  return spawn(
-    options.npx,
-    ["react-native", "start", "--port", String(options.port)],
-    {
-      cwd: options.projectRoot,
-      env: options.env ?? process.env,
-      stdio: options.detached ? "ignore" : "inherit",
-      detached: Boolean(options.detached),
-      shell: process.platform === "win32",
-    },
-  );
+  const args = ["react-native", "start", "--port", String(options.port)];
+  if (options.metroConfig) {
+    args.push("--config", options.metroConfig);
+  }
+  return spawn(options.npx, args, {
+    cwd: options.projectRoot,
+    env: options.env ?? process.env,
+    stdio: options.detached ? "ignore" : "inherit",
+    detached: Boolean(options.detached),
+    shell: process.platform === "win32",
+  });
 }
 
 export function killMetroChild(child: ChildProcess | undefined): void {
@@ -96,6 +98,7 @@ export async function ensureMetroSession(options: {
   env?: NodeJS.ProcessEnv;
   noMetro?: boolean;
   detached?: boolean;
+  metroConfig?: string;
 }): Promise<MetroSession> {
   const port = options.port ?? DEFAULT_METRO_PORT;
 
@@ -112,7 +115,7 @@ export async function ensureMetroSession(options: {
   }
 
   options.logger.writeHuman(
-    `Starting Metro on :${port} (same terminal, no launchPackager popup)…`,
+    `Starting Metro on :${port}${options.metroConfig ? ` (config ${options.metroConfig})` : ""} (same terminal, no launchPackager popup)…`,
   );
   const child = spawnMetroProcess({
     npx: options.npx,
@@ -120,6 +123,7 @@ export async function ensureMetroSession(options: {
     port,
     env: options.env,
     detached: options.detached,
+    metroConfig: options.metroConfig,
   });
 
   if (options.detached) {
@@ -162,7 +166,7 @@ export async function ensureMultiMetroSessions(options: {
   npx: string;
   projectRoot: string;
   logger: CliLogger;
-  modules: Array<{ id: string; port: number }>;
+  modules: Array<{ id: string; port: number; metroConfig?: string }>;
   env?: NodeJS.ProcessEnv;
   noMetro?: boolean;
   detached?: boolean;
@@ -180,8 +184,8 @@ export async function ensureMultiMetroSessions(options: {
       port: mod.port,
       env: options.env,
       noMetro: options.noMetro,
-      // All but last may detach so we can start the next port in-process.
       detached: options.detached || options.modules.length > 1,
+      metroConfig: mod.metroConfig,
     });
     out.push({ ...session, moduleId: mod.id });
   }

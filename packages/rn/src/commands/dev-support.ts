@@ -16,6 +16,7 @@ import {
   DEV_SUPPORT_STATE_FILE,
 } from "../dev-support/constants.js";
 import { resolveDevSupportTemplateFile } from "../dev-support/template.js";
+import { writeDevSessionContributions } from "../dev-session-plugins.js";
 
 export interface DevSupportState {
   version: 1;
@@ -114,8 +115,21 @@ export async function runDevSupportAdd(options: {
   mkdirSync(path.join(projectRoot, DEV_SUPPORT_STATE_DIR), { recursive: true });
   writeFileSync(statePath(projectRoot), JSON.stringify(state, null, 2), "utf8");
 
+  const contrib = await writeDevSessionContributions(projectRoot, {
+    cwd: projectRoot,
+    logger: {
+      info: (m) => options.logger.writeHuman(m),
+      warn: (m) => options.logger.warn(m),
+    },
+  });
+
   options.logger.writeHuman("Dev support enabled (debug FAB → RN Dev Menu).");
   options.logger.writeHuman(`  module: ${DEV_SUPPORT_MODULE_DIR}/`);
+  if (contrib) {
+    options.logger.writeHuman(
+      `  contributions: ${contrib.menuItems.length} menu item(s) from dev-session plugins`,
+    );
+  }
   options.logger.writeHuman("  remove: rn dev-support remove");
 }
 

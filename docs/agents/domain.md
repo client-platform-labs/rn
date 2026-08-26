@@ -28,3 +28,5 @@ If the concept you need isn't in the glossary yet, that's a signal — either yo
 If your output contradicts an existing ADR under `wayfinding-impl-2/docs/adr/`, surface it explicitly rather than silently overriding:
 
 > _Contradicts ADR-006 (unified multi-Metro debug) — but worth reopening because…_
+
+New or amended ADRs must include `## Principles compliance` per [ADR-009](../../wayfinding-impl-2/docs/adr/009-architecture-principles-governance.md). Process: [architecture-governance.md](./architecture-governance.md).

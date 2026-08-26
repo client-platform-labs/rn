@@ -14,6 +14,7 @@ import {
   defaultReleaseId,
 } from "./greenfield.js";
 import { projectManifestSchema } from "./schema.js";
+import { validateExpoInteropConfig } from "./expo-interop.js";
 import {
   DEFAULT_JS_ARTIFACT_MAX_PROFILES,
   MANIFEST_FILENAME,
@@ -58,6 +59,25 @@ function normalize(doc: ProjectManifest): ProjectManifest {
   if (doc.js_artifact_matrix !== undefined) {
     out.js_artifact_matrix = { ...doc.js_artifact_matrix };
   }
+  if (doc.interop !== undefined) {
+    out.interop = {
+      ...doc.interop,
+      ...(doc.interop.expo !== undefined
+        ? {
+            expo: {
+              ...doc.interop.expo,
+              ...(doc.interop.expo.runtimeVersionMap !== undefined
+                ? {
+                    runtimeVersionMap: {
+                      ...doc.interop.expo.runtimeVersionMap,
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
+    };
+  }
   return out;
 }
 
@@ -90,6 +110,13 @@ export function validateManifestText(text: string): ManifestValidationResult {
   const spineErrors = validateIdentitySpineForVersion(migrated);
   if (spineErrors.length > 0) {
     return { ok: false, errors: spineErrors };
+  }
+
+  const interopErrors = validateExpoInteropConfig(
+    (migrated as ProjectManifest).interop,
+  );
+  if (interopErrors.length > 0) {
+    return { ok: false, errors: interopErrors };
   }
 
   return { ok: true, manifest: normalize(migrated as ProjectManifest) };

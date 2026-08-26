@@ -24,3 +24,16 @@ Related: [research/03](../../research/03-expo-dev-experience-system-analysis.md)
 
 - 指标：`dev.warm.reinstall` p95 ≤10s（Host 已装）
 - 指纹：debug host digest ≠ release digest；doctor 可识别
+
+## Principles compliance
+
+Normative: [ADR-009](./009-architecture-principles-governance.md) · [engineering-principles](../../../docs/agents/engineering-principles.md)
+
+| Check | Assessment |
+|-------|------------|
+| **Plane** | Dev artifact plane; distinct `release_id` from store release |
+| **YAGNI** | Debug Host only where warm reinstall wins; not duplicate app shells |
+| **Door** | One-way: debug vs release identity in fingerprint spine |
+| **Dev vs delivery** | Debug Host is installable dev aid, not promoted store artifact |
+| **GF/BF** | Same warm-reinstall contract where applicable |
+| **Evidence** | `dev.warm.reinstall` metric + doctor digest check |

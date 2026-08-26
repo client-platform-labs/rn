@@ -90,6 +90,10 @@ export interface CandidateMetadata {
   /** Furthest completed stage for this candidate (stage machine cursor). */
   stage: DeliveryStage;
   supply_chain?: DualSupplyChainInterfaces;
+  /** Sealed payload signature (hex) — set at sign stage (M5). */
+  signature?: string;
+  /** Client selector sidecar (`JsUpdateCandidate` + paths) for js-update (M7). */
+  sidecar_path?: string;
 }
 
 export interface StageRunState {

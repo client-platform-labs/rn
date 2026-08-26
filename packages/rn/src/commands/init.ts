@@ -26,8 +26,19 @@ import {
 } from "../npm-policy.js";
 import { resolveNpx, runStreaming } from "../process.js";
 import { runDemoAdd } from "./demo.js";
+import { applyTopologyBAfterInit } from "../module-workspace.js";
 
 const COMMUNITY_CLI = "@react-native-community/cli@latest";
+
+export type InitStarter = "topology-b" | "inline-main";
+
+export function parseInitStarter(raw: string | undefined): InitStarter {
+  if (!raw || raw === "topology-b" || raw === "default") return "topology-b";
+  if (raw === "inline-main") return "inline-main";
+  throw new Error(
+    `unknown --starter "${raw}" (expected topology-b|inline-main)`,
+  );
+}
 
 /** Files/dirs Community CLI may leave that we tolerate in an "empty" cwd. */
 const ALLOWED_PREEXISTING = new Set([
@@ -139,6 +150,8 @@ export async function runInit(options: {
   isolatedNpmrc?: boolean;
   npmRegistry?: string;
   demo?: boolean;
+  /** Default topology-b (ADR-005). Use inline-main for onboarding path A. */
+  starter?: InitStarter;
 }): Promise<void> {
   if (options.isolatedNpmrc && options.npmPolicy) {
     const parsed = parseNpmPolicyKind(options.npmPolicy);
@@ -156,6 +169,7 @@ export async function runInit(options: {
     );
   }
 
+  const starter: InitStarter = options.starter ?? "topology-b";
   const cwd = path.resolve(options.cwd);
   const appName = sanitizeAppName(cwd);
   const npx = resolveNpx();
@@ -171,11 +185,17 @@ export async function runInit(options: {
   const plan = {
     dryRun: options.dryRun,
     appName,
+    starter,
+    topology: starter === "topology-b" ? "shell-plus-modules" : "inline-main",
     rnTrain: `${RN_GREENFIELD_MAJOR_MINOR}.x`,
     initVersion: RN_GREENFIELD_INIT_VERSION,
     orchestrate: `${npx} ${cliArgs.join(" ")}`,
     hoist: `move ${appName}/* → cwd`,
     overlay: [MANIFEST_FILENAME],
+    modules:
+      starter === "topology-b"
+        ? ["modules/main", ".rn/dev-session.jsonc", ".rn/host-profile.jsonc"]
+        : [".rn/host-profile.jsonc (inline-main)"],
     demo: options.demo ? "rn demo add" : null,
     expects: ["package.json", "ios/", "android/"],
     rnExactTuple: rnExactTuplePreview,
@@ -184,6 +204,9 @@ export async function runInit(options: {
     npmRegistry: npm.registry ?? null,
     npmRegistrySource: npm.registrySource,
     notes: [
+      starter === "topology-b"
+        ? "Default starter=topology-b: shell App + modules/main (ADR-005 industrial GF)."
+        : "starter=inline-main: Community App stays in-tree (onboarding path A only).",
       "Hermes V1 + New Architecture are defaults on RN 0.87.x (no legacy arch).",
       "HarmonyOS is contract-reserved; A1 template targets ios+android only.",
       "Pods are skipped at init; run pod install on darwin before iOS device runs.",
@@ -203,6 +226,7 @@ export async function runInit(options: {
         : "init will orchestrate:",
     );
     options.logger.writeHuman(`  appName: ${appName}`);
+    options.logger.writeHuman(`  starter: ${starter} (${plan.topology})`);
     options.logger.writeHuman(
       `  RN train: ${RN_GREENFIELD_MAJOR_MINOR}.x (pin ${RN_GREENFIELD_INIT_VERSION})`,
     );
@@ -262,6 +286,29 @@ export async function runInit(options: {
   const manifest = renderDefaultManifestJsonc({ rnVersion });
   writeFileSync(path.join(cwd, MANIFEST_FILENAME), manifest, "utf8");
 
+  if (starter === "topology-b") {
+    const applied = applyTopologyBAfterInit(cwd);
+    options.logger.writeHuman(
+      `topology B: ${path.relative(cwd, applied.moduleRoot)} + shell ${path.basename(applied.appEntry)}`,
+    );
+  } else {
+    mkdirSync(path.join(cwd, ".rn"), { recursive: true });
+    writeFileSync(
+      path.join(cwd, ".rn", "host-profile.jsonc"),
+      `// GF inline-main starter (ADR-005 path A — onboarding only)\n${JSON.stringify(
+        {
+          schemaVersion: 1,
+          profile: "greenfield",
+          topology: "inline-main",
+          devSessionProtocolVersion: 1,
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+  }
+
   const tuple = buildRnExactTuple(rnVersion);
   if (options.logger.json) {
     options.logger.writeMachine({
@@ -270,6 +317,8 @@ export async function runInit(options: {
       rnVersion,
       rnExactTuple: tuple,
       manifest: MANIFEST_FILENAME,
+      starter,
+      topology: plan.topology,
     });
   } else {
     options.logger.writeHuman(`Project root: ${cwd}`);

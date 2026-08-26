@@ -20,6 +20,8 @@ Blocked by: 01, 02, 03, 10, 11
 - 验收串：doctor → init → dev 真机 → delivery 候选包 → 安装
 - 默认 targets ios+android；Harmony 合同预留不进 A1 模板强制
 - **深化（地图 A Goals G1，非新切片）**：Dev Session（票 13/13b）、一壳多 Bundle + 多 Metro 并行（票 16 的 GF 部分）、`dev-session` 插件 ABI；详见 [map.md](../map.md) · [票 16](./16-multi-bundle-shell-dev.md)
+- **仓拓扑合同（2026-08-25）**：工业默认 **ADR-005 路径 B**（壳 + 外置 module workspace，含 `main`）。今日 Community CLI 单树 = onboarding 形；演进目标 `rn module init|link`，非把 A 写死为常态。
+- **工业 P0 落地（续）**：`rn init` **默认 topology-b**（`--starter inline-main` = 路径 A）；`rn module init|link`；`rn doctor` L3e（dispose/总线/验签门/shell-change 矩阵/污染扫描/依赖对齐）；rn-core `destroy→dispose`、`ModuleEventBus`、`gateBundleLoad`、质量信号归因。真机 dispose 钩子与发布演练仍属开放验收，不得仅凭合同宣称「企业推广完成」。
 ## Answer
 
 （2026-08-21）A1 Greenfield 工业路径已落地：Community CLI 编排 init、扩 doctor、加 `rn dev`、delivery debug 候选编排；真机安装依赖本机 SDK。

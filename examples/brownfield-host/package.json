@@ -1,0 +1,19 @@
+{
+  "name": "@client-platform/example-brownfield-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Brownfield reference host (TS + Android SurfaceHost stub) — map-a/#5",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "demo": "node --experimental-strip-types ./src/demo.ts"
+  },
+  "dependencies": {
+    "@client-platform/rn-core": "workspace:*"
+  }
+}

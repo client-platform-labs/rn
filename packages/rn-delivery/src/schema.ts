@@ -22,7 +22,7 @@ export const candidateMetadataSchema = {
     release_id: { type: "string", minLength: 1 },
     artifact_kind: {
       type: "string",
-      enum: ["app-host", "rn-module", "js-update"],
+      enum: ["app-host", "app-host-debug", "rn-module", "js-update"],
     },
     artifact_line: { type: "string", minLength: 1 },
     platform: {
@@ -95,7 +95,7 @@ export const candidateMetadataSchema = {
       properties: {
         artifact_kind: {
           type: "string",
-          enum: ["app-host", "rn-module", "js-update"],
+          enum: ["app-host", "app-host-debug", "rn-module", "js-update"],
         },
         format: {
           type: "string",
@@ -112,7 +112,7 @@ export const candidateMetadataSchema = {
       properties: {
         artifact_kind: {
           type: "string",
-          enum: ["app-host", "rn-module", "js-update"],
+          enum: ["app-host", "app-host-debug", "rn-module", "js-update"],
         },
         predicate_type: { type: "string", minLength: 1 },
         digest: { type: "string" },

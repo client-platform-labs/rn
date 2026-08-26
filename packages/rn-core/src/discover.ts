@@ -7,7 +7,12 @@ import {
   listWorkspacePackageJsonFiles,
 } from "./workspace.js";
 
-const PLUGIN_KINDS = new Set<PluginKind>(["cli-command", "native", "prebuild"]);
+const PLUGIN_KINDS = new Set<PluginKind>([
+  "cli-command",
+  "native",
+  "prebuild",
+  "dev-session",
+]);
 
 export interface DiscoverPluginsOptions {
   cwd?: string;

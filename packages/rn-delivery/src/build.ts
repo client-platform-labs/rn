@@ -1,11 +1,14 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import { computeFingerprint } from "@client-platform/rn-core";
+import { computeFingerprint, releaseSourceHygieneOk } from "@client-platform/rn-core";
+
+import { writeBuildResults } from "./candidate-store.js";
 
 import {
   buildCandidateMetadata,
   emptyDualSupplyChain,
+  hostArtifactKindForProfile,
 } from "./candidate.js";
 import type { CandidateMetadata, DeliveryProfile } from "./types.js";
 import {
@@ -22,6 +25,12 @@ import {
   commandExists,
 } from "./util.js";
 
+export function androidAssembleGradleTask(
+  profile: DeliveryProfile,
+): "assembleDebug" | "assembleRelease" {
+  return profile === "release" ? "assembleRelease" : "assembleDebug";
+}
+
 export async function runBuild(options: {
   cwd: string;
   platform?: "android" | "ios" | "all";
@@ -34,6 +43,13 @@ export async function runBuild(options: {
   const profile: DeliveryProfile = options.profile ?? "debug-host";
   const androidDir = path.join(projectRoot, "android");
   const iosDir = path.join(projectRoot, "ios");
+
+  if (profile === "release" && !releaseSourceHygieneOk(projectRoot)) {
+    throw new DeliveryError(
+      "Release hygiene failed — dev-support surfaces still present. Run `rn doctor` (L3f) and `rn dev-support remove`, then retry `rn-delivery build --profile release`.",
+      EXIT_FAIL,
+    );
+  }
 
   const fingerprintDigest = manifest?.runtime_fingerprint
     ? computeFingerprint(manifest.runtime_fingerprint).digest
@@ -68,8 +84,11 @@ export async function runBuild(options: {
           EXIT_FAIL,
         );
       }
-      console.error("rn-delivery build: assembling Android debug APK via Gradle…");
-      const code = await runStreaming(gradlew, ["assembleDebug"], {
+      const assembleTask = androidAssembleGradleTask(profile);
+      console.error(
+        `rn-delivery build: assembling Android ${profile === "release" ? "release" : "debug"} APK via Gradle (${assembleTask})…`,
+      );
+      const code = await runStreaming(gradlew, [assembleTask], {
         cwd: androidDir,
         env: {
           ANDROID_HOME: sdk,
@@ -78,14 +97,17 @@ export async function runBuild(options: {
       });
       if (code !== 0) {
         throw new DeliveryError(
-          `Gradle assembleDebug failed (exit ${code})`,
+          `Gradle ${assembleTask} failed (exit ${code})`,
           EXIT_FAIL,
         );
       }
       const apk = findNewestApk(androidDir);
       const digest = apk ? sha256File(apk) : "pending";
       const meta = buildCandidateMetadata({
-        artifact_kind: manifest?.artifact_kind ?? "app-host",
+        artifact_kind:
+          manifest?.artifact_kind === "rn-module"
+            ? "rn-module"
+            : hostArtifactKindForProfile(profile),
         artifact_line: manifest?.artifact_line,
         release_id: releaseId,
         platform: "android",
@@ -139,6 +161,7 @@ export async function runBuild(options: {
         );
       }
       const derived = path.join(projectRoot, "build", "ios-derived");
+      const iosConfiguration = profile === "release" ? "Release" : "Debug";
       const args =
         target.type === "workspace"
           ? [
@@ -147,7 +170,7 @@ export async function runBuild(options: {
               "-scheme",
               scheme,
               "-configuration",
-              "Debug",
+              iosConfiguration,
               "-sdk",
               "iphonesimulator",
               "-derivedDataPath",
@@ -160,7 +183,7 @@ export async function runBuild(options: {
               "-scheme",
               scheme,
               "-configuration",
-              "Debug",
+              iosConfiguration,
               "-sdk",
               "iphonesimulator",
               "-derivedDataPath",
@@ -168,7 +191,7 @@ export async function runBuild(options: {
               "build",
             ];
       console.error(
-        "rn-delivery build: xcodebuild Debug (iphonesimulator — no store signing)…",
+        `rn-delivery build: xcodebuild ${iosConfiguration} (iphonesimulator — no store signing)…`,
       );
       const code = await runStreaming("xcodebuild", args, { cwd: iosDir });
       if (code !== 0) {
@@ -178,7 +201,10 @@ export async function runBuild(options: {
         );
       }
       const meta = buildCandidateMetadata({
-        artifact_kind: manifest?.artifact_kind ?? "app-host",
+        artifact_kind:
+          manifest?.artifact_kind === "rn-module"
+            ? "rn-module"
+            : hostArtifactKindForProfile(profile),
         artifact_line: manifest?.artifact_line,
         release_id: releaseId,
         platform: "ios",
@@ -202,4 +228,6 @@ export async function runBuild(options: {
       EXIT_FAIL,
     );
   }
+
+  writeBuildResults(projectRoot, results);
 }

@@ -23,6 +23,13 @@ export function emptyDualSupplyChain(): DualSupplyChainInterfaces {
   return { host: {}, js_update: {} };
 }
 
+/** ADR-002: debug-host profile emits app-host-debug; release stays app-host. */
+export function hostArtifactKindForProfile(
+  profile: DeliveryProfile,
+): Extract<ArtifactKind, "app-host" | "app-host-debug"> {
+  return profile === "debug-host" ? "app-host-debug" : "app-host";
+}
+
 /** Reserve dual SBOM slots keyed by train (P9). Does not generate SBOMs. */
 export function attachSbomSlot(
   supply: DualSupplyChainInterfaces,
@@ -112,12 +119,34 @@ export function validateCandidateMetadata(
   if (typeof v.release_id !== "string" || v.release_id.length === 0) {
     errors.push("release_id required");
   }
-  const kinds: ArtifactKind[] = ["app-host", "rn-module", "js-update"];
+  const kinds: ArtifactKind[] = [
+    "app-host",
+    "app-host-debug",
+    "rn-module",
+    "js-update",
+  ];
   if (
     typeof v.artifact_kind !== "string" ||
     !kinds.includes(v.artifact_kind as ArtifactKind)
   ) {
-    errors.push("artifact_kind must be app-host|rn-module|js-update");
+    errors.push(
+      "artifact_kind must be app-host|app-host-debug|rn-module|js-update",
+    );
+  }
+  if (
+    v.profile === "debug-host" &&
+    v.artifact_kind === "app-host" &&
+  (v.platform === "android" || v.platform === "ios" || v.platform === "harmonyos")
+  ) {
+    errors.push(
+      "debug-host native candidates must use artifact_kind app-host-debug",
+    );
+  }
+  if (
+    v.profile === "release" &&
+    v.artifact_kind === "app-host-debug"
+  ) {
+    errors.push("release profile cannot use artifact_kind app-host-debug");
   }
   const platforms = ["android", "ios", "harmonyos", "js"];
   if (

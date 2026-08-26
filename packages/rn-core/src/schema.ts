@@ -64,6 +64,23 @@ export const projectManifestSchema = {
         max_profiles: { type: "integer", minimum: 1 },
       },
     },
+    interop: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        expo: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            sdkVersion: { type: "string", minLength: 1 },
+            runtimeVersionMap: {
+              type: "object",
+              additionalProperties: { type: "string", minLength: 1 },
+            },
+          },
+        },
+      },
+    },
   },
 } as const;
 

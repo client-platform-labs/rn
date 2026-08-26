@@ -11,6 +11,8 @@ GitHub: #18 (`wayfinder:map`)
 
 权威：[`../blueprint/00-entry.md`](../blueprint/00-entry.md)；补丁与分期：[research/01-multi-plane-industrial-remediation.md](./research/01-multi-plane-industrial-remediation.md)；票 [01](./issues/01-device-test-destination.md)；全链路总纲：[research/04](./research/04-industrial-full-lifecycle-scheme.md)。
 
+**脉络总图（起点/终点/里程碑/交付验收）：** [docs/architecture-roadmap.md](../docs/architecture-roadmap.md) — 排期以 **Spine → Branch → Depth**（最小全流程优先）为准，非散落打点。
+
 ---
 
 ## Pipeline 状态（to-specs / to-tickets / 实现）
@@ -23,9 +25,9 @@ GitHub: #18 (`wayfinder:map`)
 | **to-tickets** | 可执行票 | **权威 = GitHub Issues**（[`docs/agents/issue-tracker.md`](../docs/agents/issue-tracker.md)）；地图父票 [#18](https://github.com/client-platform-labs/rn/issues/18)；本地 `issues/*.md` 仅为历史/可选镜像 |
 | **实现 / 验收** | 代码 + 真机 DoD | **部分**：身份模块 + A1 基线 CLI + DevTransport 已在 main |
 
-### 进度板（2026-08-25）
+### 进度板（2026-08-26 · Spine closure）
 
-面板：[Map #18](https://github.com/client-platform-labs/rn/issues/18) · [Open](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aopen) · [Closed](https://github.com/client-platform-labs/rn/issues?q=is%3Aissue+label%3Amap-a+is%3Aclosed)（票 ID ≠ GH 号时以标题 `[map-a/ID]` 为准；如 13b→#14）
+面板：[Map #18](https://github.com/client-platform-labs/rn/issues/18) · Spine gate: `verify-m10-map-a-closure.mjs` · [M10 HITL](../docs/hitl/m10-map-a-spine-closure-2026-08-26.md)
 
 | ID | GH | 标题 | 阶段 | Status | 实现粗估 |
 |----|-----|------|------|--------|----------|
@@ -34,32 +36,33 @@ GitHub: #18 (`wayfinder:map`)
 | 03 | [#3](https://github.com/client-platform-labs/rn/issues/3) | 身份 fingerprint 合同 | grilling | **resolved** | 合同完成 |
 | 10 | [#10](https://github.com/client-platform-labs/rn/issues/10) | rn-core fingerprint 落地 | task | **resolved** | **代码已在 main** |
 | 11 | [#11](https://github.com/client-platform-labs/rn/issues/11) | RN 原子元组 | grilling | **resolved** | 合同完成 |
-| 04 | [#4](https://github.com/client-platform-labs/rn/issues/4) | A1 Greenfield 基线 | task | **resolved** | **CLI init/dev/doctor 已在 main**；深化见 13/16 |
+| 04 | [#4](https://github.com/client-platform-labs/rn/issues/4) | A1 Greenfield 基线 | task | **resolved** | **L5 HITL** · M4 debug-host |
 | 12 | [#12](https://github.com/client-platform-labs/rn/issues/12) | Expo 对标研究 | research | **resolved** | SLA 锁定；bench→[#19](https://github.com/client-platform-labs/rn/issues/19) |
-| 12b | [#19](https://github.com/client-platform-labs/rn/issues/19) | Expo 同机 bench | task | open | 填 research/03 §9 |
-| 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **resolved** | **仅 GF·L-N**（传输/装包）；L-J/L-C/BF 另见 #17/#5 |
-| 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | open | 未实现 |
-| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro（A1+A2 深化） | task | **in-progress** | HITL 齐；GF 切片1（env/`--modules`/demo）落地中 |
-| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **in-progress** | 七阶段 stub + candidate metadata/同物晋级；后端/SBOM 生成未齐 |
-| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **in-progress** | `gateJsCandidate` + 槽位选择器已落地；持久化/Failed 页/A4 未齐 |
-| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | open | 未实现 |
-| 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane Web+Node | task | open | 未实现 |
-| 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | open | 未实现（P2） |
-| 09 | [#9](https://github.com/client-platform-labs/rn/issues/9) | A6 质量信号 | task | open | 未实现 |
-| 15 | [#16](https://github.com/client-platform-labs/rn/issues/16) | Expo 互操作口子 | task | open | 低优；未实现 |
+| 12b | [#19](https://github.com/client-platform-labs/rn/issues/19) | Expo 同机 bench | task | open | Depth |
+| 13 | [#13](https://github.com/client-platform-labs/rn/issues/13) | A1 Dev Session | task | **resolved** | DevTransport HITL |
+| 13b | [#14](https://github.com/client-platform-labs/rn/issues/14) | Debug Host | task | **resolved** | [M4 HITL](../docs/hitl/m4-debug-host-2026-08-26.md) |
+| 16 | [#17](https://github.com/client-platform-labs/rn/issues/17) | 多 Bundle / 多 Metro | task | **in-progress** | GF L-C 齐；BF 协议挂 #5 |
+| 05 | [#5](https://github.com/client-platform-labs/rn/issues/5) | A2 Brownfield | task | **in-progress** | L4 pipe + RCT scaffold；AAR 余量 |
+| 06 | [#6](https://github.com/client-platform-labs/rn/issues/6) | A3 候选包 | task | **in-progress** | L4 thin HITL；真 sign 余量 |
+| 08 | [#8](https://github.com/client-platform-labs/rn/issues/8) | A5 客户端兜底 | task | **in-progress** | load gate HITL；UI 余量 |
+| 07 | [#7](https://github.com/client-platform-labs/rn/issues/7) | A4 Control Plane | task | open | file stub only → Map B |
+| 14 | [#15](https://github.com/client-platform-labs/rn/issues/15) | 装包台 | task | open | Map B |
+| 09 | [#9](https://github.com/client-platform-labs/rn/issues/9) | A6 质量信号 | task | **resolved** | [M9 L5 HITL](../docs/hitl/m9-quality-gate-2026-08-26.md) |
+| 15 | [#16](https://github.com/client-platform-labs/rn/issues/16) | Expo 互操作口子 | task | open | 低优 |
+| — | [#20](https://github.com/client-platform-labs/rn/issues/20)–[#22](https://github.com/client-platform-labs/rn/issues/22) | Enterprise gates | task | **resolved** | Spine M2–M9 + M8b |
 
-**切片完成度（实现视角）**
+**切片完成度（Spine 推广 bar · 2026-08-26）**
 
-| 切片 | 合同 | 代码/真机 | 备注 |
-|------|------|-----------|------|
-| A1 | ~85% | ~60% | 基线 + Dev Session AFK；真机/#14/#17 未完 |
-| A2 | ~40% | ~0% | 票+ADR；无参考宿主 |
-| A3 | ~55% | ~35% | 阶段机/候选元数据 stub；生成器与七阶段后端未齐 |
-| A4 | ~60% | ~0% | 票已写 Node+Web DoD；仍 blocked by #6+#8 深化 |
-| A5 | ~55% | ~30% | 选择器纯函数+schema；运行时/原生页未齐 |
-| A6 | ~30% | ~0% | 开 |
+| 切片 | 合同 | Spine HITL | 备注 |
+|------|------|------------|------|
+| A1 | ~90% | ✅ L5 | M4 debug-host · M9 quality |
+| A2 | ~65% | 🔄 L4 | M8b BF steel-thread；#5 depth |
+| A3 | ~60% | ✅ thin L4 | promote/block；#6/#7 加深 |
+| A4 | ~60% | 🔄 stub | file CP · #7 → Map B |
+| A5 | ~60% | ✅ core | M7 load gate |
+| A6 | ~40% | ✅ L5 gate | M9；E2E 余量 |
 
-**一句话**：#12 已收口；W1 三条 AFK（#13/#6/#8）均有代码增量；卡点转 **#13 真机** 与下一 HITL（#17 或继续加深 A3/A5）。
+**一句话**：Spine M0–M10 + Branch M8b **PASS**；Map A 父票 #18 Spine 章节已结，切片余量挂 Map B。
 
 ---
 
@@ -105,6 +108,8 @@ GitHub: #18 (`wayfinder:map`)
 - 薄核心 + 热插拔插件；双宿主 `rn` + `rn-delivery`。
 - **携带执行**：决策票收口后 AFK 可写代码；HITL 须人确认。
 - 设计标准：工业合同优先；实现分期，不分期降格架构。
+- **架构治理（ADR-009）**：当前与未来设计须遵守 [`docs/agents/engineering-principles.md`](../docs/agents/engineering-principles.md)；新 ADR 用 [`000-template.md`](./docs/adr/000-template.md)；CI `scripts/check-architecture-governance.mjs`。
+- **企业推广门禁（GF=BF 同一标准）**：[`docs/agents/enterprise-promotion-gates.md`](../docs/agents/enterprise-promotion-gates.md)；[`gf-bf-unified-model.md`](../docs/agents/gf-bf-unified-model.md)（一套设计、Surface 分叉）；执行序 #20 → #21 → #22（blocked #20）→ A3/A4 L4+。
 - **切片序仍以票 [02](./issues/02-map-a-slice-order.md) 为准**；下文「深化」不改变六切片集合。
 - 术语：[`../wayfinding/CONTEXT.md`](../wayfinding/CONTEXT.md) + [`CONTEXT.md`](./CONTEXT.md)。
 
@@ -140,7 +145,7 @@ A6 Quality     ←── 信号带 business_module + update_id
 - [装包台 14](./issues/14-distribution-console.md)（A3 执行面）· [Expo 互操作 15](./issues/15-expo-interop-track.md)（低优口子）
 - [16 多 Bundle/多 Metro](./issues/16-multi-bundle-shell-dev.md) — **归属 A1+A2 深化**，非新图
 - 总纲 [research/04](./research/04-industrial-full-lifecycle-scheme.md)（含 §13 调试分层、§14 工业自评）
-- ADR [001](./docs/adr/001-dev-transport.md)–[006](./docs/adr/006-unified-multi-metro-debug.md)
+- ADR [001](./docs/adr/001-dev-transport.md)–[008](./docs/adr/008-multi-bundle-runtime-risks.md)
 
 ---
 
