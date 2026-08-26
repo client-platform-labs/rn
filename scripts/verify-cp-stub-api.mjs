@@ -68,6 +68,18 @@ try {
     console.log("OK health");
   }
 
+  const consoleRes = await fetch(`${base}/`);
+  const consoleHtml = await consoleRes.text();
+  if (
+    consoleRes.status !== 200 ||
+    !consoleHtml.includes("Control Plane") ||
+    !consoleHtml.includes("/v1/registry")
+  ) {
+    fail(`console HTML ${consoleRes.status}`);
+  } else {
+    console.log("OK GET / thin CP Web");
+  }
+
   const registry = await fetchJson(`${base}/v1/registry`);
   if (registry.status !== 200 || !Array.isArray(registry.body.staging)) {
     fail(`registry ${registry.status}`);

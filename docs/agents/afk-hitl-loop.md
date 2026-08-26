@@ -111,8 +111,8 @@ node scripts/run-afk-hitl-loop.mjs --plan
 |----|-------|--------|
 | T-expo-cold | #19 | ✅ DONE — bench JSONL + research/03 |
 | T-expo-interop | #16 | ✅ DONE thin — `rn doctor --profile expo` · `rn migrate expo --dry-run` |
+| T-cp-web | #7 | ✅ DONE thin — `rn-delivery serve` GET `/` console |
 | T-harmony | Map B | **DEFERRED** — no Harmony device/toolchain |
-| T-cp-web | #7 | **DEFERRED** — `rn-delivery serve` API enough for L5; Web when demo needed |
 
 ### 开票 vs 证据（诚实）
 

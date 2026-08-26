@@ -1,9 +1,21 @@
+import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { blockCandidateInRegistry, listInstallableCandidates, loadRegistry } from "./candidate-store.js";
+import {
+  blockCandidateInRegistry,
+  listInstallableCandidates,
+  loadRegistry,
+} from "./candidate-store.js";
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
+
+const STATIC_DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../static",
+);
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -19,8 +31,17 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(`${JSON.stringify(body)}\n`);
 }
 
+function sendHtml(res: ServerResponse, status: number, html: string) {
+  res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
+  res.end(html);
+}
+
+function loadConsoleHtml(): string {
+  return readFileSync(path.join(STATIC_DIR, "cp-console.html"), "utf8");
+}
+
 /**
- * Map B / #7 thin CP: read-write HTTP over file registry (demo API).
+ * Map B / #7 thin CP: read-write HTTP over file registry (demo API + Web).
  * Not production CP — replaces curl to rn-delivery for Web console PoC.
  */
 export async function runServe(options: {
@@ -35,6 +56,14 @@ export async function runServe(options: {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
     try {
+      if (
+        req.method === "GET" &&
+        (url.pathname === "/" || url.pathname === "/console")
+      ) {
+        sendHtml(res, 200, loadConsoleHtml());
+        return;
+      }
+
       if (req.method === "GET" && url.pathname === "/health") {
         sendJson(res, 200, { ok: true, projectRoot });
         return;
@@ -135,9 +164,12 @@ export async function runServe(options: {
       console.error(
         `rn-delivery serve: http://${host}:${port} (project ${projectRoot})`,
       );
+      console.error("  GET  /  (thin CP Web console)");
       console.error("  GET  /v1/candidates?lane=staging|production");
       console.error("  GET  /v1/registry | /staging | /production");
-      console.error("  POST /v1/promote { digest } | /v1/block { digest, reason }");
+      console.error(
+        "  POST /v1/promote { digest } | /v1/block { digest, reason }",
+      );
       resolve();
     });
   });

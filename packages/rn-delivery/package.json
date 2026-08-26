@@ -14,7 +14,7 @@
     }
   },
   "types": "./dist/index.d.ts",
-  "files": ["bin", "dist", "schemas"],
+  "files": ["bin", "dist", "schemas", "static"],
   "engines": {
     "node": ">=22 <25"
   },

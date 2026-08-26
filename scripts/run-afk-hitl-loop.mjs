@@ -139,7 +139,7 @@ const STEPS = [
   {
     id: "CP",
     kind: "afk",
-    title: "#7 CP stub API",
+    title: "#7 CP stub API + thin Web console",
     issue: 7,
     run: () => runNode(path.join(repoRoot, "scripts/verify-cp-stub-api.mjs")),
   },
@@ -369,12 +369,6 @@ const STEPS = [
     id: "T-harmony",
     kind: "true",
     title: "DEFERRED Map B Harmony device — see docs/map-b-deferred.md",
-  },
-  {
-    id: "T-cp-web",
-    kind: "true",
-    title: "DEFERRED #7 CP Web UX — API stub enough for L5",
-    issue: 7,
   },
 ];
 

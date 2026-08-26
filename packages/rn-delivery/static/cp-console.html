@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>rn-delivery · Control Plane (thin)</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --text: #e7ecf1;
+      --muted: #8b9aab;
+      --line: #2a3542;
+      --ok: #3d9a6a;
+      --warn: #c4a035;
+      --danger: #c45c5c;
+      --accent: #4a8fd4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    header p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    main {
+      display: grid;
+      gap: 1rem;
+      padding: 1rem 1.5rem 2rem;
+      max-width: 1100px;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font: inherit;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    button.danger { border-color: var(--danger); color: #f0c0c0; }
+    .status {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-left: auto;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    section h2 {
+      margin: 0;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.9rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      font-size: 0.85rem;
+    }
+    th { color: var(--muted); font-weight: 500; }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+    .tag {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      background: #243040;
+      color: var(--muted);
+    }
+    .empty {
+      padding: 1rem 0.9rem;
+      color: var(--muted);
+    }
+    .err {
+      color: var(--danger);
+      padding: 0.5rem 0.9rem;
+      font-size: 0.85rem;
+    }
+    .actions { white-space: nowrap; }
+    .actions button { margin-right: 0.25rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Control Plane · thin demo</h1>
+    <p>Reads <code>.rn/delivery/registry.json</code> via the same HTTP API as CLI. Not production RBAC.</p>
+  </header>
+  <main>
+    <div class="toolbar">
+      <button type="button" class="primary" id="btn-refresh">Refresh</button>
+      <span class="status" id="status">loading…</span>
+    </div>
+    <div id="error" class="err" hidden></div>
+    <section>
+      <h2>Staging</h2>
+      <div id="staging"></div>
+    </section>
+    <section>
+      <h2>Production</h2>
+      <div id="production"></div>
+    </section>
+    <section>
+      <h2>Blocked</h2>
+      <div id="blocked"></div>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const short = (d) => (d ? d.slice(0, 12) + "…" : "—");
+
+    function showError(msg) {
+      const el = $("error");
+      if (!msg) { el.hidden = true; el.textContent = ""; return; }
+      el.hidden = false;
+      el.textContent = msg;
+    }
+
+    function rowActions(digest, lane) {
+      const promote =
+        lane === "staging"
+          ? `<button type="button" data-act="promote" data-digest="${digest}">Promote</button>`
+          : "";
+      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">Block</button>`;
+    }
+
+    function renderCandidates(el, list, lane) {
+      if (!list || list.length === 0) {
+        el.innerHTML = `<div class="empty">empty</div>`;
+        return;
+      }
+      const body = list
+        .map(
+          (c) => `<tr>
+            <td><code title="${c.digest}">${short(c.digest)}</code></td>
+            <td><span class="tag">${c.artifact_kind || "—"}</span></td>
+            <td>${c.business_module || c.platform || "—"}</td>
+            <td>${c.update_id || c.release_id || "—"}</td>
+            <td class="actions">${rowActions(c.digest, lane)}</td>
+          </tr>`,
+        )
+        .join("");
+      el.innerHTML = `<table>
+        <thead><tr><th>digest</th><th>kind</th><th>module / platform</th><th>id</th><th></th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
+
+    function renderBlocked(el, list) {
+      if (!list || list.length === 0) {
+        el.innerHTML = `<div class="empty">empty</div>`;
+        return;
+      }
+      const body = list
+        .map(
+          (b) => `<tr>
+            <td><code>${short(b.digest)}</code></td>
+            <td>${b.reason || "—"}</td>
+            <td>${b.blocked_at || "—"}</td>
+          </tr>`,
+        )
+        .join("");
+      el.innerHTML = `<table>
+        <thead><tr><th>digest</th><th>reason</th><th>at</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
+
+    async function load() {
+      $("status").textContent = "loading…";
+      showError("");
+      try {
+        const res = await fetch("/v1/registry");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        renderCandidates($("staging"), data.staging, "staging");
+        renderCandidates($("production"), data.production, "production");
+        renderBlocked($("blocked"), data.blocked);
+        $("status").textContent =
+          `staging ${data.staging?.length ?? 0} · production ${data.production?.length ?? 0} · blocked ${data.blocked?.length ?? 0}`;
+      } catch (err) {
+        showError(String(err.message || err));
+        $("status").textContent = "error";
+      }
+    }
+
+    async function post(path, body) {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      return data;
+    }
+
+    document.body.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-act]");
+      if (!btn) return;
+      const act = btn.getAttribute("data-act");
+      const digest = btn.getAttribute("data-digest");
+      try {
+        showError("");
+        if (act === "promote") {
+          await post("/v1/promote", { digest });
+        } else if (act === "block") {
+          const reason = prompt("Block reason", "cp-web demo block") || "cp-web demo block";
+          await post("/v1/block", { digest, reason });
+        }
+        await load();
+      } catch (err) {
+        showError(String(err.message || err));
+      }
+    });
+
+    $("btn-refresh").addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>
