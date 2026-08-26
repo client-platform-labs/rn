@@ -17,7 +17,7 @@ Rolling snapshot. Authoritative order: [architecture-roadmap.md](./architecture-
 
 | Script | Milestone |
 |--------|-----------|
-| **`run-afk-hitl-loop.mjs`** | **Master AFK/AUTO loop** |
+| **`run-afk-hitl-loop.mjs`** | **Master AFK/AUTO loop** · writes `afk-hitl-loop-latest.{json,md}` |
 | `verify-steel-thread.mjs` | M3 GF |
 | `verify-release-hygiene.mjs` | M2 |
 | `verify-js-update-load.mjs` | M7 |
@@ -33,6 +33,10 @@ Rolling snapshot. Authoritative order: [architecture-roadmap.md](./architecture-
 | `verify-cp-stub-api.mjs` | #7 thin CP |
 | `verify-distribution-console.mjs` | #15 装包台 |
 | `verify-bf-bundler-url.mjs` | #5 bundlerUrl |
+| `verify-cp-auth.mjs` | Map B B1 #24 |
+| `verify-cp-registry-sqlite.mjs` | Map B B3 #26 |
+| `verify-bf-xcframework-build.mjs` | Map B B2 #25 |
+| `verify-a5-fallback.mjs` | A5 #8 |
 
 ## Spine milestone coverage
 

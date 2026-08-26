@@ -21,6 +21,14 @@ node scripts/run-afk-hitl-loop.mjs ~/Work/my-rn-app --mode auto
 node scripts/run-afk-hitl-loop.mjs --plan
 ```
 
+**统一输出（每次 loop 自动刷新）：**
+
+| 文件 | 内容 |
+|------|------|
+| `docs/hitl/afk-hitl-loop-latest.json` | 机器可读：pass/fail/skip/todo + **inventory**（与 `STEPS` 同步） |
+| `docs/hitl/afk-hitl-loop-latest.md` | 人类可读：逐步状态表 + 汇总 |
+| `docs/hitl/afk-hitl-loop-<stamp>.jsonl` | 单次运行逐行 trace |
+
 ---
 
 ## 三类门禁
@@ -29,94 +37,115 @@ node scripts/run-afk-hitl-loop.mjs --plan
 |----|------|------|----------|
 | **AFK** | 无设备、无交互；契约/单测/文件 CP | Agent / CI | 硬失败，阻断后续依赖步 |
 | **AUTO-HITL** | 有 `adb device` 即可脚本完成（install / reverse / tap） | Agent | 无设备 → SKIP（非 FAIL）；有设备失败 → FAIL |
-| **TRUE-HITL** | 必须人眼/人手（Expo 冷构建计时、Harmony、Web 扫码 UX） | Human | loop **永不阻塞**；只打印 TODO |
+| **TRUE-HITL** | 必须人眼/人手（Harmony、生产 Web UX 演示） | Human | loop **永不阻塞**；只打印 TODO |
 
-**原则：** Spine 验收串能 AFK/AUTO 的一律进 loop；TRUE-HITL 只记账，不弹确认。
+**原则：** Spine + Map B thin 验收串能 AFK/AUTO 的一律进 loop；TRUE-HITL 只记账，不弹确认。
 
 ---
 
 ## 依赖图（执行顺序）
 
 ```text
-[L0] governance + pnpm test
+[L0] governance → pnpm test
         │
-        ├─► [A] M2 hygiene ──────────────┐
-        ├─► [A] M4 debug-host contract ──┤
-        ├─► [A] CP stub API (#7) ────────┤  AFK parallel OK
-        ├─► [A] Dist console dry (#15) ──┤
-        └─► [A] BF gradle / m3b / rct ───┘
+        ├─► M4c debug-host ────────────────┐
+        ├─► CP (#7) ──► MapB-cp-auth ──────┤
+        │              MapB-cp-sqlite ────┤
+        ├─► Dist (#15) ───────────────────┤  AFK（CP 依赖步串行）
+        ├─► MapB-xcf ─────────────────────┤
+        ├─► BF-gradle → BF-aar → BF-bom ──┤
+        │              → BF-publish ──────┤
+        │              → BF-consumer ─────┤
+        ├─► BF-ios ───────────────────────┤
+        └─► A-expo (#16) ───────────────────┘
                 │
-                ▼
-        [A] M8 GF L4 (verify-l4) ──needs projectRoot + prior release artifacts
+        [project] M2 → M3 → M8 → M9
+                │      M3b → M8b ──► M10
+                │      BF-rct ──► H-bundler (AUTO)
+                └─► A5 fallback
                 │
-                ├─► [A] M9 quality gate
-                ├─► [A] M10 spine closure
-                └─► [A] BF L4 steel-thread (host-profile)
+        [AUTO if adb] H-warm · H-bundler · H-bf-consumer
+                        H-dist → H-dist-install
                 │
-                ▼
-        [H] AUTO-HITL (if adb)
-                ├─ warm-reinstall / bench-expo-parity
-                ├─ bf-bundler-url --device
-                ├─ distribution-console-agent dry-run + **real install**
-                └─ BF L5 quality-gate (host-profile + M9 pipe)
+        [AFK always] H-bf-l5 (BF L5 on host-profile)
                 │
-                ▼
-        [T] TRUE-HITL backlog (print only · non-blocking)
-                ├─ ~~#19 Expo cold~~ → DONE 2026-08-26 (bench JSONL)
-                ├─ ~~#16 Expo interop~~ → DONE thin AFK (doctor/migrate)
-                ├─ Harmony 真机 → **DEFERRED** Map B（无设备）
-                └─ #7 CP Web UX → **DEFERRED**（API stub 已够 L5；Web 要演示再开）
+        [T] TRUE-HITL (print only)
+                └─ T-harmony → DEFERRED Map B
 ```
 
 `A` = AFK · `H` = AUTO-HITL · `T` = TRUE-HITL
 
 ---
 
-## 清单（状态 · 2026-08-26）
+## 清单（与 `run-afk-hitl-loop.mjs` STEPS 同步 · 2026-08-26）
 
-### AFK — 已可无人值守（Spine / Depth thin）
+### L0 + Spine AFK
 
-| ID | Issue | Script / gate | Deps | Status |
-|----|-------|---------------|------|--------|
-| L0-gov | — | `check-architecture-governance.mjs` | — | ✅ |
-| L0-test | — | `pnpm test` | build | ✅ |
-| M2 | #20 | `verify-release-hygiene.mjs` | project | ✅ HITL 证据 |
-| M3 | #21 | `verify-steel-thread.mjs` | M2 | ✅ |
-| M4c | #14 | `verify-debug-host.mjs` | — | ✅ |
-| M5-7 | #6/#7/#8 | `verify-js-update-load.mjs` | project registry | ✅ thin |
-| M8 | #6+#7+#8 | `verify-l4-steel-thread.mjs` | M3+M5-7 | ✅ |
-| M9 | #9 | `verify-quality-gate.mjs` | staging js-update | ✅ |
-| M3b | #22 | `verify-m3b-brownfield.mjs` | host-profile | ✅ |
-| BF-gradle | #5 | `verify-bf-gradle.mjs` | examples | ✅ |
-| BF-rct | #5 | `verify-bf-rct-host.mjs` | scaffold | ✅ |
-| M8b | #22 | `verify-bf-l4-steel-thread.mjs` | M8b artifacts | ✅ |
-| M10 | #18 | `verify-m10-map-a-closure.mjs` | M8+M8b+HITL docs | ✅ |
-| CP | #7 | `verify-cp-stub-api.mjs` | — | ✅ thin |
-| Dist | #15 | `verify-distribution-console.mjs` | CP | ✅ thin |
-| Sign | #6 | `signature.test.ts` | — | ✅ HMAC stub |
+| ID | Issue | Script / gate | Deps | Kind |
+|----|-------|---------------|------|------|
+| L0-gov | — | `check-architecture-governance.mjs` | — | AFK |
+| L0-test | — | `pnpm test` | L0-gov | AFK |
+| M4c | #14 | `verify-debug-host.mjs` | — | AFK |
+| M2 | #20 | `verify-release-hygiene.mjs` | project | AFK |
+| M3 | #21 | `verify-steel-thread.mjs` | M2 | AFK |
+| M8 | #6+#7+#8 | `verify-l4-steel-thread.mjs` | M3 | AFK |
+| M9 | #9 | `verify-quality-gate.mjs` | M8 | AFK |
+| A5 | #8 | `verify-a5-fallback.mjs` | — | AFK |
+| M3b | #22 | `verify-m3b-brownfield.mjs` | host-profile | AFK |
+| M8b | #22 | `verify-bf-l4-steel-thread.mjs` | M3b | AFK |
+| M10 | #18 | `verify-m10-map-a-closure.mjs` | M8+M9+M8b | AFK |
 
-### AUTO-HITL — 有设备则 loop 自动跑
+### CP + Map B AFK
 
-| ID | Issue | Script | Deps | Status |
-|----|-------|--------|------|--------|
-| H-warm | #14/#19 | `bench-dev-warm-reinstall.mjs` · `bench-expo-parity.mjs` | Metro optional | ✅ |
-| H-bundler | #5 | `verify-bf-bundler-url.mjs --device` | debug-host APK | ✅ |
-| H-dist | #15 | `distribution-console-agent --dry-run` | registry | ✅ |
-| H-dist-install | #15 | `distribution-console-agent` 真装 + signal | H-dist · adb | ✅ loop |
-| H-bf-l5 | — | `verify-bf-l5-quality-gate.mjs` | M9 · host-profile | ✅ loop |
+| ID | Issue | Script | Deps | Kind |
+|----|-------|--------|------|------|
+| CP | #7 | `verify-cp-stub-api.mjs` | — | AFK |
+| MapB-cp-auth | #24 | `verify-cp-auth.mjs` | CP | AFK |
+| MapB-cp-sqlite | #26 | `verify-cp-registry-sqlite.mjs` | CP | AFK |
+| MapB-xcf | #25 | `verify-bf-xcframework-build.mjs` | — | AFK |
+| Dist | #15 | `verify-distribution-console.mjs` | CP | AFK |
+
+### BF depth AFK (#5 closed · Map B 余量 P4/P6)
+
+| ID | Issue | Script | Deps | Kind |
+|----|-------|--------|------|------|
+| BF-gradle | #5 | `verify-bf-gradle.mjs` | — | AFK |
+| BF-aar | #5 | `verify-bf-rn-module.mjs` | BF-gradle | AFK |
+| BF-bom | #5 | `verify-bf-bom-consume.mjs` | BF-aar | AFK |
+| BF-publish | #5 | `verify-bf-aar-publish.mjs` | BF-bom | AFK |
+| BF-ios | #5 | `verify-bf-ios-stub.mjs` | — | AFK |
+| BF-consumer | #5 | `verify-bf-consumer-device.mjs` | BF-publish | AFK |
+| BF-rct | #5 | `verify-bf-rct-host.mjs` | android/ | AFK |
+
+### AUTO-HITL（有 adb 则 loop 自动跑）
+
+| ID | Issue | Script | Deps | Kind |
+|----|-------|--------|------|------|
+| H-warm | #19 | `bench-dev-warm-reinstall` + `bench-expo-parity` | — | AUTO |
+| H-bundler | #5 | `verify-bf-bundler-url.mjs --device` | BF-rct | AUTO |
+| H-bf-consumer | #5 | `verify-bf-consumer-device.mjs --device` | BF-consumer | AUTO |
+| H-dist | #15 | `distribution-console-agent --dry-run` | Dist | AUTO |
+| H-dist-install | #15 | `distribution-console-agent` 真装 + signal | H-dist | AUTO |
+
+### AFK（BF L5 · 不需 adb）
+
+| ID | Issue | Script | Deps | Kind |
+|----|-------|--------|------|------|
+| H-bf-l5 | — | `verify-bf-l5-quality-gate.mjs` | M9+M3b | AFK |
+
+### Expo interop AFK
+
+| ID | Issue | Script | Kind |
+|----|-------|--------|------|
+| A-expo | #16 | `rn doctor --profile expo` + `migrate expo --dry-run` | AFK |
 
 ### TRUE-HITL / deferred
 
 | ID | Issue | Status |
 |----|-------|--------|
-| T-expo-cold | #19 | ✅ DONE — bench JSONL + research/03 |
-| T-expo-interop | #16 | ✅ DONE thin — `rn doctor --profile expo` · `rn migrate expo --dry-run` |
-| T-cp-web | #7 | ✅ DONE thin — `rn-delivery serve` GET `/` console |
 | T-harmony | Map B | **DEFERRED** — no Harmony device/toolchain |
 
-### 开票 vs 证据（诚实）
-
-多张 GitHub 票仍 `OPEN`，但 **Spine 证据已 PASS**（HITL md + verify 脚本）。关票是流程动作，不阻塞 loop。loop 跑绿 ≠ 自动 `gh issue close`（需显式 `--close-ready`）。
+**已 DONE（不再占 TRUE-HITL）：** #19 Expo cold bench · #16 Expo interop thin · #7 CP Web thin console
 
 ---
 
@@ -133,5 +162,5 @@ node scripts/run-afk-hitl-loop.mjs --plan
 
 1. 用户说「继续 / 自动跑 / 一步到位」→ 只跑本 loop，**不问逐步确认**。
 2. TRUE-HITL 不得用 wizard 打断 AFK；需要人时一次性列在 loop 末尾。
-3. 新门禁先标 AFK / AUTO / TRUE，再挂进 `run-afk-hitl-loop.mjs` 的 `STEPS`。
+3. 新门禁先标 AFK / AUTO / TRUE，再挂进 `run-afk-hitl-loop.mjs` 的 `STEPS`；`latest.json` 的 `inventory` 自动同步。
 4. PoC 用 `scripts/`，不污染 `rn` / `rn-delivery` 公共 CLI（工程原则）。

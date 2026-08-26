@@ -594,10 +594,62 @@ const summary = {
   ok: !hardFail,
   report: reportPath,
   ts: new Date().toISOString(),
+  inventory: STEPS.map((s) => ({
+    id: s.id,
+    kind: s.kind,
+    title: s.title,
+    issue: s.issue ?? null,
+    deps: s.deps ?? [],
+  })),
 };
 
 const summaryPath = path.join(outDir, "afk-hitl-loop-latest.json");
 writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
+
+function writeLatestMarkdown() {
+  const ts = summary.ts.replace(/\.\d{3}Z$/, "Z");
+  const runnable = summary.pass.length + summary.fail.length;
+  const lines = [
+    "# AFK / HITL loop — latest run",
+    "",
+    `**Stamp:** ${ts}  `,
+    `**Project:** \`${projectRoot}\`  `,
+    `**Mode:** \`${mode}\` · **adb:** ${adbOk ? "device" : "none"}  `,
+    `**Verdict:** ${summary.ok ? "**PASS**" : "**FAIL**"} (${summary.pass.length}/${runnable} runnable · ${summary.todo.length} TRUE-HITL TODO)`,
+    "",
+    "## Step results",
+    "",
+    "| ID | Kind | Issue | Status |",
+    "|----|------|-------|--------|",
+  ];
+  for (const s of STEPS) {
+    const st = results.get(s.id) ?? "—";
+    const gh = s.issue ? `#${s.issue}` : "—";
+    lines.push(`| ${s.id} | ${s.kind} | ${gh} | ${st.toUpperCase()} |`);
+  }
+  lines.push(
+    "",
+    "## Summary buckets",
+    "",
+    "| Result | Count | Steps |",
+    "|--------|-------|-------|",
+    `| PASS | ${summary.pass.length} | ${summary.pass.join(", ") || "—"} |`,
+    `| FAIL | ${summary.fail.length} | ${summary.fail.join(", ") || "—"} |`,
+    `| SKIP | ${summary.skip.length} | ${summary.skip.join(", ") || "—"} |`,
+    `| TODO | ${summary.todo.length} | ${summary.todo.join(", ") || "—"} |`,
+    "",
+    "**Promotion bar:** GF **L5** · BF **L5** (shared M9 + `H-bf-l5`)",
+    "",
+    "Machine JSON: [`afk-hitl-loop-latest.json`](./afk-hitl-loop-latest.json)  ",
+    `JSONL trace: \`${path.basename(reportPath)}\``,
+    "",
+    "Master inventory: [`docs/agents/afk-hitl-loop.md`](../agents/afk-hitl-loop.md)",
+    "",
+  );
+  writeFileSync(path.join(outDir, "afk-hitl-loop-latest.md"), `${lines.join("\n")}\n`);
+}
+
+writeLatestMarkdown();
 
 console.log("");
 console.log("── summary ──");
@@ -606,6 +658,7 @@ console.log(`FAIL ${summary.fail.length}: ${summary.fail.join(", ") || "—"}`);
 console.log(`SKIP ${summary.skip.length}: ${summary.skip.join(", ") || "—"}`);
 console.log(`TODO ${summary.todo.length} (TRUE-HITL): ${summary.todo.join(", ")}`);
 console.log(`write: ${summaryPath}`);
+console.log(`write: ${path.join(outDir, "afk-hitl-loop-latest.md")}`);
 
 if (closeReady) {
   console.log("");

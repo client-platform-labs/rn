@@ -1,20 +1,29 @@
 {
   "project": "/Users/xuwei/Work/my-rn-app",
   "mode": "afk",
-  "adb": true,
+  "adb": false,
   "pass": [
     "L0-gov",
     "L0-test",
     "M4c",
     "CP",
+    "MapB-cp-auth",
+    "MapB-xcf",
+    "MapB-cp-sqlite",
     "Dist",
     "BF-gradle",
+    "BF-aar",
+    "BF-bom",
+    "BF-publish",
+    "BF-ios",
+    "BF-consumer",
     "M2",
     "M3",
     "M3b",
     "BF-rct",
     "M8",
     "M9",
+    "A5",
     "M8b",
     "M10",
     "H-bf-l5",
@@ -24,14 +33,272 @@
   "skip": [
     "H-warm",
     "H-bundler",
+    "H-bf-consumer",
     "H-dist",
     "H-dist-install"
   ],
   "todo": [
-    "T-harmony",
-    "T-cp-web"
+    "T-harmony"
   ],
   "ok": true,
-  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/afk-hitl-loop-2026-08-26T09-15-20-009Z.jsonl",
-  "ts": "2026-08-26T09:15:32.369Z"
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/afk-hitl-loop-2026-08-26T13-54-59-429Z.jsonl",
+  "ts": "2026-08-26T13:55:09.082Z",
+  "inventory": [
+    {
+      "id": "L0-gov",
+      "kind": "afk",
+      "title": "ADR-009 architecture governance",
+      "issue": null,
+      "deps": []
+    },
+    {
+      "id": "L0-test",
+      "kind": "afk",
+      "title": "pnpm test (tsc + unit)",
+      "issue": null,
+      "deps": [
+        "L0-gov"
+      ]
+    },
+    {
+      "id": "M4c",
+      "kind": "afk",
+      "title": "M4 debug-host contract",
+      "issue": 14,
+      "deps": []
+    },
+    {
+      "id": "CP",
+      "kind": "afk",
+      "title": "#7 CP stub API + thin Web console",
+      "issue": 7,
+      "deps": []
+    },
+    {
+      "id": "MapB-cp-auth",
+      "kind": "afk",
+      "title": "Map B CP Bearer auth",
+      "issue": 24,
+      "deps": [
+        "CP"
+      ]
+    },
+    {
+      "id": "MapB-xcf",
+      "kind": "afk",
+      "title": "Map B RnModuleStub XCFramework",
+      "issue": 25,
+      "deps": []
+    },
+    {
+      "id": "MapB-cp-sqlite",
+      "kind": "afk",
+      "title": "Map B CP registry SQLite",
+      "issue": 26,
+      "deps": [
+        "CP"
+      ]
+    },
+    {
+      "id": "Dist",
+      "kind": "afk",
+      "title": "#15 distribution console dry",
+      "issue": 15,
+      "deps": [
+        "CP"
+      ]
+    },
+    {
+      "id": "BF-gradle",
+      "kind": "afk",
+      "title": "#5 BF gradle stub",
+      "issue": 5,
+      "deps": []
+    },
+    {
+      "id": "BF-aar",
+      "kind": "afk",
+      "title": "#5 BF rn-module AAR",
+      "issue": 5,
+      "deps": [
+        "BF-gradle"
+      ]
+    },
+    {
+      "id": "BF-bom",
+      "kind": "afk",
+      "title": "#5 BF BOM consume AAR",
+      "issue": 5,
+      "deps": [
+        "BF-aar"
+      ]
+    },
+    {
+      "id": "BF-publish",
+      "kind": "afk",
+      "title": "#5 BF AAR flatDir/maven publish",
+      "issue": 5,
+      "deps": [
+        "BF-bom"
+      ]
+    },
+    {
+      "id": "BF-ios",
+      "kind": "afk",
+      "title": "#5 BF iOS rn-module stub",
+      "issue": 5,
+      "deps": []
+    },
+    {
+      "id": "BF-consumer",
+      "kind": "afk",
+      "title": "#5 BF consumer static",
+      "issue": 5,
+      "deps": [
+        "BF-publish"
+      ]
+    },
+    {
+      "id": "M2",
+      "kind": "afk",
+      "title": "M2 release hygiene",
+      "issue": 20,
+      "deps": []
+    },
+    {
+      "id": "M3",
+      "kind": "afk",
+      "title": "M3 steel-thread",
+      "issue": 21,
+      "deps": [
+        "M2"
+      ]
+    },
+    {
+      "id": "M3b",
+      "kind": "afk",
+      "title": "M3b brownfield profile",
+      "issue": 22,
+      "deps": []
+    },
+    {
+      "id": "BF-rct",
+      "kind": "afk",
+      "title": "#5 BF RCT host static",
+      "issue": 5,
+      "deps": []
+    },
+    {
+      "id": "M8",
+      "kind": "afk",
+      "title": "M8 GF L4 steel-thread",
+      "issue": null,
+      "deps": [
+        "M3"
+      ]
+    },
+    {
+      "id": "M9",
+      "kind": "afk",
+      "title": "M9 quality gate",
+      "issue": 9,
+      "deps": [
+        "M8"
+      ]
+    },
+    {
+      "id": "A5",
+      "kind": "afk",
+      "title": "A5 client fallback",
+      "issue": 8,
+      "deps": []
+    },
+    {
+      "id": "M8b",
+      "kind": "afk",
+      "title": "M8b BF L4 steel-thread",
+      "issue": 22,
+      "deps": [
+        "M3b"
+      ]
+    },
+    {
+      "id": "M10",
+      "kind": "afk",
+      "title": "M10 Map A spine closure",
+      "issue": 18,
+      "deps": [
+        "M8",
+        "M9",
+        "M8b"
+      ]
+    },
+    {
+      "id": "H-warm",
+      "kind": "auto",
+      "title": "AUTO warm-reinstall + expo-parity bench",
+      "issue": 19,
+      "deps": []
+    },
+    {
+      "id": "H-bundler",
+      "kind": "auto",
+      "title": "AUTO BF bundlerUrl device",
+      "issue": 5,
+      "deps": [
+        "BF-rct"
+      ]
+    },
+    {
+      "id": "H-bf-consumer",
+      "kind": "auto",
+      "title": "AUTO BF consumer-flatdir device",
+      "issue": 5,
+      "deps": [
+        "BF-consumer"
+      ]
+    },
+    {
+      "id": "H-dist",
+      "kind": "auto",
+      "title": "AUTO distribution agent dry-run (production lane)",
+      "issue": 15,
+      "deps": [
+        "Dist"
+      ]
+    },
+    {
+      "id": "H-dist-install",
+      "kind": "auto",
+      "title": "AUTO distribution agent real adb install + signal",
+      "issue": 15,
+      "deps": [
+        "H-dist"
+      ]
+    },
+    {
+      "id": "H-bf-l5",
+      "kind": "afk",
+      "title": "BF L5 quality-gate on brownfield host-profile",
+      "issue": null,
+      "deps": [
+        "M9",
+        "M3b"
+      ]
+    },
+    {
+      "id": "A-expo",
+      "kind": "afk",
+      "title": "#16 Expo interop doctor + migrate dry-run",
+      "issue": 16,
+      "deps": []
+    },
+    {
+      "id": "T-harmony",
+      "kind": "true",
+      "title": "DEFERRED Map B Harmony device — see docs/map-b-deferred.md",
+      "issue": null,
+      "deps": []
+    }
+  ]
 }

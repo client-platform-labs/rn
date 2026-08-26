@@ -117,7 +117,13 @@ const adbProbe = spawnSync("adb", ["devices"], { encoding: "utf8" });
 const adbReady =
   adbProbe.status === 0 &&
   adbProbe.stdout.split("\n").some((line) => /\tdevice$/.test(line));
-step("adb-device", adbReady, adbReady ? "authorized device present" : "no device (HITL install manual)");
+if (adbReady) {
+  step("adb-device", true, "authorized device present");
+} else {
+  console.log(
+    "[SKIP] adb-device — no authorized device (AUTO-HITL: release --install / H-dist-install)",
+  );
+}
 
 console.log("");
 console.log("Manual steel-thread (GF · HITL):");
