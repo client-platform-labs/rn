@@ -67,6 +67,24 @@
       color: #fff;
     }
     button.danger { border-color: var(--danger); color: #f0c0c0; }
+    input.token {
+      min-width: 12rem;
+      padding: 0.35rem 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
+    input.token {
+      min-width: 12rem;
+      padding: 0.35rem 0.55rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
     .status {
       color: var(--muted);
       font-size: 0.8rem;
@@ -129,11 +147,15 @@
 <body>
   <header>
     <h1>Control Plane · thin demo</h1>
-    <p>Reads <code>.rn/delivery/registry.json</code> via the same HTTP API as CLI. Not production RBAC.</p>
+    <p>Reads <code>.rn/delivery/registry.json</code> via the same HTTP API as CLI. Set <code>RN_CP_TOKEN</code> on serve for mutating routes.</p>
   </header>
   <main>
     <div class="toolbar">
       <button type="button" class="primary" id="btn-refresh">Refresh</button>
+      <label>
+        <span class="status">CP token</span>
+        <input class="token" id="cp-token" type="password" placeholder="Bearer (RN_CP_TOKEN)" autocomplete="off" />
+      </label>
       <span class="status" id="status">loading…</span>
     </div>
     <div id="error" class="err" hidden></div>
@@ -153,6 +175,19 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const short = (d) => (d ? d.slice(0, 12) + "…" : "—");
+    const TOKEN_KEY = "rn_cp_token";
+
+    $("cp-token").value = sessionStorage.getItem(TOKEN_KEY) || "";
+    $("cp-token").addEventListener("change", (ev) => {
+      sessionStorage.setItem(TOKEN_KEY, ev.target.value.trim());
+    });
+
+    function authHeaders() {
+      const token = ($("cp-token").value || sessionStorage.getItem(TOKEN_KEY) || "").trim();
+      const headers = { "content-type": "application/json" };
+      if (token) headers.authorization = `Bearer ${token}`;
+      return headers;
+    }
 
     function showError(msg) {
       const el = $("error");
@@ -232,7 +267,7 @@
     async function post(path, body) {
       const res = await fetch(path, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));

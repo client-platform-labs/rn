@@ -8,6 +8,7 @@ import {
   listInstallableCandidates,
   loadRegistry,
 } from "./candidate-store.js";
+import { checkCpBearerAuth, resolveCpAuthToken } from "./cp-auth.js";
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
@@ -52,10 +53,20 @@ export async function runServe(options: {
   const projectRoot = resolveProjectRoot(options.cwd);
   const port = options.port ?? 4040;
   const host = options.host ?? "127.0.0.1";
+  const cpAuthToken = resolveCpAuthToken();
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
     try {
+      const requireCpAuth = () => {
+        const auth = checkCpBearerAuth(req.headers.authorization, cpAuthToken);
+        if (!auth.ok) {
+          sendJson(res, auth.status, { error: auth.error });
+          return false;
+        }
+        return true;
+      };
+
       if (
         req.method === "GET" &&
         (url.pathname === "/" || url.pathname === "/console")
@@ -98,6 +109,7 @@ export async function runServe(options: {
       }
 
       if (req.method === "POST" && url.pathname === "/v1/promote") {
+        if (!requireCpAuth()) return;
         const raw = await readBody(req);
         const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
         await runPromote({
@@ -113,6 +125,7 @@ export async function runServe(options: {
       }
 
       if (req.method === "POST" && url.pathname === "/v1/block") {
+        if (!requireCpAuth()) return;
         const raw = await readBody(req);
         const body = raw
           ? (JSON.parse(raw) as { digest?: string; reason?: string })
@@ -170,6 +183,9 @@ export async function runServe(options: {
       console.error(
         "  POST /v1/promote { digest } | /v1/block { digest, reason }",
       );
+      if (cpAuthToken) {
+        console.error("  CP auth: RN_CP_TOKEN set — mutating routes require Bearer");
+      }
       resolve();
     });
   });

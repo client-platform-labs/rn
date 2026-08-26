@@ -1,15 +1,15 @@
-# Thin Control Plane Web (#7)
+# Thin Control Plane Web (#7 / Map B #24)
 
-**Status:** Map B thin demo — not production RBAC.
+**Status:** Map B thin demo — optional Bearer auth via `RN_CP_TOKEN`.
 
 ```bash
 cd <app-with-.rn/delivery>
-rn-delivery serve --port 4040
-# open http://127.0.0.1:4040/
+RN_CP_TOKEN=your-secret rn-delivery serve --port 4040
+# open http://127.0.0.1:4040/ — enter same token in CP token field for Promote/Block
 ```
 
 Page lists staging / production / blocked from `GET /v1/registry`, with **Promote** / **Block** calling the same POST APIs as CLI.
 
-Verify: `node scripts/verify-cp-stub-api.mjs`
+Verify: `node scripts/verify-cp-stub-api.mjs` · `node scripts/verify-cp-auth.mjs`
 
-Full state machine / rollout_steps / Kill UI remain future Map B depth.
+Full state machine / rollout_steps / Kill UI / role matrix remain Map B depth.
