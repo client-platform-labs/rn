@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { assertSameArtifactPromote } from "./candidate.js";
 import { loadRegistry, promoteStagingToProduction } from "./candidate-store.js";
+import { registryStoragePath } from "./registry-sqlite.js";
 import { assertQualityAllowsPromote } from "./quality-gate.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
@@ -45,7 +46,7 @@ export async function runPromote(options: {
         action: "promote_staging_to_production",
         digest,
         production,
-        registry_path: path.join(projectRoot, ".rn/delivery/registry.json"),
+        registry_path: registryStoragePath(projectRoot),
       },
       null,
       2,

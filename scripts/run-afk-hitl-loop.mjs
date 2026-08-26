@@ -160,6 +160,15 @@ const STEPS = [
       runNode(path.join(repoRoot, "scripts/verify-bf-xcframework-build.mjs")),
   },
   {
+    id: "MapB-cp-sqlite",
+    kind: "afk",
+    title: "Map B CP registry SQLite",
+    issue: 26,
+    deps: ["CP"],
+    run: () =>
+      runNode(path.join(repoRoot, "scripts/verify-cp-registry-sqlite.mjs")),
+  },
+  {
     id: "Dist",
     kind: "afk",
     title: "#15 distribution console dry",

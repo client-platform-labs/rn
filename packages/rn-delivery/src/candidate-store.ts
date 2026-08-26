@@ -7,6 +7,11 @@ import {
 import path from "node:path";
 
 import type { CandidateMetadata } from "./types.js";
+import {
+  loadRegistrySqlite,
+  saveRegistrySqlite,
+  useSqliteRegistry,
+} from "./registry-sqlite.js";
 
 export const DELIVERY_STATE_DIR = ".rn/delivery";
 export const LAST_BUILD_FILE = "last-build.json";
@@ -89,6 +94,9 @@ export function emptyRegistry(): DeliveryRegistry {
 }
 
 export function loadRegistry(projectRoot: string): DeliveryRegistry {
+  if (useSqliteRegistry()) {
+    return loadRegistrySqlite(projectRoot);
+  }
   const file = path.join(deliveryDir(projectRoot), REGISTRY_FILE);
   if (!existsSync(file)) return emptyRegistry();
   return JSON.parse(readFileSync(file, "utf8")) as DeliveryRegistry;
@@ -120,6 +128,10 @@ export function saveRegistry(
   registry: DeliveryRegistry,
 ): void {
   ensureDeliveryDir(projectRoot);
+  if (useSqliteRegistry()) {
+    saveRegistrySqlite(projectRoot, registry);
+    return;
+  }
   writeFileSync(
     path.join(deliveryDir(projectRoot), REGISTRY_FILE),
     `${JSON.stringify(registry, null, 2)}\n`,

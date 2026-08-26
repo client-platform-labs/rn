@@ -1,12 +1,11 @@
-import path from "node:path";
-
-import { assertProfileAllowsStage } from "./stages.js";
+import { registryStoragePath } from "./registry-sqlite.js";
 import {
   blockCandidateInRegistry,
   promoteCandidateToStaging,
 } from "./candidate-store.js";
 import { installAndroidApk } from "./install.js";
 import { pickCandidate } from "./release-shared.js";
+import { assertProfileAllowsStage } from "./stages.js";
 import { evaluateDeliveryValidate } from "./validate.js";
 import type { DeliveryPlatform } from "./types.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
@@ -49,7 +48,7 @@ export async function runRelease(options: {
         ok: true,
         action: "promote_to_staging",
         candidate: promoted,
-        registry_path: path.join(projectRoot, ".rn/delivery/registry.json"),
+        registry_path: registryStoragePath(projectRoot),
       },
       null,
       2,

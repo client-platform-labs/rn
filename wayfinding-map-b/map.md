@@ -21,8 +21,9 @@ GitHub: #23 (`wayfinder:map`) — **open**
 |----|-----|------|--------|------|
 | B1 | [#24](https://github.com/client-platform-labs/rn/issues/24) | CP Bearer auth | **resolved** | `verify-cp-auth.mjs` |
 | B2 | [#25](https://github.com/client-platform-labs/rn/issues/25) | XCFramework build | **resolved** | `verify-bf-xcframework-build.mjs` |
+| B3 | [#26](https://github.com/client-platform-labs/rn/issues/26) | CP registry SQLite | **resolved** | `verify-cp-registry-sqlite.mjs` |
 | — | deferred | Harmony 真机 | open | DevEco 设备 |
-| — | deferred | CP 持久化 / RBAC 角色 | open | 产品排期 |
+| — | deferred | CP 角色矩阵 | open | 产品排期 |
 
 **Kickoff 已在 Map A 落地（不重复开票）：** 装包台 agent · CP Web thin · BF L5 · Expo bench
 

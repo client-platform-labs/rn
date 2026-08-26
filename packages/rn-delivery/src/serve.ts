@@ -186,6 +186,9 @@ export async function runServe(options: {
       if (cpAuthToken) {
         console.error("  CP auth: RN_CP_TOKEN set — mutating routes require Bearer");
       }
+      if (process.env.RN_CP_REGISTRY?.trim().toLowerCase() === "sqlite") {
+        console.error("  CP registry: SQLite (.rn/delivery/registry.sqlite)");
+      }
       resolve();
     });
   });
