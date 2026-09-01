@@ -88,6 +88,14 @@ const STEPS = [
     deps: ["B1", "B5"],
   },
   {
+    id: "B10",
+    kind: "afk",
+    title: "P4 Hermes/NewArch/tuple drift + P6 codegen",
+    issue: 71,
+    verify: "scripts/verify-bf-native-doctor-depth.mjs",
+    deps: ["B4"],
+  },
+  {
     id: "B6",
     kind: "deferred",
     title: "XCFramework binary artifact on CI",

@@ -43,6 +43,7 @@ export function loadHostProfile(
   profile: DoctorProfile;
   schemaVersion?: number;
   topology?: string;
+  runtimeContract?: BrownfieldRuntimeContract;
 } | null {
   const file = path.join(projectRoot, HOST_PROFILE_RELATIVE);
   if (!existsSync(file)) return null;
@@ -55,6 +56,7 @@ export function loadHostProfile(
     profile?: string;
     schemaVersion?: number;
     topology?: string;
+    runtimeContract?: BrownfieldRuntimeContract;
   };
   if (parsed.profile !== "greenfield" && parsed.profile !== "brownfield") {
     return null;
@@ -63,8 +65,22 @@ export function loadHostProfile(
     profile: parsed.profile,
     schemaVersion: parsed.schemaVersion,
     topology: parsed.topology,
+    runtimeContract: parsed.runtimeContract,
   };
 }
+
+/** P4/P6 expected host switches (Map B B10). */
+export type BrownfieldRuntimeContract = {
+  hermesEnabled?: boolean;
+  newArchEnabled?: boolean;
+  /** e.g. "0.87" — compared to package.json react-native when present */
+  rnTrain?: string;
+  /**
+   * `rn-module-stub` — no app codegenConfig required.
+   * `app-host` — require package.json codegenConfig (or native Spec surface).
+   */
+  codegenPolicy?: "rn-module-stub" | "app-host";
+};
 
 function findSurfaceHostStub(projectRoot: string): string | null {
   const exact = [

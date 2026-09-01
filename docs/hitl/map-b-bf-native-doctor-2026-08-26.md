@@ -23,6 +23,8 @@ node scripts/run-map-b-loop.mjs
 node scripts/verify-bf-native-doctor.mjs
 ```
 
-## Out of scope
+## Out of scope (B4)
 
-Full AGP/NDK matrix drift report · Hermes/New Arch conflict class · autofix PR patches
+Full AGP/NDK matrix · autofix PR patches · CocoaPods/SPM
+
+**B10 depth (2026-09-01):** Hermes/New Arch conflict · tuple drift · codegen surface — [#71](https://github.com/client-platform-labs/rn/issues/71) · `verify-bf-native-doctor-depth.mjs`

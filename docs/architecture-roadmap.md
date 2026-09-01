@@ -398,7 +398,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 | 层级 | 状态 | 说明 |
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
-| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9 ✅ · B6 SKIP · B7/B8 BLOCKED |
+| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9+B10 ✅ · B6 SKIP · B7/B8 BLOCKED |
 | **Map C/D** | ⬜ 未开 | 控制面服务化 · 七渠 · 多 module 隔离 · 合规加固（[research/01 §3](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md)） |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
@@ -463,6 +463,7 @@ flowchart TB
 | B1–B3 | CP Bearer · XCF build path · SQLite | ✅ #24–#26 |
 | B4–B5 | P4/P6 native doctor · CP viewer/admin | ✅ #27–#28 |
 | B9 | CP Kill/Pause by `business_module` + A5 wire | ✅ #70 |
+| B10 | P4 Hermes/NewArch/tuple drift + P6 codegen surface | ✅ #71 |
 | B6 | XCFramework **binary** CI | SKIP（需 full Xcode） |
 | B7 | Harmony 真机 | BLOCKED（DevEco） |
 | B8 | CP Postgres 多租户 | BLOCKED（产品） |
@@ -482,8 +483,8 @@ flowchart TB
 ### 9.7 距目标地 · 优先 backlog
 
 1. **实验台：** Gradle/SDK（`H-bf-consumer`）· Xcode CI（B6）· Harmony 设备（B7）
-2. **Map B 可 AFK：** P4 drift 全矩阵 · P6 native lint/Codegen diff · rollout_steps UI
+2. **Map B 可 AFK：** rollout_steps UI · P6 native lint 加深（静态扫描）
 3. **Map C kickoff：** 真 CP 服务 · P7 E2E 挡 promote · `channel_profile` 七渠
 4. **Map D：** 迁移工具链 · 合规叠加档 · 运维手册
 
-*上一结项：B9 Kill/Pause [#70](https://github.com/client-platform-labs/rn/issues/70) · [M10 HITL](./hitl/m10-map-a-spine-closure-2026-08-26.md) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open 直至 B6–B8/渠道余量挂接或 honest defer。*
+*上一结项：B10 P4/P6 depth [#71](https://github.com/client-platform-labs/rn/issues/71) · B9 [#70](https://github.com/client-platform-labs/rn/issues/70) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open 直至 B6–B8/渠道余量挂接或 honest defer。*

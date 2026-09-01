@@ -7,7 +7,8 @@
     "B3",
     "B4",
     "B5",
-    "B9"
+    "B9",
+    "B10"
   ],
   "fail": [],
   "skip": [
@@ -18,8 +19,8 @@
     "B8"
   ],
   "ok": true,
-  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T03-05-16-410Z.jsonl",
-  "ts": "2026-09-01T03:05:22.153Z",
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T03-17-42-423Z.jsonl",
+  "ts": "2026-09-01T03:17:49.148Z",
   "inventory": [
     {
       "id": "B1",
@@ -74,6 +75,16 @@
       "deps": [
         "B1",
         "B5"
+      ]
+    },
+    {
+      "id": "B10",
+      "kind": "afk",
+      "title": "P4 Hermes/NewArch/tuple drift + P6 codegen",
+      "issue": 71,
+      "verify": "scripts/verify-bf-native-doctor-depth.mjs",
+      "deps": [
+        "B4"
       ]
     },
     {
