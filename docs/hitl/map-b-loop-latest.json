@@ -9,19 +9,19 @@
     "B5",
     "B9",
     "B10",
-    "B11"
+    "B11",
+    "B8"
   ],
   "fail": [],
   "skip": [
     "B6"
   ],
   "blocked": [
-    "B7",
-    "B8"
+    "B7"
   ],
   "ok": true,
-  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T03-41-46-713Z.jsonl",
-  "ts": "2026-09-01T03:41:56.288Z",
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T07-40-51-061Z.jsonl",
+  "ts": "2026-09-01T07:41:00.875Z",
   "inventory": [
     {
       "id": "B1",
@@ -102,11 +102,13 @@
     },
     {
       "id": "B6",
-      "kind": "deferred",
+      "kind": "afk",
       "title": "XCFramework binary artifact on CI",
-      "issue": 25,
+      "issue": 92,
       "verify": "scripts/verify-bf-xcframework-build.mjs",
-      "deps": []
+      "deps": [
+        "B2"
+      ]
     },
     {
       "id": "B7",
@@ -118,11 +120,13 @@
     },
     {
       "id": "B8",
-      "kind": "blocked",
-      "title": "CP Postgres / multi-tenant",
-      "issue": null,
-      "verify": null,
-      "deps": []
+      "kind": "afk",
+      "title": "CP Postgres registry adapter contract",
+      "issue": 91,
+      "verify": "scripts/verify-cp-registry-postgres.mjs",
+      "deps": [
+        "B3"
+      ]
     }
   ]
 }

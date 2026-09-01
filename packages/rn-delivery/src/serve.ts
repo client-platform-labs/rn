@@ -31,6 +31,7 @@ import {
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
 import { useSqliteRegistry } from "./registry-sqlite.js";
+import { usePostgresRegistry } from "./registry-postgres.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
 import { KillPauseError, RolloutError } from "@client-platform/rn-core";
 
@@ -136,8 +137,11 @@ export function createControlPlane(options: {
           storage,
           projectRoot,
           replaceable_backend: true,
-          postgres: false,
-          note: "thin CP — Postgres multi-tenant = Map B B8 / later Map C depth",
+          postgres: usePostgresRegistry(),
+          postgres_env: "RN_CP_DATABASE_URL",
+          note: usePostgresRegistry()
+            ? "thin CP — Postgres adapter contract (B8); default storage remains file/sqlite"
+            : "thin CP — Postgres adapter contract = Map B B8 (opt-in via RN_CP_DATABASE_URL)",
         });
         return;
       }

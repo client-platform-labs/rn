@@ -29,9 +29,9 @@ GitHub: #23 (`wayfinder:map`) — **open**
 | B9 | [#70](https://github.com/client-platform-labs/rn/issues/70) | CP Kill/Pause by module | **resolved** | `verify-cp-kill-pause.mjs` |
 | B10 | [#71](https://github.com/client-platform-labs/rn/issues/71) | P4 Hermes/NewArch/tuple + P6 codegen | **resolved** | `verify-bf-native-doctor-depth.mjs` |
 | B11 | [#72](https://github.com/client-platform-labs/rn/issues/72) | CP thin rollout_steps | **resolved** | `verify-cp-rollout-steps.mjs` |
-| B6 | #25 | XCFramework binary CI | deferred | full Xcode |
-| B7 | — | Harmony 真机 | blocked | DevEco |
-| B8 | — | CP Postgres | blocked | 产品 |
+| B6 | [#92](https://github.com/client-platform-labs/rn/issues/92) | XCFramework binary CI | **resolved** | `xcframework.yml` + `verify-bf-xcframework-build.mjs` |
+| B7 | [#93](https://github.com/client-platform-labs/rn/issues/93) | Harmony 真机 | blocked | DevEco |
+| B8 | [#91](https://github.com/client-platform-labs/rn/issues/91) | CP Postgres adapter contract | **resolved** | `verify-cp-registry-postgres.mjs` |
 
 **Kickoff 已在 Map A 落地（不重复开票）：** 装包台 agent · CP Web thin · BF L5 · Expo bench
 

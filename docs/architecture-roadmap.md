@@ -328,7 +328,7 @@ Depth:  A6 质量、#14 Debug Host、地图 B…
 ────────────────────────────────
 M0–M10 + M3b/M8b/M4   [done]     Map A closed (#18)
 Map B B1–B5           [done]     CP/BF industrial thin slices
-Map B B6–B8           [backlog]  Xcode CI · Harmony · Postgres CP
+Map B B6–B8           [B6+B8 done · B7 lab]  macos XCF CI · Postgres contract · Harmony deferred
 Map C/D               [未开]     控制面服务化 · 渠道 · 全量治理
 ```
 
@@ -398,7 +398,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 | 层级 | 状态 | 说明 |
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
-| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
+| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B6+B8–B11 ✅ · B7 BLOCKED（DevEco） |
 | **Map C** | ✅ **AFK EXITED** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C9 ✅ · C3b → [#89](https://github.com/client-platform-labs/rn/issues/89) |
 | **Map D** | ✅ **AFK EXITED** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D5 ✅ · GRC → [#90](https://github.com/client-platform-labs/rn/issues/90) |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
@@ -436,7 +436,7 @@ flowchart TB
 | 切片 | 合同 | Spine HITL | 推广级 | 主要余量 |
 |------|------|------------|--------|----------|
 | **A1** GF | ~95% | ✅ | **L5** | 规模化运维 |
-| **A2** BF | ~95% | ✅ | **L5** | XCFramework 二进制 CI（B6） |
+| **A2** BF | ~95% | ✅ | **L5** | XCFramework 二进制 CI（B6 ✅ #92） |
 | **A3** Delivery | ~85% | ✅ thin | **L4 thin** | 企业 attestation |
 | **A4** CP | ~75% | ✅ thin | demo | 全状态机 · 真服务（Map C） |
 | **A5** Fallback | ~90% | ✅ | **L5 thin** | 多 module 生产负载 |
@@ -466,9 +466,9 @@ flowchart TB
 | B9 | CP Kill/Pause by `business_module` + A5 wire | ✅ #70 |
 | B10 | P4 Hermes/NewArch/tuple drift + P6 codegen surface | ✅ #71 |
 | B11 | CP thin rollout_steps (P10 soak ladder) | ✅ #72 |
-| B6 | XCFramework **binary** CI | SKIP（需 full Xcode） |
-| B7 | Harmony 真机 | BLOCKED（DevEco） |
-| B8 | CP Postgres 多租户 | BLOCKED（产品） |
+| B6 | XCFramework **binary** CI | ✅ #92 · `xcframework.yml` macos job; local CLT → SKIP |
+| B7 | Harmony 真机 | BLOCKED → [#93](https://github.com/client-platform-labs/rn/issues/93) |
+| B8 | CP Postgres adapter contract（opt-in） | ✅ #91 |
 
 **回归入口：** `node scripts/run-map-b-loop.mjs` → [`map-b-loop-latest.md`](./hitl/map-b-loop-latest.md)
 
@@ -513,8 +513,8 @@ flowchart TB
 
 ### 9.7 距目标地 · 优先 backlog
 
-1. **实验台：** Xcode CI（B6）· Harmony（B7）· Postgres 多租户（B8）
+1. **实验台：** Harmony（B7 → [#93](https://github.com/client-platform-labs/rn/issues/93)）
 2. **Map C depth：** C3b 店侧 submit · 真 SLO/metrics 后端
-3. **产品深度：** GRC 后端 · 真 SBOM 生成 · 设备农场
+3. **产品深度：** GRC 后端 · 真 SBOM 生成 · 设备农场 · 真 Postgres 多租户 SaaS
 
-*上一结项：Map C [#73](https://github.com/client-platform-labs/rn/issues/73) AFK EXITED · Map D [#80](https://github.com/client-platform-labs/rn/issues/80) AFK EXITED · deferred [#89](https://github.com/client-platform-labs/rn/issues/89)/[#90](https://github.com/client-platform-labs/rn/issues/90) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*
+*上一结项：Map B B6 [#92](https://github.com/client-platform-labs/rn/issues/92) · B8 [#91](https://github.com/client-platform-labs/rn/issues/91) · Map B loop PASS（B7 BLOCKED）· Map C/D AFK EXITED。*

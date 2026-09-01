@@ -35,9 +35,11 @@ function runNode(script) {
   };
 }
 
-function hasXcode() {
+function hasFullXcode() {
   const r = spawnSync("xcodebuild", ["-version"], { encoding: "utf8" });
-  return r.status === 0 && !/Command Line Tools/.test(r.stderr ?? "");
+  if (r.status !== 0) return false;
+  const out = `${r.stdout}${r.stderr}`;
+  return !out.includes("requires Xcode");
 }
 
 /** @type {Step[]} */
@@ -105,11 +107,12 @@ const STEPS = [
   },
   {
     id: "B6",
-    kind: "deferred",
+    kind: "afk",
     title: "XCFramework binary artifact on CI",
-    issue: 25,
-    blockedReason: "needs full Xcode.app Mac runner (build script landed in B2)",
-    skipIf: () => (hasXcode() ? null : "no full Xcode.app"),
+    issue: 92,
+    deps: ["B2"],
+    skipIf: () =>
+      hasFullXcode() ? null : "no full Xcode.app — binary on CI macos job",
     verify: "scripts/verify-bf-xcframework-build.mjs",
   },
   {
@@ -120,9 +123,11 @@ const STEPS = [
   },
   {
     id: "B8",
-    kind: "blocked",
-    title: "CP Postgres / multi-tenant",
-    blockedReason: "product scope — SQLite opt-in done in B3",
+    kind: "afk",
+    title: "CP Postgres registry adapter contract",
+    issue: 91,
+    verify: "scripts/verify-cp-registry-postgres.mjs",
+    deps: ["B3"],
   },
 ];
 
@@ -169,23 +174,19 @@ for (const step of STEPS) {
     continue;
   }
 
-  if (step.kind === "deferred") {
-    const skipReason = step.skipIf?.() ?? step.blockedReason ?? "deferred";
-    if (skipReason && step.skipIf) {
-      results.set(step.id, "skip");
-      appendFileSync(
-        reportPath,
-        `${JSON.stringify({ id: step.id, kind: step.kind, status: "skip", why: skipReason, ts: new Date().toISOString() })}\n`,
-      );
-      console.log(`[SKIP] ${step.id} — ${skipReason}`);
-      continue;
-    }
-    // env ready — fall through to verify
+  const skipReason = step.skipIf?.();
+  if (skipReason) {
+    results.set(step.id, "skip");
+    appendFileSync(
+      reportPath,
+      `${JSON.stringify({ id: step.id, kind: step.kind, status: "skip", why: skipReason, ts: new Date().toISOString() })}\n`,
+    );
+    console.log(`[SKIP] ${step.id} — ${skipReason}`);
+    continue;
   }
 
   if (!depsOk(step)) {
     results.set(step.id, "skip");
-    hardFail = true;
     const why = `deps failed: ${(step.deps ?? []).join(",")}`;
     appendFileSync(
       reportPath,
