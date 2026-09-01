@@ -7,7 +7,7 @@ import {
   runSignalRecord,
 } from "./quality-signals.js";
 import { runSign } from "./sign.js";
-import { runServe } from "./serve.js";
+import { runCpServe, runServe } from "./serve.js";
 import type { DeliveryPlatform, DeliveryProfile } from "./types.js";
 import { runUpdate } from "./update.js";
 import { runValidate } from "./validate.js";
@@ -43,6 +43,8 @@ Commands:
     Clear quality signal store (HITL / drill reset).
   serve [--port <n>] [--host <addr>]
     Thin CP HTTP over .rn/delivery/registry.json (#7 demo API).
+  cp-serve [--port <n>] [--host <addr>]
+    Map C C2 — same APIs as serve, service identity face (RN_CP_PROJECT optional).
   test      Gate trigger (not implemented)
   submit    Store submit backends (not implemented — never use for stores)
 
@@ -62,6 +64,7 @@ const KNOWN = new Set([
   "block",
   "signal",
   "serve",
+  "cp-serve",
   "test",
   "submit",
 ]);
@@ -228,6 +231,16 @@ export async function run(argv = process.argv): Promise<number> {
     if (cmd === "serve") {
       const portRaw = flagValue(rest, "--port");
       await runServe({
+        cwd: process.cwd(),
+        port: portRaw ? Number(portRaw) : undefined,
+        host: flagValue(rest, "--host"),
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "cp-serve") {
+      const portRaw = flagValue(rest, "--port");
+      await runCpServe({
         cwd: process.cwd(),
         port: portRaw ? Number(portRaw) : undefined,
         host: flagValue(rest, "--host"),

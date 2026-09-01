@@ -29,9 +29,10 @@ const STEPS = [
   },
   {
     id: "C2",
-    kind: "blocked",
-    title: "True CP service process (not rn-delivery serve demo)",
-    blockedReason: "product — Map C serviceization after C1",
+    kind: "afk",
+    title: "CP standalone service + slo-breach→pause",
+    issue: 75,
+    verify: "scripts/verify-cp-service.mjs",
   },
   {
     id: "C3",

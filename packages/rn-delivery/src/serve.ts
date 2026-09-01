@@ -1,5 +1,10 @@
 import { readFileSync } from "node:fs";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,9 +21,15 @@ import {
   resumeRollout,
   startRollout,
 } from "./candidate-store.js";
-import { checkCpBearerAuth, checkCpMutatingRole, resolveCpAuthToken, resolveCpRole } from "./cp-auth.js";
+import {
+  checkCpBearerAuth,
+  checkCpMutatingRole,
+  resolveCpAuthToken,
+  resolveCpRole,
+} from "./cp-auth.js";
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
+import { useSqliteRegistry } from "./registry-sqlite.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
 import { KillPauseError, RolloutError } from "@client-platform/rn-core";
 
@@ -26,6 +37,9 @@ const STATIC_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "../static",
 );
+
+const CP_SERVICE_NAME = "control-plane";
+const CP_SERVICE_API = 1;
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -50,22 +64,35 @@ function loadConsoleHtml(): string {
   return readFileSync(path.join(STATIC_DIR, "cp-console.html"), "utf8");
 }
 
+export type ControlPlaneHandle = {
+  projectRoot: string;
+  host: string;
+  port: number;
+  storage: "file" | "sqlite";
+  serviceMode: "cli-serve" | "cp-serve";
+  listen: () => Promise<void>;
+  close: () => Promise<void>;
+};
+
 /**
- * Map B / #7 thin CP: read-write HTTP over file registry (demo API + Web).
- * Not production CP — replaces curl to rn-delivery for Web console PoC.
+ * Map C C2 — closable CP HTTP server (replaceable storage: file|sqlite).
+ * Not multi-tenant SaaS; Postgres remains B8.
  */
-export async function runServe(options: {
+export function createControlPlane(options: {
   cwd: string;
   port?: number;
   host?: string;
-}): Promise<void> {
+  serviceMode?: "cli-serve" | "cp-serve";
+}): ControlPlaneHandle {
   const projectRoot = resolveProjectRoot(options.cwd);
   const port = options.port ?? 4040;
   const host = options.host ?? "127.0.0.1";
+  const serviceMode = options.serviceMode ?? "cli-serve";
+  const storage: "file" | "sqlite" = useSqliteRegistry() ? "sqlite" : "file";
   const cpAuthToken = resolveCpAuthToken();
   const cpRole = resolveCpRole();
 
-  const server = createServer(async (req, res) => {
+  const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
     try {
       const requireCpAuth = () => {
@@ -91,7 +118,26 @@ export async function runServe(options: {
       }
 
       if (req.method === "GET" && url.pathname === "/health") {
-        sendJson(res, 200, { ok: true, projectRoot });
+        sendJson(res, 200, {
+          ok: true,
+          projectRoot,
+          service: CP_SERVICE_NAME,
+          api: CP_SERVICE_API,
+        });
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1/service") {
+        sendJson(res, 200, {
+          name: CP_SERVICE_NAME,
+          api: CP_SERVICE_API,
+          mode: serviceMode,
+          storage,
+          projectRoot,
+          replaceable_backend: true,
+          postgres: false,
+          note: "thin CP — Postgres multi-tenant = Map B B8 / later Map C depth",
+        });
         return;
       }
 
@@ -273,7 +319,12 @@ export async function runServe(options: {
           actor: cpRole,
           min_soak_ms: body.min_soak_ms,
         });
-        sendJson(res, 200, { ok: true, action: "rollout_start", rollout, registry });
+        sendJson(res, 200, {
+          ok: true,
+          action: "rollout_start",
+          rollout,
+          registry,
+        });
         return;
       }
 
@@ -317,7 +368,12 @@ export async function runServe(options: {
           );
         }
         const { registry, rollout } = pauseRollout(projectRoot, body.digest);
-        sendJson(res, 200, { ok: true, action: "rollout_pause", rollout, registry });
+        sendJson(res, 200, {
+          ok: true,
+          action: "rollout_pause",
+          rollout,
+          registry,
+        });
         return;
       }
 
@@ -341,6 +397,29 @@ export async function runServe(options: {
         return;
       }
 
+      if (req.method === "POST" && url.pathname === "/v1/rollout/slo-breach") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as { digest?: string; reason?: string })
+          : {};
+        if (!body.digest?.trim()) {
+          throw new DeliveryError(
+            "POST /v1/rollout/slo-breach: digest required",
+            EXIT_FAIL,
+          );
+        }
+        const { registry, rollout } = pauseRollout(projectRoot, body.digest);
+        sendJson(res, 200, {
+          ok: true,
+          action: "rollout_slo_breach_pause",
+          reason: body.reason?.trim() || "slo_breach",
+          rollout,
+          registry,
+        });
+        return;
+      }
+
       sendJson(res, 404, { error: "not_found", path: url.pathname });
     } catch (err) {
       if (err instanceof KillPauseError || err instanceof RolloutError) {
@@ -353,37 +432,77 @@ export async function runServe(options: {
     }
   });
 
-  await new Promise<void>((resolve) => {
-    server.listen(port, host, () => {
-      console.error(
-        `rn-delivery serve: http://${host}:${port} (project ${projectRoot})`,
-      );
-      console.error("  GET  /  (thin CP Web console)");
-      console.error("  GET  /v1/candidates?lane=staging|production");
-      console.error("  GET  /v1/registry | /staging | /production");
-      console.error(
-        "  POST /v1/promote { digest } | /v1/block { digest, reason }",
-      );
-      console.error(
-        "  GET  /v1/kills | POST /v1/kill | /v1/pause | /v1/resume (B9)",
-      );
-      console.error(
-        "  GET  /v1/rollouts | POST /v1/rollout/start|advance|pause|resume (B11)",
-      );
-      if (cpAuthToken) {
-        console.error("  CP auth: RN_CP_TOKEN set — mutating routes require Bearer");
-      }
-      if (cpAuthToken && cpRole === "viewer") {
-        console.error("  CP role: viewer — POST mutate disabled (GET read-only)");
-      }
-      if (process.env.RN_CP_REGISTRY?.trim().toLowerCase() === "sqlite") {
-        console.error("  CP registry: SQLite (.rn/delivery/registry.sqlite)");
-      }
-      resolve();
-    });
-  });
+  return {
+    projectRoot,
+    host,
+    port,
+    storage,
+    serviceMode,
+    listen: () =>
+      new Promise((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(port, host, () => resolve());
+      }),
+    close: () =>
+      new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      }),
+  };
+}
 
+function printBanner(handle: ControlPlaneHandle, label: string): void {
+  const { host, port, projectRoot, storage, serviceMode } = handle;
+  console.error(`${label}: http://${host}:${port} (project ${projectRoot})`);
+  console.error(
+    `  service: ${CP_SERVICE_NAME} mode=${serviceMode} storage=${storage}`,
+  );
+  console.error("  GET  /v1/service | /health");
+  console.error("  GET  /  (thin CP Web console)");
+  console.error("  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)");
+}
+
+/** Map B thin CP — CLI-embedded serve (compat). */
+export async function runServe(options: {
+  cwd: string;
+  port?: number;
+  host?: string;
+}): Promise<void> {
+  const handle = createControlPlane({ ...options, serviceMode: "cli-serve" });
+  await handle.listen();
+  printBanner(handle, "rn-delivery serve");
   await new Promise(() => {
     /* keep alive until SIGINT */
+  });
+}
+
+/**
+ * Map C C2 — dedicated CP service entry.
+ * Project root: options.cwd or RN_CP_PROJECT.
+ */
+export async function runCpServe(options: {
+  cwd: string;
+  port?: number;
+  host?: string;
+}): Promise<void> {
+  const cwd = process.env.RN_CP_PROJECT?.trim() || options.cwd;
+  const handle = createControlPlane({
+    cwd,
+    port: options.port,
+    host: options.host,
+    serviceMode: "cp-serve",
+  });
+  await handle.listen();
+  printBanner(handle, "rn-delivery cp-serve");
+  const shutdown = async () => {
+    try {
+      await handle.close();
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.once("SIGINT", () => void shutdown());
+  process.once("SIGTERM", () => void shutdown());
+  await new Promise(() => {
+    /* keep alive until signal */
   });
 }

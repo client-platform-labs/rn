@@ -399,7 +399,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
 | **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
-| **Map C** | 🔄 **Kickoff** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1 ✅ · C2/C3 BLOCKED |
+| **Map C** | 🔄 **In progress** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1+C2 ✅ · C3 BLOCKED |
 | **Map D** | ⬜ 未开 | 合规 · 迁移 · 运维手册 |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
@@ -416,8 +416,8 @@ flowchart TB
     D1[rn-delivery · metadata · HMAC sign · SBOM 槽]
   end
   subgraph CP["Control Plane ⚠️ thin"]
-    C1[serve API · Web · Bearer · RBAC · SQLite · Kill/Pause · rollout_steps]
-    C2[真 CP 服务 · 七渠 ❌ Map C C2+]
+    C1[cp-serve · Bearer · RBAC · SQLite|file · Kill · rollout · slo-breach]
+    C2[七渠 channel_profile 执行 ❌ C3]
   end
   subgraph RT["Runtime ✅ thin"]
     R1[RuntimeHost · gateBundleLoad · A5 槽位]
@@ -479,7 +479,7 @@ flowchart TB
 | ID | 内容 | 状态 |
 |----|------|------|
 | C1 | P7 `e2e_fail` fail-closed promote | ✅ #74 |
-| C2 | 真 CP 服务进程 | BLOCKED |
+| C2 | `cp-serve` service face + slo-breach→pause | ✅ #75 |
 | C3 | channel_profile 七渠 | BLOCKED |
 
 ### 9.6 P1–P17 · 合同 vs 落地（摘要）
@@ -495,7 +495,7 @@ flowchart TB
 ### 9.7 距目标地 · 优先 backlog
 
 1. **实验台：** Xcode CI（B6）· Harmony（B7）· Postgres 多租户（B8）
-2. **Map C：** C2 真 CP 服务 · C3 七渠 · SLO↔Paused
+2. **Map C：** C3 七渠执行适配 · SLO 真观测后端
 3. **Map D：** 迁移工具链 · 合规叠加档 · 运维手册
 
-*上一结项：B11 [#72](https://github.com/client-platform-labs/rn/issues/72) · C1 [#74](https://github.com/client-platform-labs/rn/issues/74) · Map C [#73](https://github.com/client-platform-labs/rn/issues/73) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*
+*上一结项：C2 [#75](https://github.com/client-platform-labs/rn/issues/75) · C1 [#74](https://github.com/client-platform-labs/rn/issues/74) · B11 [#72](https://github.com/client-platform-labs/rn/issues/72) · Map C [#73](https://github.com/client-platform-labs/rn/issues/73) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*

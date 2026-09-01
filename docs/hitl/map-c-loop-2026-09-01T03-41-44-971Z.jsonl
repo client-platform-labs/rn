@@ -1,0 +1,3 @@
+{"id":"C1","status":"pass","ms":427,"ts":"2026-09-01T03:41:45.400Z"}
+{"id":"C2","status":"pass","ms":1279,"ts":"2026-09-01T03:41:46.680Z"}
+{"id":"C3","status":"blocked","reason":"needs channel backends","ts":"2026-09-01T03:41:46.680Z"}

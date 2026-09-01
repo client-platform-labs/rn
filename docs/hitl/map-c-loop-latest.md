@@ -1,7 +1,7 @@
 # Map C loop
 
-ok=true at=2026-09-01T03:30:59.141Z
+ok=true at=2026-09-01T03:41:46.681Z
 
-PASS: C1
+PASS: C1, C2
 FAIL: —
-BLOCKED: C2, C3
+BLOCKED: C3
