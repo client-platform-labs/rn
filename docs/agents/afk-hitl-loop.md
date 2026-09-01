@@ -43,6 +43,20 @@ node scripts/run-afk-hitl-loop.mjs --plan
 
 **Map B 工业切面** 有独立 loop → [`map-b-loop.md`](./map-b-loop.md) · `node scripts/run-map-b-loop.mjs`（已从本 Spine loop 移除 MapB-* 步骤）。
 
+**Hermes 方案 D · map [#43](https://github.com/client-platform-labs/rn/issues/43)**（D0 EXITED · Dx 收口）:
+
+```bash
+node scripts/run-hermes-43-loop.mjs           # AFK + AUTO if adb
+node scripts/run-hermes-43-loop.mjs --mode afk
+node scripts/run-hermes-43-loop.mjs --plan
+node scripts/run-hermes-43-loop.mjs --close   # close #43 when green
+
+# D0 regression only
+node scripts/run-hermes-d0-loop.mjs --mode afk|auto
+```
+
+Plan: [`2026-09-01-hermes-43-map-closure.md`](../superpowers/plans/2026-09-01-hermes-43-map-closure.md) · latest: `docs/hitl/hermes-43-loop-latest.md`
+
 ---
 
 ## 依赖图（执行顺序）
