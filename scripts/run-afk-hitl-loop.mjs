@@ -464,9 +464,23 @@ function shouldRun(step) {
   return false;
 }
 
-function depsOk(step) {
-  if (!step.deps?.length) return true;
-  return step.deps.every((d) => results.get(d) === "pass");
+/** @returns {"runnable"|"dep-failed"|"dep-skipped"} */
+function depGate(step) {
+  if (!step.deps?.length) return "runnable";
+  let anyFail = false;
+  let anySkip = false;
+  for (const d of step.deps) {
+    const status = results.get(d);
+    if (status === "fail") anyFail = true;
+    else if (status !== "pass") anySkip = true;
+  }
+  if (anyFail) return "dep-failed";
+  if (anySkip) return "dep-skipped";
+  return "runnable";
+}
+
+function depsFailed(step) {
+  return (step.deps ?? []).filter((d) => results.get(d) === "fail");
 }
 
 console.log("════════════════════════════════════════");
@@ -505,10 +519,15 @@ for (const step of STEPS) {
     continue;
   }
 
-  if (!depsOk(step)) {
+  const gate = depGate(step);
+  if (gate !== "runnable") {
     results.set(step.id, "skip");
-    hardFail = true;
-    const why = `deps failed: ${(step.deps ?? []).join(",")}`;
+    if (gate === "dep-failed") hardFail = true;
+    const failedDeps = depsFailed(step);
+    const why =
+      gate === "dep-failed"
+        ? `deps failed: ${failedDeps.join(",")}`
+        : `deps skipped: ${(step.deps ?? []).join(",")}`;
     appendFileSync(
       reportPath,
       `${JSON.stringify({ id: step.id, kind: step.kind, status: "skip", why, ts: new Date().toISOString() })}\n`,
