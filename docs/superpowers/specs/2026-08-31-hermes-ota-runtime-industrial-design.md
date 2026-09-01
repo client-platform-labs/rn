@@ -73,11 +73,11 @@ host-android.git (tiangong-labs/host-android) (壳仓 · 零业务实现源码)
 
 能力先具备（slot / channel / Build 插件门禁）≠ 堆实体。业务来用时只填契约；等痛了再挖缝才是架构失败。
 
-| Phase | 能力（Capability） | 插件/形态 | 设计 | 最小可调用面 |
-|-------|-------------------|-----------|------|--------------|
-| **D0** | 单 module OTA 执行 | 内置 OTA Client | **DONE** | embed + file-slot + verify→reload |
-| **D1** | 多 `business_module` / `channel` | Slot 表 + moduleId 路由；CP channel 参数 | [#58](https://github.com/client-platform-labs/rn/issues/58) · [R8](../../wayfinding-hermes/research/R8-d1-multi-module-channel.md) | 契约 + fixture 第二 module（可无 UI） |
-| **D2** | 可选联邦打包 | **Build 插件**（Re.Pack）；ScriptManager → 仅已 verify 本地 path | [#59](https://github.com/client-platform-labs/rn/issues/59) · [R9](../../wayfinding-hermes/research/R9-d2-repack-ota-plugin.md) | 插件接口 + 「禁止裸 remote execute」门禁 |
+| Phase | 能力（Capability） | 插件/形态 | 设计 | **工业级可调用面**（交付条，非竖切终点） |
+|-------|-------------------|-----------|------|------------------------------------------|
+| **D0** | 单 module OTA 执行 | 内置 OTA Client | **DONE** | embed + verify→reload + FailedUI + loop；真机证据 |
+| **D1** | 多 `business_module` / `channel` | Slot 表 + moduleId 路由 | [R8](../../wayfinding-hermes/research/R8-d1-multi-module-channel.md) · [#58](https://github.com/client-platform-labs/rn/issues/58) | 见 R8 **§6 Industrial bar**（双 slot 生产路径，非仅 fixture 烟测） |
+| **D2** | 可选联邦打包 | Build 插件 + ScriptManager 门禁 | [R9](../../wayfinding-hermes/research/R9-d2-repack-ota-plugin.md) · [#59](https://github.com/client-platform-labs/rn/issues/59) | 见 R9 **§6 Industrial bar**（插件进 CI 制品链 + 禁止裸 remote，非仅文档断言） |
 
 ## 5. D0 contracts (minimal)
 

@@ -13,7 +13,7 @@ D1 不是「等第二个业务团队喊痛再加」。它是宿主的**多租户
 
 | | |
 |--|--|
-| **Capability** | 同一壳可并行持有 N 个 `business_module` 的 baseline/active/staged，并按 `channel` 拉取候选 |
+| 能力（Capability） | 同一壳可并行持有 N 个 `business_module` 的 baseline/active/staged，并按 `channel` 拉取候选；**达 R8 §6 工业条才算具备** |
 | **Form** | **Slot 插件表**（FS 布局 + 路由表），不是再嵌一套 Topology B `modules/` |
 | **Who needs it** | 平台先具备；业务团队日后「加第二包」只填契约，不改壳内核 |
 
@@ -103,30 +103,57 @@ ShellHost / ModuleRegistry (new thin)
 
 ---
 
-## 6. Minimal callable face (before any real 2nd product)
+## 6. Industrial bar（交付条 — 不是「最小竖切」）
 
-1. Fixture module id：`desk-b`（或 `fixture_second`）——空 `getModuleApp` / 单 Text。  
-2. AFK：`checkFetchCore` 对两 module 各 stage 一次；目录不互踩。  
-3. AUTO（可选）：debug file-slot 切换 default module path 仍绿。  
-4. 文档 + `verify-d1-slots.mjs` 进 `run-hermes-43-loop` 或新 `run-hermes-d1-loop.mjs`。
+**Tracer bullet ≠ 终点。** 烟测 / fixture 只证明缝没焊死；**D1 能力未达工业级不得宣称「多 module 已支持」。**
+
+对齐仓库既有口径：[*contract once, implement in stages*](../../docs/agents/engineering-principles.md) · [enterprise-promotion-gates](../../docs/agents/enterprise-promotion-gates.md)（能力级，不另起双标）。
+
+### 6.1 Must ship (industrial callable)
+
+| # | Requirement | Evidence |
+|---|-------------|----------|
+| I1 | **FS + prefs：** `ota/<moduleId>/{staged,active}` + native per-module active map | unit + `verify-d1-slots.mjs` |
+| I2 | **OTA Client API 全套按 moduleId：** check / fetch / verify / install / rollback 均带 `moduleId`（channel 贯穿 check） | AFK + 类型 |
+| I3 | **双 baseline embed：** 至少 `desk` + 第二 **真实契约 module**（可为 `fixture_second` 仓/包，但是完整 HBC+sidecar+embed，不是空 Text stub） | `embed-baseline --module` 矩阵；Release APK 含两份 assets |
+| I4 | **隔离：** A 的 rollback / 坏签名 **不影响** B 的 active | AUTO 或 AFK 双槽对抗 |
+| I5 | **FailedUI per module** + 使用该 module 基线 | device 或宿主集成测 |
+| I6 | **Channel：** 同 module 两 channel manifest 路由正确（default vs canary fixture） | AFK |
+| I7 | **Loop：** `run-hermes-d1-loop.mjs` AFK+AUTO；进平台 HITL latest | CI/agent 可回归 |
+| I8 | **文档：** Host 对外「如何登记第二 module」runbook（业务只填契约） | DELIVERY / R8 附录 |
+
+### 6.2 Explicitly not enough (半成品信号 — 禁止停在这里)
+
+- 只改文档 / 只加目录常量  
+- 只有单测、无 embed、无双槽对抗  
+- 「第二个 module」= 壳内 `Text` 占位且无独立 sidecar/update_id  
+- 只把 default module 路径改个名假装多 module  
+
+### 6.3 Out of industrial bar (仍属 YAGNI)
+
+- 第二个**真实投研产品**完整 IA（行情/交易等）  
+- 商店改名 / 运营 channel 策略 UI  
 
 ---
 
-## 7. Implementation slices (follow-up tasks)
+## 7. Implementation slices（均指向 §6.1，切完要拼满工业条）
 
-| ID | Kind | Work |
-|----|------|------|
-| D1-R | research | 本文件冻结 |
-| D1-1 | AFK | FS 布局 + prefs map native |
-| D1-2 | AFK | `installAndReload(moduleId, …)` + ModuleRegistry |
-| D1-3 | AFK | embed CLI multi-module + fixture_second |
-| D1-4 | AUTO | 双 slot 不互踩 device smoke |
+| ID | Kind | Work | Covers |
+|----|------|------|--------|
+| D1-R | research | 本文件冻结 | — |
+| D1-1 | AFK | FS 布局 + prefs map native | I1 |
+| D1-2 | AFK | OtaClient/ModuleRegistry 全套 moduleId | I2, I5 |
+| D1-3 | AFK | embed 多 module + fixture_second **完整制品** | I3, I6 |
+| D1-4 | AUTO | 双 slot 隔离 + FailedUI + loop | I4, I5, I7 |
+| D1-5 | AFK | 业务登记 runbook | I8 |
+
+**停损规则：** 任一切片合并后若 §6.2 信号仍在，**不得**关 #58 / 不得写 PASS 工业支持。
 
 ---
 
 ## 8. Non-goals
 
-- 第二个真实业务产品 IA/UI  
+- 第二个真实业务产品 IA/UI（完整投研）  
 - Re.Pack / MF（→ R9）  
 - 回退 `modules/<biz>` 源码嵌壳  
 
@@ -134,6 +161,7 @@ ShellHost / ModuleRegistry (new thin)
 
 ## 9. Done when (#58)
 
-- [x] 本文落地  
-- [ ] Host 缝清单被实现票认领（D1-1…）  
-- [ ] fixture 第二 module AFK 绿  
+- [x] 本文落地（含工业条）  
+- [ ] §6.1 I1–I8 **全部**有证据  
+- [ ] §6.2 信号清零  
+- [ ] `run-hermes-d1-loop.mjs` 绿  

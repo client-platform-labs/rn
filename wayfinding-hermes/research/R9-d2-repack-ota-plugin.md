@@ -94,24 +94,47 @@ D2 **不替代** D1；先有 module 槽，再有联邦打包选项。
 
 ---
 
-## 6. Minimal callable face (pre-adoption)
+## 6. Industrial bar（交付条 — 不是「最小竖切」）
 
-1. 文档 + 本 R9 冻结。  
-2. AFK：`verify-d2-plugin-boundary.mjs` — 断言 Host 源码无 `ScriptManager.loadScript(http`；OTA Client 导出 verify 在 install 前。  
-3. Spike（另票）：单业务仓 Re.Pack 打出 **等价 sidecar** 制品，经现有 file-slot 冷启（证明插件只换 pack，不换 execute）。  
-4. **不**在 Host 引入 Re.Pack 依赖。
+**Tracer bullet ≠ 终点。** 「Host 源码没有 http loadScript」一类断言只是门禁起步；**D2 能力未进制品链不得宣称「支持 Re.Pack 插件」。**
+
+### 6.1 Must ship (industrial callable)
+
+| # | Requirement | Evidence |
+|---|-------------|----------|
+| J1 | **Build 插件契约文档 + 参考实现入口：** 业务仓 `BUNDLER=metro\|repack`（或等价）打出 **同构 sidecar** | desk（或 fixture）两种 bundler 至少一条绿 |
+| J2 | **制品等价：** repack（或第二 bundler）产出经 **同一** `gateBundleLoad` → file-slot/OTA 冷启 | AUTO 或 Release 路径证据 |
+| J3 | **禁止裸 remote execute：** ScriptManager（或预留 wrapper）API **只收 localPath**；CI grep/doctor 挡 `loadScript('http` | AFK verify + 治理脚本 |
+| J4 | **失败闭环：** 联邦/分包加载失败 → FailedUI / 该 module baseline（不绕过 OTA Client） | 集成测 |
+| J5 | **Host 零 Re.Pack runtime 依赖**（插件在业务仓/CI） | dependency 扫描 |
+| J6 | **Loop：** `run-hermes-d2-loop.mjs`（或并入 d1）回归 J1–J5 | HITL latest |
+| J7 | **Runbook：** 业务如何启用 Build 插件、如何不踩双运行时 | DELIVERY 附录 |
+
+### 6.2 Explicitly not enough
+
+- 仅 R9 文档 / 仅「禁止 http」字符串扫描、无第二 bundler 制品  
+- Spike 产物不能走现有 OTA verify→reload  
+- Host 为了 demo 引入 Re.Pack 运行时依赖  
+
+### 6.3 Out of industrial bar (YAGNI)
+
+- 多团队生产联邦全图、共享依赖优化大会战  
+- 自建第二套更新通道  
 
 ---
 
-## 7. Implementation slices (follow-up)
+## 7. Implementation slices（拼满 §6.1）
 
-| ID | Kind | Work |
-|----|------|------|
-| D2-R | research | 本文件 |
-| D2-1 | AFK | plugin boundary verify script |
-| D2-2 | AFK/spike | desk 可选 `BUNDLER=repack` 产出 + sidecar 对齐 |
-| D2-3 | design | ScriptManager wrapper API（若上 MF）只收 localPath |
-| D2-4 | AUTO | repack 制品 file-slot 冷启（可选） |
+| ID | Kind | Work | Covers |
+|----|------|------|--------|
+| D2-R | research | 本文件 | — |
+| D2-1 | AFK | boundary verify + doctor 规则 | J3, J5 |
+| D2-2 | AFK/spike→工业 | 第二 bundler 产出 + sidecar 对齐 | J1 |
+| D2-3 | AFK | ScriptManager/localPath wrapper（若启用 MF） | J3, J4 |
+| D2-4 | AUTO | 第二 bundler 制品 OTA/file-slot 冷启 | J2, J4 |
+| D2-5 | AFK | loop + runbook | J6, J7 |
+
+**停损规则：** 停在 §6.2 = 半成品；不得关 #59 为「已支持」。
 
 ---
 
@@ -133,6 +156,6 @@ D2 **不替代** D1；先有 module 槽，再有联邦打包选项。
 
 ## 10. Done when (#59)
 
-- [x] 本文落地  
-- [ ] D2-1 boundary verify 进 loop  
-- [ ] Spike 清单可开 task（不阻塞设计关闭）  
+- [x] 本文落地（含工业条）  
+- [ ] §6.1 J1–J7 **全部**有证据  
+- [ ] §6.2 信号清零  
