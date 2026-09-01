@@ -1,6 +1,6 @@
 /**
  * Map B B11 — thin P10 rollout_steps (Canary → Rolling → Full · soak gate).
- * Not the full Draft→Retired SM; not SLO auto-pause (Map C).
+ * Map C C5 — tick: soak ∧ SLO_ok → auto-advance; SLO_breach → Paused.
  */
 
 import type { JsReleaseGate } from "./types.js";
@@ -11,6 +11,7 @@ export type RolloutStep = {
   cohort: string;
   percent: number;
   min_soak_ms: number;
+  /** Upper-bound SLI thresholds (metric → max allowed). Breach → pause. */
   sli_thresholds?: Record<string, number>;
 };
 
@@ -88,6 +89,120 @@ export function requireHumanForFull(
   humanFullApproved?: boolean,
 ): boolean {
   return gate === "js-gated" && humanFullApproved !== true;
+}
+
+export type SliSnapshot = Record<string, number>;
+
+/**
+ * Thresholds are upper bounds. Missing thresholds → ok.
+ * Missing SLI keys when thresholds exist → not a breach (caller may wait).
+ */
+export function evaluateSliOk(
+  thresholds: Record<string, number> | undefined,
+  sli: SliSnapshot | undefined,
+):
+  | { ok: true }
+  | { ok: false; metric: string; value: number; threshold: number } {
+  if (!thresholds || Object.keys(thresholds).length === 0) {
+    return { ok: true };
+  }
+  if (!sli) {
+    return { ok: true };
+  }
+  for (const [metric, max] of Object.entries(thresholds)) {
+    const value = sli[metric];
+    if (value === undefined) continue;
+    if (value > max) {
+      return { ok: false, metric, value, threshold: max };
+    }
+  }
+  return { ok: true };
+}
+
+export function missingSliKeys(
+  thresholds: Record<string, number> | undefined,
+  sli: SliSnapshot | undefined,
+): string[] {
+  if (!thresholds || Object.keys(thresholds).length === 0) return [];
+  return Object.keys(thresholds).filter((k) => sli?.[k] === undefined);
+}
+
+export type TickRolloutAction =
+  | "noop"
+  | "advanced"
+  | "paused_slo"
+  | "waiting_soak"
+  | "waiting_sli"
+  | "human_required";
+
+export type TickRolloutResult = {
+  action: TickRolloutAction;
+  state: ReleaseRolloutState;
+  detail?: string;
+};
+
+/**
+ * One scheduler tick: SLO breach → pause; soak∧SLO → auto-advance.
+ */
+export function tickRolloutState(
+  state: ReleaseRolloutState,
+  opts?: {
+    now?: Date;
+    sli?: SliSnapshot;
+    human_full_approved?: boolean;
+  },
+): TickRolloutResult {
+  if (state.phase === "paused") {
+    return { action: "noop", state, detail: "paused" };
+  }
+  if (state.phase === "full") {
+    return { action: "noop", state, detail: "already_full" };
+  }
+  const current = state.steps[state.step_index];
+  if (!current) {
+    return { action: "noop", state, detail: "invalid_step" };
+  }
+
+  const now = opts?.now ?? new Date();
+  const sliCheck = evaluateSliOk(current.sli_thresholds, opts?.sli);
+  if (!sliCheck.ok) {
+    return {
+      action: "paused_slo",
+      state: pauseRolloutState(state, now),
+      detail: `slo_breach ${sliCheck.metric}=${sliCheck.value} > ${sliCheck.threshold}`,
+    };
+  }
+
+  const missing = missingSliKeys(current.sli_thresholds, opts?.sli);
+  if (missing.length > 0) {
+    return {
+      action: "waiting_sli",
+      state,
+      detail: `missing sli keys: ${missing.join(",")}`,
+    };
+  }
+
+  const soak = canAdvanceStep(now.getTime(), current, state.step_entered_at);
+  if (!soak.ok) {
+    return {
+      action: "waiting_soak",
+      state,
+      detail: `${soak.remaining_ms}ms remaining on ${current.cohort}`,
+    };
+  }
+
+  try {
+    const next = advanceRolloutState(state, {
+      now,
+      human_full_approved: opts?.human_full_approved,
+    });
+    return { action: "advanced", state: next };
+  } catch (err) {
+    if (err instanceof RolloutError && err.code === "human_required") {
+      return { action: "human_required", state, detail: err.message };
+    }
+    throw err;
+  }
 }
 
 export function startRolloutState(input: {

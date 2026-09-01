@@ -48,6 +48,13 @@ const STEPS = [
     issue: 77,
     verify: "scripts/verify-consistency-gate.mjs",
   },
+  {
+    id: "C5",
+    kind: "afk",
+    title: "P10 rollout tick soak∧SLO auto-advance / breach pause",
+    issue: 78,
+    verify: "scripts/verify-cp-rollout-tick.mjs",
+  },
 ];
 
 function printPlan() {

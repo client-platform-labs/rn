@@ -15,10 +15,13 @@ import {
   resumeRolloutState,
   startRolloutState,
   advanceRolloutState,
+  tickRolloutState,
   type KillRecord,
   type PauseRecord,
   type ReleaseRolloutState,
   type JsReleaseGate,
+  type SliSnapshot,
+  type TickRolloutResult,
 } from "@client-platform/rn-core";
 
 import type { CandidateMetadata } from "./types.js";
@@ -326,6 +329,8 @@ export function startRollout(
     actor?: string;
     /** Override soak for AFK tests (ms). */
     min_soak_ms?: number;
+    /** Optional SLI upper bounds applied to non-full steps. */
+    sli_thresholds?: Record<string, number>;
   },
 ): { registry: DeliveryRegistry; rollout: ReleaseRolloutState } {
   const registry = loadRegistry(projectRoot);
@@ -342,11 +347,13 @@ export function startRollout(
               cohort: "canary",
               percent: 1,
               min_soak_ms: input.min_soak_ms,
+              sli_thresholds: input.sli_thresholds,
             },
             {
               cohort: "rolling-10",
               percent: 10,
               min_soak_ms: input.min_soak_ms,
+              sli_thresholds: input.sli_thresholds,
             },
             {
               cohort: "full",
@@ -405,4 +412,25 @@ export function resumeRollout(
   upsertRollout(registry, rollout);
   saveRegistry(projectRoot, registry);
   return { registry, rollout };
+}
+
+/** Map C C5 — scheduler tick with optional SLI snapshot. */
+export function tickRollout(
+  projectRoot: string,
+  digest: string,
+  opts?: {
+    sli?: SliSnapshot;
+    human_full_approved?: boolean;
+    now?: Date;
+  },
+): { registry: DeliveryRegistry; result: TickRolloutResult } {
+  const registry = loadRegistry(projectRoot);
+  const cur = registry.rollouts.find((r) => r.digest === digest);
+  if (!cur) {
+    throw new Error(`no rollout for digest ${digest}`);
+  }
+  const result = tickRolloutState(cur, opts);
+  upsertRollout(registry, result.state);
+  saveRegistry(projectRoot, registry);
+  return { registry, result };
 }

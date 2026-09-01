@@ -20,6 +20,7 @@ import {
   resumeModule,
   resumeRollout,
   startRollout,
+  tickRollout,
 } from "./candidate-store.js";
 import {
   checkCpBearerAuth,
@@ -309,6 +310,7 @@ export function createControlPlane(options: {
               update_id?: string;
               gate?: "js-standard" | "js-gated";
               min_soak_ms?: number;
+              sli_thresholds?: Record<string, number>;
             })
           : {};
         const { registry, rollout } = startRollout(projectRoot, {
@@ -318,6 +320,7 @@ export function createControlPlane(options: {
           gate: body.gate,
           actor: cpRole,
           min_soak_ms: body.min_soak_ms,
+          sli_thresholds: body.sli_thresholds,
         });
         sendJson(res, 200, {
           ok: true,
@@ -420,6 +423,39 @@ export function createControlPlane(options: {
         return;
       }
 
+      if (req.method === "POST" && url.pathname === "/v1/rollout/tick") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as {
+              digest?: string;
+              sli?: Record<string, number>;
+              human_full_approved?: boolean;
+              now?: string;
+            })
+          : {};
+        if (!body.digest?.trim()) {
+          throw new DeliveryError(
+            "POST /v1/rollout/tick: digest required",
+            EXIT_FAIL,
+          );
+        }
+        const { registry, result } = tickRollout(projectRoot, body.digest, {
+          sli: body.sli,
+          human_full_approved: body.human_full_approved === true,
+          now: body.now ? new Date(body.now) : undefined,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          action: "rollout_tick",
+          tick: result.action,
+          detail: result.detail,
+          rollout: result.state,
+          registry,
+        });
+        return;
+      }
+
       sendJson(res, 404, { error: "not_found", path: url.pathname });
     } catch (err) {
       if (err instanceof KillPauseError || err instanceof RolloutError) {
@@ -459,6 +495,7 @@ function printBanner(handle: ControlPlaneHandle, label: string): void {
   console.error("  GET  /v1/service | /health");
   console.error("  GET  /  (thin CP Web console)");
   console.error("  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)");
+  console.error("  POST /v1/rollout/tick { digest, sli?, now? } (C5 P10 auto)");
 }
 
 /** Map B thin CP — CLI-embedded serve (compat). */

@@ -125,18 +125,24 @@ export {
   advanceRolloutState,
   canAdvanceStep,
   defaultJsStandardSteps,
+  evaluateSliOk,
+  missingSliKeys,
   pauseRolloutState,
   phaseForStep,
   requireHumanForFull,
   resumeRolloutState,
   RolloutError,
   startRolloutState,
+  tickRolloutState,
 } from "./release-rollout.js";
 export type {
   ReleaseRolloutState,
   RolloutErrorCode,
   RolloutPhase,
   RolloutStep,
+  SliSnapshot,
+  TickRolloutAction,
+  TickRolloutResult,
 } from "./release-rollout.js";
 
 export {
