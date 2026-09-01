@@ -39,6 +39,13 @@ const STEPS = [
     issue: 83,
     verify: "scripts/verify-cp-governance-promote-gate.mjs",
   },
+  {
+    id: "D4",
+    kind: "afk",
+    title: "migration dry-run contract (expo/bare advisor)",
+    issue: 85,
+    verify: "scripts/verify-migration-dry-run.mjs",
+  },
 ];
 
 function printPlan() {

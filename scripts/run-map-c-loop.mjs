@@ -62,6 +62,13 @@ const STEPS = [
     issue: 79,
     verify: "scripts/verify-js-rollback-plan.mjs",
   },
+  {
+    id: "C7",
+    kind: "afk",
+    title: "P9 dual SBOM/attest promote fail-closed",
+    issue: 84,
+    verify: "scripts/verify-cp-sbom-promote-gate.mjs",
+  },
 ];
 
 function printPlan() {

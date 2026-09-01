@@ -198,11 +198,32 @@ export {
 } from "./release-unit.js";
 export type { ReleaseUnit, ReleaseUnitValidation } from "./release-unit.js";
 
+export {
+  buildBareBrownfieldAdvisorStub,
+  validateMigrationDryRunReport,
+} from "./migration-dry-run.js";
+export type {
+  MigrationDryRunIssue,
+  MigrationDryRunReport,
+  MigrationDryRunValidation,
+  MigrationSource,
+  MigrationTrack,
+} from "./migration-dry-run.js";
+
 export { evaluateGovernancePromoteGate } from "./governance-promote-gate.js";
 export type {
   GovernancePromoteCandidate,
   GovernancePromoteGateResult,
 } from "./governance-promote-gate.js";
+
+export { evaluateSbomPromoteGate } from "./sbom-promote-gate.js";
+export type {
+  DualSupplyChainRef,
+  SbomEvidenceRef,
+  SbomFormat,
+  SbomPromoteCandidate,
+  SbomPromoteGateResult,
+} from "./sbom-promote-gate.js";
 
 export {
   assertModulesIsolated,

@@ -10,23 +10,17 @@ import {
   snapshotExpoPackageJson,
   evaluateSdkRnDrift,
   type InteropConfig,
+  type MigrationDryRunReport,
+  type MigrationTrack,
 } from "@client-platform/rn-core";
 
 import { evaluateExpoDoctor } from "./expo-doctor.js";
 
 export type ExpoMigrateTrackId = 0 | 1 | 2;
 
-export type ExpoMigrateTrack = {
-  id: ExpoMigrateTrackId;
-  name: string;
-  summary: string;
-  recommended: boolean;
-  steps: string[];
-  risks: string[];
-};
+export type ExpoMigrateTrack = MigrationTrack & { id: ExpoMigrateTrackId };
 
-export type ExpoMigrateDryRunReport = {
-  dryRun: true;
+export type ExpoMigrateDryRunReport = MigrationDryRunReport & {
   source: "expo";
   detected: {
     hasExpoPackage: boolean;
@@ -40,7 +34,6 @@ export type ExpoMigrateDryRunReport = {
   };
   sdkRnDrift: ReturnType<typeof evaluateSdkRnDrift>;
   tracks: ExpoMigrateTrack[];
-  risks: string[];
   doctorChecks: ReturnType<typeof evaluateExpoDoctor>;
 };
 

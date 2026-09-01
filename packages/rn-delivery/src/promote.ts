@@ -6,6 +6,7 @@ import { loadRegistry, promoteStagingToProduction } from "./candidate-store.js";
 import { registryStoragePath } from "./registry-sqlite.js";
 import { assertGovernanceAllowsPromote } from "./governance-gate.js";
 import { assertQualityAllowsPromote } from "./quality-gate.js";
+import { assertSbomAllowsPromote } from "./sbom-gate.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
 
@@ -38,6 +39,7 @@ export async function runPromote(options: {
 
   assertQualityAllowsPromote(projectRoot, staging);
   assertGovernanceAllowsPromote(projectRoot, staging);
+  assertSbomAllowsPromote(staging);
 
   const { production } = promoteStagingToProduction(projectRoot, digest);
 

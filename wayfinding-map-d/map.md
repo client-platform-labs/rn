@@ -6,9 +6,9 @@ GitHub: [#80](https://github.com/client-platform-labs/rn/issues/80) (`wayfinder:
 
 ## Destination
 
-合规双落点 · 例外账本 · P12 release_unit · promote 治理 gate · 迁移/手册（deferred）。
+合规双落点 · 例外账本 · P12 release_unit · promote 治理 gate · 迁移 dry-run。运维手册正文仍 deferred。
 
-**Loop：** `node scripts/run-map-d-loop.mjs` → D1–D3 PASS
+**Loop：** `node scripts/run-map-d-loop.mjs` → D1–D4 PASS
 
 ## 进度板
 
@@ -17,7 +17,8 @@ GitHub: [#80](https://github.com/client-platform-labs/rn/issues/80) (`wayfinder:
 | D1 | [#81](https://github.com/client-platform-labs/rn/issues/81) | P16 dual-landing + P17 exception ledger | **resolved** | `verify-compliance-profile.mjs` |
 | D2 | [#82](https://github.com/client-platform-labs/rn/issues/82) | P12 release_unit + module isolation | **resolved** | `verify-release-unit.mjs` |
 | D3 | [#83](https://github.com/client-platform-labs/rn/issues/83) | governance fail-closed promote | **resolved** | `verify-cp-governance-promote-gate.mjs` |
-| D4 | — | 迁移工具链 / 运维手册 | deferred | docs + tooling |
+| D4 | [#85](https://github.com/client-platform-labs/rn/issues/85) | migration dry-run contract (expo/bare advisor) | **resolved** | `verify-migration-dry-run.mjs` |
+| D5 | — | 运维手册正文 / GRC 后端 | deferred | docs + ops |
 
 ## Out
 

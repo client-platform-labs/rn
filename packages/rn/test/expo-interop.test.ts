@@ -12,6 +12,7 @@ import { describe, it } from "node:test";
 import { parseDoctorProfile } from "../dist/brownfield-doctor.js";
 import { evaluateExpoDoctor } from "../dist/expo-doctor.js";
 import { buildExpoMigrateDryRunReport } from "../dist/expo-migrate.js";
+import { validateMigrationDryRunReport } from "@client-platform/rn-core";
 
 describe("expo interop doctor + migrate", () => {
   it("parses expo doctor profile", () => {
@@ -87,6 +88,9 @@ describe("expo interop doctor + migrate", () => {
       assert.equal(roundTrip.tracks[0]?.id, 0);
       assert.equal(roundTrip.tracks[1]?.id, 1);
       assert.equal(roundTrip.tracks[2]?.id, 2);
+
+      const contract = validateMigrationDryRunReport(report);
+      assert.equal(contract.ok, true, contract.issues.map((i) => i.reason).join("; "));
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

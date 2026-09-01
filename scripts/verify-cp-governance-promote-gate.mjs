@@ -18,8 +18,9 @@ const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "d3-gov" }));
 
+const digest = "c".repeat(64);
 const candidate = {
-  digest: "c".repeat(64),
+  digest,
   release_id: "rel-gov",
   update_id: "main-gov-1",
   business_module: "main",
@@ -29,6 +30,16 @@ const candidate = {
   channel: "huawei",
   stage: "promote",
   path: null,
+  supply_chain: {
+    host: {},
+    js_update: {
+      sbom: {
+        artifact_kind: "js-update",
+        format: "stub",
+        digest,
+      },
+    },
+  },
 };
 
 const { defaultFinanceComplianceProfile } = await import(

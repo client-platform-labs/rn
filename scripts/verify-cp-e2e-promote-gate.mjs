@@ -18,8 +18,9 @@ const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "c1-e2e" }));
 
+const digest = "a".repeat(64);
 const candidate = {
-  digest: "a".repeat(64),
+  digest,
   release_id: "rel-e2e",
   update_id: "main-e2e-1",
   business_module: "main",
@@ -28,6 +29,16 @@ const candidate = {
   profile: "release",
   stage: "promote",
   path: null,
+  supply_chain: {
+    host: {},
+    js_update: {
+      sbom: {
+        artifact_kind: "js-update",
+        format: "stub",
+        digest,
+      },
+    },
+  },
 };
 
 writeFileSync(

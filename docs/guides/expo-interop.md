@@ -33,6 +33,10 @@ rn doctor --profile expo --json
 # Migration advisor — dry-run only; never modifies files
 rn migrate expo --dry-run
 rn migrate --from expo --dry-run --json
+
+# v1 stubs (contract shape only; no file writes)
+rn migrate bare --dry-run --json
+rn migrate brownfield --dry-run --json
 ```
 
 ### Tracks (dry-run output)
