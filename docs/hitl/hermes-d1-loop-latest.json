@@ -2,7 +2,7 @@
   "mapIssue": 58,
   "mode": "auto",
   "ok": true,
-  "at": "2026-09-01T01:36:07.002Z",
+  "at": "2026-09-01T01:48:32.083Z",
   "results": [
     {
       "id": "D1-fixture-package",
@@ -37,7 +37,7 @@
       "kind": "AFK",
       "ok": true,
       "ms": 5385,
-      "detail": "▒▒▓▓▓▓▒▒\n                     ▒▓▓▓▒▒░░▒▒▓▓▓▒\n                  ▒▓▓▓▓░░░▒▒▒▒░░░▓▓▓▓▒\n                 ▓▓▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▓▓\n                 ▓▓░░░░░▒▓▓▓▓▓▓▒░░░░░▓▓\n                 ▓▓░░▓▓▒░░░▒▒░░░▒▓▒░"
+      "detail": "\u2592\u2592\u2593\u2593\u2593\u2593\u2592\u2592\n                     \u2592\u2593\u2593\u2593\u2592\u2592\u2591\u2591\u2592\u2592\u2593\u2593\u2593\u2592\n                  \u2592\u2593\u2593\u2593\u2593\u2591\u2591\u2591\u2592\u2592\u2592\u2592\u2591\u2591\u2591\u2593\u2593\u2593\u2593\u2592\n                 \u2593\u2593\u2592\u2592\u2592\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2593\u2592\u2592\u2592\u2593\u2593\n                 \u2593\u2593\u2591\u2591\u2591\u2591\u2591\u2592\u2593\u2593\u2593\u2593\u2593\u2593\u2592\u2591\u2591\u2591\u2591\u2591\u2593\u2593\n                 \u2593\u2593\u2591\u2591\u2593\u2593\u2592\u2591\u2591\u2591\u2592\u2592\u2591\u2591\u2591\u2592\u2593\u2592\u2591"
     },
     {
       "id": "D1-verify-slots",
@@ -70,9 +70,9 @@
     {
       "id": "D1-A2-fixture-root-debug",
       "kind": "AUTO-HITL",
-      "ok": false,
-      "skipped": true,
-      "detail": "debug install fail/timeout"
+      "ok": true,
+      "detail": "FIXTURE_SECOND root ok updateId=fixture_second-f63ad3041f61; desk map restored"
     }
-  ]
+  ],
+  "note": "A2 completed after human debug install"
 }

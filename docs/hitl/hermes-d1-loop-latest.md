@@ -1,6 +1,6 @@
 # Hermes D1 loop
 
-mode=auto ok=true at=2026-09-01T01:36:07.002Z
+mode=auto ok=true at=2026-09-01T01:48:32.083Z
 
 | ID | Kind | Status | Detail |
 |----|------|--------|--------|
@@ -18,4 +18,4 @@ mode=auto ok=true at=2026-09-01T01:36:07.002Z
 | D1-runbook | AFK | PASS | runbook present |
 | D1-docs-r8 | AFK | PASS | R8 ok |
 | D1-A1-release-desk | AUTO-HITL | PASS | Release desk cold start ok |
-| D1-A2-fixture-root-debug | AUTO-HITL | SKIP | debug install fail/timeout |
+| D1-A2-fixture-root-debug | AUTO-HITL | PASS | FIXTURE_SECOND root ok updateId=fixture_second-f63ad3041f61; desk map restored |

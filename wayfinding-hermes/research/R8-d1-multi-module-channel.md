@@ -162,6 +162,6 @@ ShellHost / ModuleRegistry (new thin)
 ## 9. Done when (#58)
 
 - [x] 本文落地（含工业条）  
-- [ ] §6.1 I1–I8 **全部**有证据  
-- [ ] §6.2 信号清零  
-- [ ] `run-hermes-d1-loop.mjs` 绿  
+- [x] §6.1 I1–I8 **全部**有证据  
+- [x] §6.2 信号清零  
+- [x] `run-hermes-d1-loop.mjs` 绿  
