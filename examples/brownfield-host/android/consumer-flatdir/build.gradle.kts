@@ -27,6 +27,6 @@ android {
 
 dependencies {
     // Production-style: consume staged rn-module AAR from publish/aar/ (flatDir in settings)
-    implementation(name = "stub-release", ext = "aar")
+    implementation(mapOf("name" to "stub-release", "ext" to "aar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
 }
