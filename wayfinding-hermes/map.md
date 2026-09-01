@@ -26,7 +26,7 @@ GitHub: [#29](https://github.com/client-platform-labs/rn/issues/29) · **交付:
 | T3 Runbook | ✅ #39 · R4 |
 | T2 API | ✅ #38 · P0 + messages/reports detail |
 | **R5 双轨** 壳解耦 + 产品深化 | ✅ [#42](https://github.com/client-platform-labs/rn/issues/42) **CLOSED** · 过渡归档（非工业终点） |
-| **方案 D** OTA 运行时 + 独立业务仓 | ✅ [#43](https://github.com/client-platform-labs/rn/issues/43) **CLOSED**（D0）· **D1/D2 架构设计开票** [#58](https://github.com/client-platform-labs/rn/issues/58) [#59](https://github.com/client-platform-labs/rn/issues/59) |
+| **方案 D** OTA 运行时 + 独立业务仓 | ✅ [#43](https://github.com/client-platform-labs/rn/issues/43) D0 CLOSED · 能力设计 [R8](research/R8-d1-multi-module-channel.md)/[#58](https://github.com/client-platform-labs/rn/issues/58) · [R9](research/R9-d2-repack-ota-plugin.md)/[#59](https://github.com/client-platform-labs/rn/issues/59) |
 | M-H6 / Depth reload | D0 已含（file-slot + TiangongOta process restart） |
 
 HITL: [delivery](../docs/hitl/hermes-delivery-latest.md) · [mh2](../docs/hitl/hermes-mh2-release-2026-08-31.md) · [mh4](../docs/hitl/hermes-mh4-js-update-2026-08-31.md) · [mh5](../docs/hitl/hermes-mh5-p0-e2e-2026-08-31.md)

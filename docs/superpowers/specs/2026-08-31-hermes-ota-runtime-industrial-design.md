@@ -64,7 +64,14 @@ host-android.git (tiangong-labs/host-android) (壳仓 · 零业务实现源码)
 | **D1** | 第二 `business_module` / channel 的**契约与壳槽** | **设计中** [#58](https://github.com/client-platform-labs/rn/issues/58) | 缝冻结后；可用 fixture 第二 module 验契约，不要求假产品 |
 | **D2** | Re.Pack MF 作 **Build 插件**；ScriptManager → **仅**已 verify 本地路径 | **设计中** [#59](https://github.com/client-platform-labs/rn/issues/59) | 设计关门后；**禁止**把 MF 做成第二套运行时 |
 
-**原则修正（2026-09-01）：** 架构必须**提前设计可扩展缝**，不得「等业务痛了再画图」。同时 **YAGNI 仍约束实现**：不预建全量第二业务产品、不上 Day-1 全量 MF。设计 ≠ 堆实体。
+**原则（2026-09-01）：** D1/D2 是宿主/平台的**架构能力**，须**提前设计并保留可插拔形态**（slot / channel / Build 插件）。业务团队「发现痛了再临时加」= 架构失败。  
+**YAGNI 只约束「不预堆假业务产品 / 不上 Day-1 全量 MF 运行时」**——不约束「不设计缝、不留插件口」。设计与最小可调用面（契约 + 空实现/单测）应先于业务需求出现。
+
+| Phase | 能力（Capability） | 插件/形态 | 设计 | 最小可调用面 |
+|-------|-------------------|-----------|------|--------------|
+| **D0** | 单 module OTA 执行 | 内置 OTA Client | **DONE** | embed + file-slot + verify→reload |
+| **D1** | 多 `business_module` / `channel` | Slot 表 + moduleId 路由；CP channel 参数 | [#58](https://github.com/client-platform-labs/rn/issues/58) · [R8](../../wayfinding-hermes/research/R8-d1-multi-module-channel.md) | 契约 + fixture 第二 module（可无 UI） |
+| **D2** | 可选联邦打包 | **Build 插件**（Re.Pack）；ScriptManager → 仅已 verify 本地 path | [#59](https://github.com/client-platform-labs/rn/issues/59) · [R9](../../wayfinding-hermes/research/R9-d2-repack-ota-plugin.md) | 插件接口 + 「禁止裸 remote execute」门禁 |
 
 ## 5. D0 contracts (minimal)
 
