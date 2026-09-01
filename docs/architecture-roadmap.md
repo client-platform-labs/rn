@@ -399,7 +399,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
 | **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
-| **Map C** | 🔄 **In progress** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1+C2 ✅ · C3 BLOCKED |
+| **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C3 ✅ · 店侧适配器 deferred |
 | **Map D** | ⬜ 未开 | 合规 · 迁移 · 运维手册 |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
@@ -416,8 +416,8 @@ flowchart TB
     D1[rn-delivery · metadata · HMAC sign · SBOM 槽]
   end
   subgraph CP["Control Plane ⚠️ thin"]
-    C1[cp-serve · Bearer · RBAC · SQLite|file · Kill · rollout · slo-breach]
-    C2[七渠 channel_profile 执行 ❌ C3]
+    C1[cp-serve · e2e_fail · channel_profile 合同]
+    C2[店侧 submit 适配器 ❌ C3b]
   end
   subgraph RT["Runtime ✅ thin"]
     R1[RuntimeHost · gateBundleLoad · A5 槽位]
@@ -480,7 +480,8 @@ flowchart TB
 |----|------|------|
 | C1 | P7 `e2e_fail` fail-closed promote | ✅ #74 |
 | C2 | `cp-serve` service face + slo-breach→pause | ✅ #75 |
-| C3 | channel_profile 七渠 | BLOCKED |
+| C3 | channel_profile 七渠合同 + pending-rules | ✅ #76 |
+| C3b | 店侧 submit 执行适配器 | deferred |
 
 ### 9.6 P1–P17 · 合同 vs 落地（摘要）
 

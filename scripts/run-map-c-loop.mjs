@@ -36,9 +36,10 @@ const STEPS = [
   },
   {
     id: "C3",
-    kind: "blocked",
-    title: "channel_profile seven-channel adapters",
-    blockedReason: "needs channel backends",
+    kind: "afk",
+    title: "channel_profile seven-channel contract",
+    issue: 76,
+    verify: "scripts/verify-channel-profile.mjs",
   },
 ];
 

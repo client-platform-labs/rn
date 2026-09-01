@@ -140,6 +140,21 @@ export type {
 } from "./release-rollout.js";
 
 export {
+  CHANNEL_IDS,
+  defaultChinaChannelProfiles,
+  isJsBlockedForChannel,
+  validateChannelProfileSet,
+} from "./channel-profile.js";
+export type {
+  ChannelId,
+  ChannelJsBlockReason,
+  ChannelProfile,
+  ChannelProfileIssue,
+  ChannelProfileValidation,
+  ChannelSupportTier,
+} from "./channel-profile.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,
