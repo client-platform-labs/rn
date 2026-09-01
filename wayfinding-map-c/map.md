@@ -1,12 +1,12 @@
 # Map C — 控制面服务化与渠道执行
 
-GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:map`) — **open**（店侧适配器 / 真观测仍 Depth）
+GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:map`) — **CLOSED**（AFK EXITED 2026-09-01）
 
 **Parents:** Map A [#18](https://github.com/client-platform-labs/rn/issues/18) CLOSED · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) open for B6–B8 lab only.
 
 ## Destination
 
-生产控制面缝：服务化 · P7/P8/P11 fail-closed · channel_profile · P10 tick。
+生产控制面缝：服务化 · P7/P8/P9/P11/P13/P15 fail-closed · channel_profile · P10 tick。
 
 **Loop：** `node scripts/run-map-c-loop.mjs` → C1–C9 PASS
 
@@ -23,7 +23,7 @@ GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:
 | C7 | [#84](https://github.com/client-platform-labs/rn/issues/84) | P9 dual SBOM/attest promote fail-closed | **resolved** | `verify-cp-sbom-promote-gate.mjs` |
 | C8 | [#86](https://github.com/client-platform-labs/rn/issues/86) | P13 RN SLO + error-budget contract | **resolved** | `verify-rn-slo-budget.mjs` |
 | C9 | [#87](https://github.com/client-platform-labs/rn/issues/87) | P15 mixed-stack attribution contract | **resolved** | `verify-attribution-contract.mjs` |
-| C3b | — | 店侧提交执行适配器 | deferred | needs store backends |
+| C3b | [#89](https://github.com/client-platform-labs/rn/issues/89) | 店侧提交执行适配器 | **deferred** | needs store backends |
 
 ## Out
 

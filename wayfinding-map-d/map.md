@@ -1,8 +1,8 @@
 # Map D — 合规叠加 · 迁移 · 运维手册
 
-GitHub: [#80](https://github.com/client-platform-labs/rn/issues/80) (`wayfinder:map`) — **open**
+GitHub: [#80](https://github.com/client-platform-labs/rn/issues/80) (`wayfinder:map`) — **CLOSED**（AFK EXITED 2026-09-01）
 
-**Parents:** Map A [#18](https://github.com/client-platform-labs/rn/issues/18) CLOSED · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) B6–B8 · Map C [#73](https://github.com/client-platform-labs/rn/issues/73) AFK C1–C6.
+**Parents:** Map A [#18](https://github.com/client-platform-labs/rn/issues/18) CLOSED · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) B6–B8 · Map C [#73](https://github.com/client-platform-labs/rn/issues/73) AFK EXITED.
 
 ## Destination
 
@@ -19,6 +19,7 @@ GitHub: [#80](https://github.com/client-platform-labs/rn/issues/80) (`wayfinder:
 | D3 | [#83](https://github.com/client-platform-labs/rn/issues/83) | governance fail-closed promote | **resolved** | `verify-cp-governance-promote-gate.mjs` |
 | D4 | [#85](https://github.com/client-platform-labs/rn/issues/85) | migration dry-run contract (expo/bare advisor) | **resolved** | `verify-migration-dry-run.mjs` |
 | D5 | [#88](https://github.com/client-platform-labs/rn/issues/88) | ops runbook AFK checklist (thin) | **resolved** | `verify-ops-runbook.mjs` |
+| — | [#90](https://github.com/client-platform-labs/rn/issues/90) | GRC backends + real SBOM generation | **deferred** | product |
 
 ## Out
 

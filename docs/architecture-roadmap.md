@@ -399,8 +399,8 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
 | **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
-| **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C9 ✅ · 店侧适配器 deferred |
-| **Map D** | 🔄 **AFK bar green** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D5 ✅ · GRC 后端 deferred |
+| **Map C** | ✅ **AFK EXITED** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C9 ✅ · C3b → [#89](https://github.com/client-platform-labs/rn/issues/89) |
+| **Map D** | ✅ **AFK EXITED** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D5 ✅ · GRC → [#90](https://github.com/client-platform-labs/rn/issues/90) |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
 **对外口径：** 可称「单 module **可企业推广候选**（L4–L5 thin）」；**不可**称全国投产 / 全渠道 / Map C 能力已就绪。
@@ -487,7 +487,7 @@ flowchart TB
 | C7 | P9 dual SBOM/attest promote fail-closed | ✅ #84 |
 | C8 | P13 RN SLO + error-budget 合同 | ✅ #86 |
 | C9 | P15 mixed-stack attribution 合同 | ✅ #87 |
-| C3b | 店侧 submit 执行适配器 | deferred |
+| C3b | 店侧 submit 执行适配器 | deferred → [#89](https://github.com/client-platform-labs/rn/issues/89) |
 
 ### 9.5c Map D
 
@@ -517,4 +517,4 @@ flowchart TB
 2. **Map C depth：** C3b 店侧 submit · 真 SLO/metrics 后端
 3. **产品深度：** GRC 后端 · 真 SBOM 生成 · 设备农场
 
-*上一结项：C8 [#86](https://github.com/client-platform-labs/rn/issues/86) · C9 [#87](https://github.com/client-platform-labs/rn/issues/87) · D5 [#88](https://github.com/client-platform-labs/rn/issues/88) · Map C AFK C1–C9 · Map D AFK D1–D5。*
+*上一结项：Map C [#73](https://github.com/client-platform-labs/rn/issues/73) AFK EXITED · Map D [#80](https://github.com/client-platform-labs/rn/issues/80) AFK EXITED · deferred [#89](https://github.com/client-platform-labs/rn/issues/89)/[#90](https://github.com/client-platform-labs/rn/issues/90) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*
