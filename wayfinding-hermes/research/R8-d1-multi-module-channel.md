@@ -17,8 +17,7 @@ D1 不是「等第二个业务团队喊痛再加」。它是宿主的**多租户
 | **Form** | **Slot 插件表**（FS 布局 + 路由表），不是再嵌一套 Topology B `modules/` |
 | **Who needs it** | 平台先具备；业务团队日后「加第二包」只填契约，不改壳内核 |
 
-YAGNI：不预做第二个真实投研产品 UI。  
-**必做：** 契约、目录、Host API、fixture 第二 module 验缝。
+**与 YAGNI 正交：** 做 slot/channel **能力**与 fixture 验缝；不做第二个真实投研产品 UI。
 
 ---
 

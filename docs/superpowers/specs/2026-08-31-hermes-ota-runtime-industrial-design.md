@@ -64,8 +64,14 @@ host-android.git (tiangong-labs/host-android) (壳仓 · 零业务实现源码)
 | **D1** | 第二 `business_module` / channel 的**契约与壳槽** | **设计中** [#58](https://github.com/client-platform-labs/rn/issues/58) | 缝冻结后；可用 fixture 第二 module 验契约，不要求假产品 |
 | **D2** | Re.Pack MF 作 **Build 插件**；ScriptManager → **仅**已 verify 本地路径 | **设计中** [#59](https://github.com/client-platform-labs/rn/issues/59) | 设计关门后；**禁止**把 MF 做成第二套运行时 |
 
-**原则（2026-09-01）：** D1/D2 是宿主/平台的**架构能力**，须**提前设计并保留可插拔形态**（slot / channel / Build 插件）。业务团队「发现痛了再临时加」= 架构失败。  
-**YAGNI 只约束「不预堆假业务产品 / 不上 Day-1 全量 MF 运行时」**——不约束「不设计缝、不留插件口」。设计与最小可调用面（契约 + 空实现/单测）应先于业务需求出现。
+**与 YAGNI 不冲突（正交）：**
+
+| 层 | 做 | 不做 |
+|----|----|------|
+| **架构能力** | 提前设计缝、插件口、契约、最小可调用面（fixture / verify） | — |
+| **YAGNI** | — | 不预堆假业务产品 UI；不上 Day-1 全量 MF **运行时** |
+
+能力先具备（slot / channel / Build 插件门禁）≠ 堆实体。业务来用时只填契约；等痛了再挖缝才是架构失败。
 
 | Phase | 能力（Capability） | 插件/形态 | 设计 | 最小可调用面 |
 |-------|-------------------|-----------|------|--------------|
