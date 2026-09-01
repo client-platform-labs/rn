@@ -398,8 +398,9 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 | 层级 | 状态 | 说明 |
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
-| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9+B10 ✅ · B6 SKIP · B7/B8 BLOCKED |
-| **Map C/D** | ⬜ 未开 | 控制面服务化 · 七渠 · 多 module 隔离 · 合规加固（[research/01 §3](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md)） |
+| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
+| **Map C** | 🔄 **Kickoff** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1 ✅ · C2/C3 BLOCKED |
+| **Map D** | ⬜ 未开 | 合规 · 迁移 · 运维手册 |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
 **对外口径：** 可称「单 module **可企业推广候选**（L4–L5 thin）」；**不可**称全国投产 / 全渠道 / Map C 能力已就绪。
@@ -415,8 +416,8 @@ flowchart TB
     D1[rn-delivery · metadata · HMAC sign · SBOM 槽]
   end
   subgraph CP["Control Plane ⚠️ thin"]
-    C1[serve API · Web console · Bearer · RBAC · SQLite · Kill/Pause]
-    C2[灰度 rollout_steps · 真 CP 服务 ❌]
+    C1[serve API · Web · Bearer · RBAC · SQLite · Kill/Pause · rollout_steps]
+    C2[真 CP 服务 · 七渠 ❌ Map C C2+]
   end
   subgraph RT["Runtime ✅ thin"]
     R1[RuntimeHost · gateBundleLoad · A5 槽位]
@@ -464,27 +465,37 @@ flowchart TB
 | B4–B5 | P4/P6 native doctor · CP viewer/admin | ✅ #27–#28 |
 | B9 | CP Kill/Pause by `business_module` + A5 wire | ✅ #70 |
 | B10 | P4 Hermes/NewArch/tuple drift + P6 codegen surface | ✅ #71 |
+| B11 | CP thin rollout_steps (P10 soak ladder) | ✅ #72 |
 | B6 | XCFramework **binary** CI | SKIP（需 full Xcode） |
 | B7 | Harmony 真机 | BLOCKED（DevEco） |
 | B8 | CP Postgres 多租户 | BLOCKED（产品） |
 
 **回归入口：** `node scripts/run-map-b-loop.mjs` → [`map-b-loop-latest.md`](./hitl/map-b-loop-latest.md)
 
+### 9.5b Map C
+
+索引：[wayfinding-map-c/map.md](../wayfinding-map-c/map.md) · loop：`node scripts/run-map-c-loop.mjs`
+
+| ID | 内容 | 状态 |
+|----|------|------|
+| C1 | P7 `e2e_fail` fail-closed promote | ✅ #74 |
+| C2 | 真 CP 服务进程 | BLOCKED |
+| C3 | channel_profile 七渠 | BLOCKED |
+
 ### 9.6 P1–P17 · 合同 vs 落地（摘要）
 
 | 态 | 补丁 |
 |----|------|
-| **✅ 代码+验证** | P3 · P4 thin（B4）· P5 · P6 thin（B4）· P2 部分（block/promote 演练） |
-| **⚠️ 接口/薄** | P1 · P2 文案 · P7（M9 only）· P9（SBOM 生成 stub） |
-| **❌ Map C/D** | P8 · P10–P17 生产联动（E2E/SLO/渠道/合规） |
+| **✅ 代码+验证** | P3 · P4 thin+depth（B4/B10）· P5 · P6 thin+codegen（B4/B10）· P2 部分 · P7 e2e_fail（C1）· P10 thin rollout（B11） |
+| **⚠️ 接口/薄** | P1 · P2 文案 · P9（SBOM stub） |
+| **❌ Map C/D 余量** | P8 · P10 SLO 自动 · P11–P17 生产联动 |
 
 合同权威：[research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) — **实现可分期，合同不砍**。
 
 ### 9.7 距目标地 · 优先 backlog
 
-1. **实验台：** Gradle/SDK（`H-bf-consumer`）· Xcode CI（B6）· Harmony 设备（B7）
-2. **Map B 可 AFK：** rollout_steps UI · P6 native lint 加深（静态扫描）
-3. **Map C kickoff：** 真 CP 服务 · P7 E2E 挡 promote · `channel_profile` 七渠
-4. **Map D：** 迁移工具链 · 合规叠加档 · 运维手册
+1. **实验台：** Xcode CI（B6）· Harmony（B7）· Postgres 多租户（B8）
+2. **Map C：** C2 真 CP 服务 · C3 七渠 · SLO↔Paused
+3. **Map D：** 迁移工具链 · 合规叠加档 · 运维手册
 
-*上一结项：B10 P4/P6 depth [#71](https://github.com/client-platform-labs/rn/issues/71) · B9 [#70](https://github.com/client-platform-labs/rn/issues/70) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open 直至 B6–B8/渠道余量挂接或 honest defer。*
+*上一结项：B11 [#72](https://github.com/client-platform-labs/rn/issues/72) · C1 [#74](https://github.com/client-platform-labs/rn/issues/74) · Map C [#73](https://github.com/client-platform-labs/rn/issues/73) · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*

@@ -122,6 +122,24 @@ export type {
 } from "./release-kill.js";
 
 export {
+  advanceRolloutState,
+  canAdvanceStep,
+  defaultJsStandardSteps,
+  pauseRolloutState,
+  phaseForStep,
+  requireHumanForFull,
+  resumeRolloutState,
+  RolloutError,
+  startRolloutState,
+} from "./release-rollout.js";
+export type {
+  ReleaseRolloutState,
+  RolloutErrorCode,
+  RolloutPhase,
+  RolloutStep,
+} from "./release-rollout.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,

@@ -28,6 +28,7 @@ GitHub: #23 (`wayfinder:map`) — **open**
 | B5 | [#28](https://github.com/client-platform-labs/rn/issues/28) | CP role matrix | **resolved** | `verify-cp-rbac.mjs` |
 | B9 | [#70](https://github.com/client-platform-labs/rn/issues/70) | CP Kill/Pause by module | **resolved** | `verify-cp-kill-pause.mjs` |
 | B10 | [#71](https://github.com/client-platform-labs/rn/issues/71) | P4 Hermes/NewArch/tuple + P6 codegen | **resolved** | `verify-bf-native-doctor-depth.mjs` |
+| B11 | [#72](https://github.com/client-platform-labs/rn/issues/72) | CP thin rollout_steps | **resolved** | `verify-cp-rollout-steps.mjs` |
 | B6 | #25 | XCFramework binary CI | deferred | full Xcode |
 | B7 | — | Harmony 真机 | blocked | DevEco |
 | B8 | — | CP Postgres | blocked | 产品 |

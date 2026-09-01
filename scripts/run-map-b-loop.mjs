@@ -96,6 +96,14 @@ const STEPS = [
     deps: ["B4"],
   },
   {
+    id: "B11",
+    kind: "afk",
+    title: "CP thin rollout_steps (P10 soak)",
+    issue: 72,
+    verify: "scripts/verify-cp-rollout-steps.mjs",
+    deps: ["B1", "B5", "B9"],
+  },
+  {
     id: "B6",
     kind: "deferred",
     title: "XCFramework binary artifact on CI",

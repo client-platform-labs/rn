@@ -48,6 +48,10 @@ function openDb(projectRoot: string): DatabaseSync {
       business_module TEXT PRIMARY KEY,
       record_json TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS rollouts (
+      digest TEXT PRIMARY KEY,
+      record_json TEXT NOT NULL
+    );
   `);
   const row = db
     .prepare("SELECT value FROM registry_meta WHERE key = 'schemaVersion'")
@@ -103,7 +107,22 @@ export function loadRegistrySqlite(projectRoot: string): DeliveryRegistry {
       .prepare("SELECT record_json FROM pauses ORDER BY rowid")
       .all() as Array<{ record_json: string }>
   ).map((r) => JSON.parse(r.record_json) as DeliveryRegistry["pauses"][number]);
-  return { schemaVersion: 1, staging, production, blocked, kills, pauses };
+  const rollouts = (
+    db
+      .prepare("SELECT record_json FROM rollouts ORDER BY rowid")
+      .all() as Array<{ record_json: string }>
+  ).map(
+    (r) => JSON.parse(r.record_json) as DeliveryRegistry["rollouts"][number],
+  );
+  return {
+    schemaVersion: 1,
+    staging,
+    production,
+    blocked,
+    kills,
+    pauses,
+    rollouts,
+  };
 }
 
 export function saveRegistrySqlite(
@@ -118,6 +137,7 @@ export function saveRegistrySqlite(
     db.prepare("DELETE FROM blocked").run();
     db.prepare("DELETE FROM kills").run();
     db.prepare("DELETE FROM pauses").run();
+    db.prepare("DELETE FROM rollouts").run();
     const insertCandidate = db.prepare(
       "INSERT INTO candidates (lane, digest, metadata_json) VALUES (?, ?, ?)",
     );
@@ -144,6 +164,12 @@ export function saveRegistrySqlite(
     );
     for (const p of registry.pauses ?? []) {
       insertPause.run(p.business_module, JSON.stringify(p));
+    }
+    const insertRollout = db.prepare(
+      "INSERT INTO rollouts (digest, record_json) VALUES (?, ?)",
+    );
+    for (const r of registry.rollouts ?? []) {
+      insertRollout.run(r.digest, JSON.stringify(r));
     }
     db.exec("COMMIT");
   } catch (err) {

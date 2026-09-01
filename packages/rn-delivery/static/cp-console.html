@@ -175,6 +175,10 @@
       <h2>Kills · Pauses (B9 · by business_module)</h2>
       <div id="kills-pauses"></div>
     </section>
+    <section>
+      <h2>Rollouts (B11 · P10 soak ladder)</h2>
+      <div id="rollouts"></div>
+    </section>
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
@@ -215,7 +219,11 @@
       const pause = mod
         ? `<button type="button" data-act="pause" data-module="${mod}">Pause</button>`
         : "";
-      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">Block</button>${kill}${pause}`;
+      const startRollout =
+        mod && digest
+          ? `<button type="button" data-act="rollout-start" data-module="${mod}" data-digest="${digest}" data-update="${uid}">Start rollout</button>`
+          : "";
+      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">Block</button>${kill}${pause}${startRollout}`;
     }
 
     function renderCandidates(el, list, lane) {
@@ -294,6 +302,30 @@
       </table>`;
     }
 
+    function renderRollouts(el, list) {
+      if (!list || list.length === 0) {
+        el.innerHTML = `<div class="empty">empty — Start rollout from candidate rows</div>`;
+        return;
+      }
+      const body = list
+        .map(
+          (r) => `<tr>
+            <td>${r.business_module}<br/><code>${short(r.digest)}</code></td>
+            <td><span class="tag">${r.phase}</span> ${r.steps?.[r.step_index]?.percent ?? "—"}% · ${r.gate}</td>
+            <td class="actions">
+              <button type="button" data-act="rollout-advance" data-digest="${r.digest}">Advance</button>
+              <button type="button" data-act="rollout-pause" data-digest="${r.digest}">Pause</button>
+              <button type="button" data-act="rollout-resume" data-digest="${r.digest}">Resume</button>
+            </td>
+          </tr>`,
+        )
+        .join("");
+      el.innerHTML = `<table>
+        <thead><tr><th>module / digest</th><th>phase</th><th></th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
+
     async function load() {
       $("status").textContent = "loading…";
       showError("");
@@ -305,8 +337,9 @@
         renderCandidates($("production"), data.production, "production");
         renderBlocked($("blocked"), data.blocked);
         renderKillsPauses($("kills-pauses"), data);
+        renderRollouts($("rollouts"), data.rollouts);
         $("status").textContent =
-          `staging ${data.staging?.length ?? 0} · production ${data.production?.length ?? 0} · blocked ${data.blocked?.length ?? 0} · kills ${data.kills?.length ?? 0} · pauses ${data.pauses?.length ?? 0}`;
+          `staging ${data.staging?.length ?? 0} · production ${data.production?.length ?? 0} · blocked ${data.blocked?.length ?? 0} · kills ${data.kills?.length ?? 0} · pauses ${data.pauses?.length ?? 0} · rollouts ${data.rollouts?.length ?? 0}`;
       } catch (err) {
         showError(String(err.message || err));
         $("status").textContent = "error";
@@ -350,6 +383,19 @@
           await post("/v1/pause", { business_module: mod, reason });
         } else if (act === "resume") {
           await post("/v1/resume", { business_module: mod });
+        } else if (act === "rollout-start") {
+          await post("/v1/rollout/start", {
+            business_module: mod,
+            digest,
+            update_id: updateId || undefined,
+            gate: "js-standard",
+          });
+        } else if (act === "rollout-advance") {
+          await post("/v1/rollout/advance", { digest });
+        } else if (act === "rollout-pause") {
+          await post("/v1/rollout/pause", { digest });
+        } else if (act === "rollout-resume") {
+          await post("/v1/rollout/resume", { digest });
         }
         await load();
       } catch (err) {

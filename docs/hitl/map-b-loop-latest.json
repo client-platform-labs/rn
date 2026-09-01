@@ -8,7 +8,8 @@
     "B4",
     "B5",
     "B9",
-    "B10"
+    "B10",
+    "B11"
   ],
   "fail": [],
   "skip": [
@@ -19,8 +20,8 @@
     "B8"
   ],
   "ok": true,
-  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T03-17-42-423Z.jsonl",
-  "ts": "2026-09-01T03:17:49.148Z",
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T03-30-03-585Z.jsonl",
+  "ts": "2026-09-01T03:30:12.945Z",
   "inventory": [
     {
       "id": "B1",
@@ -85,6 +86,18 @@
       "verify": "scripts/verify-bf-native-doctor-depth.mjs",
       "deps": [
         "B4"
+      ]
+    },
+    {
+      "id": "B11",
+      "kind": "afk",
+      "title": "CP thin rollout_steps (P10 soak)",
+      "issue": 72,
+      "verify": "scripts/verify-cp-rollout-steps.mjs",
+      "deps": [
+        "B1",
+        "B5",
+        "B9"
       ]
     },
     {

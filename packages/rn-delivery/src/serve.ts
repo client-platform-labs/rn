@@ -4,19 +4,23 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  advanceRollout,
   blockCandidateInRegistry,
   blockedUpdateIdsForRuntime,
   killModuleUpdates,
   listInstallableCandidates,
   loadRegistry,
   pauseModule,
+  pauseRollout,
   resumeModule,
+  resumeRollout,
+  startRollout,
 } from "./candidate-store.js";
 import { checkCpBearerAuth, checkCpMutatingRole, resolveCpAuthToken, resolveCpRole } from "./cp-auth.js";
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
-import { KillPauseError } from "@client-platform/rn-core";
+import { KillPauseError, RolloutError } from "@client-platform/rn-core";
 
 const STATIC_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -243,9 +247,103 @@ export async function runServe(options: {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/v1/rollouts") {
+        const registry = loadRegistry(projectRoot);
+        sendJson(res, 200, { rollouts: registry.rollouts });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/rollout/start") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as {
+              business_module?: string;
+              digest?: string;
+              update_id?: string;
+              gate?: "js-standard" | "js-gated";
+              min_soak_ms?: number;
+            })
+          : {};
+        const { registry, rollout } = startRollout(projectRoot, {
+          business_module: body.business_module ?? "",
+          digest: body.digest ?? "",
+          update_id: body.update_id,
+          gate: body.gate,
+          actor: cpRole,
+          min_soak_ms: body.min_soak_ms,
+        });
+        sendJson(res, 200, { ok: true, action: "rollout_start", rollout, registry });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/rollout/advance") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as {
+              digest?: string;
+              human_full_approved?: boolean;
+              force_soak?: boolean;
+            })
+          : {};
+        if (!body.digest?.trim()) {
+          throw new DeliveryError(
+            "POST /v1/rollout/advance: digest required",
+            EXIT_FAIL,
+          );
+        }
+        const { registry, rollout } = advanceRollout(projectRoot, body.digest, {
+          human_full_approved: body.human_full_approved,
+          forceSoak: body.force_soak === true,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          action: "rollout_advance",
+          rollout,
+          registry,
+        });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/rollout/pause") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
+        if (!body.digest?.trim()) {
+          throw new DeliveryError(
+            "POST /v1/rollout/pause: digest required",
+            EXIT_FAIL,
+          );
+        }
+        const { registry, rollout } = pauseRollout(projectRoot, body.digest);
+        sendJson(res, 200, { ok: true, action: "rollout_pause", rollout, registry });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/rollout/resume") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
+        if (!body.digest?.trim()) {
+          throw new DeliveryError(
+            "POST /v1/rollout/resume: digest required",
+            EXIT_FAIL,
+          );
+        }
+        const { registry, rollout } = resumeRollout(projectRoot, body.digest);
+        sendJson(res, 200, {
+          ok: true,
+          action: "rollout_resume",
+          rollout,
+          registry,
+        });
+        return;
+      }
+
       sendJson(res, 404, { error: "not_found", path: url.pathname });
     } catch (err) {
-      if (err instanceof KillPauseError) {
+      if (err instanceof KillPauseError || err instanceof RolloutError) {
         sendJson(res, 400, { error: err.message, code: err.code });
         return;
       }
@@ -268,6 +366,9 @@ export async function runServe(options: {
       );
       console.error(
         "  GET  /v1/kills | POST /v1/kill | /v1/pause | /v1/resume (B9)",
+      );
+      console.error(
+        "  GET  /v1/rollouts | POST /v1/rollout/start|advance|pause|resume (B11)",
       );
       if (cpAuthToken) {
         console.error("  CP auth: RN_CP_TOKEN set — mutating routes require Bearer");

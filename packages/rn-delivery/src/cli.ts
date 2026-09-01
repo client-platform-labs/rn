@@ -35,8 +35,8 @@ Commands:
     Same-artifact promote: staging → production (M6).
   block [--candidate <path>] [--reason <text>]
     Block candidate in registry (rollback drill).
-  signal record --module <id> --update-id <id> --kind crash|js_error|anr|perf|custom [--detail <text>]
-    Append quality signal (M9 — does not block compile).
+  signal record --module <id> --update-id <id> --kind crash|js_error|anr|perf|custom|e2e_fail [--detail <text>] [--digest <sha256>]
+    Append quality signal (M9 / Map C C1 — e2e_fail blocks promote, not compile).
   signal list
     List recorded quality signals.
   signal clear
@@ -254,9 +254,10 @@ export async function run(argv = process.argv): Promise<number> {
           kind: requireFlag(
             subArgs,
             "--kind",
-            "signal record: --kind crash|js_error|anr|perf|custom required",
+            "signal record: --kind crash|js_error|anr|perf|custom|e2e_fail required",
           ),
           detail: flagValue(subArgs, "--detail"),
+          digest: flagValue(subArgs, "--digest"),
         });
         return EXIT_OK;
       }

@@ -18,4 +18,5 @@ Page lists staging / production / blocked / kills / pauses from `GET /v1/registr
 
 Verify: `node scripts/verify-cp-auth.mjs` · `verify-cp-rbac.mjs` · `verify-cp-kill-pause.mjs` · `node scripts/run-map-b-loop.mjs`
 
-Still Map B depth / Map C: full `rollout_steps` soak UI · true multi-tenant CP service.
+Still Map B depth / Map C: true multi-tenant CP service · seven-channel adapters.  
+Kill/Pause (B9) + rollout_steps (B11) landed on thin serve.

@@ -43,6 +43,8 @@ node scripts/run-afk-hitl-loop.mjs --plan
 
 **Map B 工业切面** 有独立 loop → [`map-b-loop.md`](./map-b-loop.md) · `node scripts/run-map-b-loop.mjs`（已从本 Spine loop 移除 MapB-* 步骤）。
 
+**Map C** → `node scripts/run-map-c-loop.mjs` · [map-c-kickoff](../map-c-kickoff.md) · [#73](https://github.com/client-platform-labs/rn/issues/73)
+
 **Hermes 方案 D · map [#43](https://github.com/client-platform-labs/rn/issues/43)**（D0 CLOSED）· **D1 工业条** [#58](https://github.com/client-platform-labs/rn/issues/58):
 
 ```bash
@@ -120,7 +122,8 @@ Plan/design: [R8](../wayfinding-hermes/research/R8-d1-multi-module-channel.md) �
 | CP | #7 | `verify-cp-stub-api.mjs` | — | AFK |
 | Dist | #15 | `verify-distribution-console.mjs` | CP | AFK |
 
-Map B（B1–B8）→ [`map-b-loop.md`](./map-b-loop.md)
+Map B（B1–B11）→ [`map-b-loop.md`](./map-b-loop.md)  
+Map C（C1+）→ `node scripts/run-map-c-loop.mjs`
 
 | ID | Issue | Script | Deps | Kind |
 |----|-------|--------|------|------|

@@ -11,8 +11,14 @@ import {
   assertCanResume,
   collectBlockedUpdateIds,
   normalizeKillInput,
+  pauseRolloutState,
+  resumeRolloutState,
+  startRolloutState,
+  advanceRolloutState,
   type KillRecord,
   type PauseRecord,
+  type ReleaseRolloutState,
+  type JsReleaseGate,
 } from "@client-platform/rn-core";
 
 import type { CandidateMetadata } from "./types.js";
@@ -45,6 +51,8 @@ export type DeliveryRegistry = {
   kills: KillRecord[];
   /** Map B B9 — module pause (blocks promote narrative; resume admin-only). */
   pauses: PauseRecord[];
+  /** Map B B11 — thin P10 rollout_steps per digest/module. */
+  rollouts: ReleaseRolloutState[];
 };
 
 export function deliveryDir(projectRoot: string): string {
@@ -110,6 +118,7 @@ export function emptyRegistry(): DeliveryRegistry {
     blocked: [],
     kills: [],
     pauses: [],
+    rollouts: [],
   };
 }
 
@@ -121,6 +130,7 @@ function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
     blocked: raw.blocked ?? [],
     kills: raw.kills ?? [],
     pauses: raw.pauses ?? [],
+    rollouts: raw.rollouts ?? [],
   };
 }
 
@@ -294,4 +304,105 @@ export function blockedUpdateIdsForRuntime(
     kills: registry.kills,
     blocked: registry.blocked,
   });
+}
+
+function upsertRollout(
+  registry: DeliveryRegistry,
+  rollout: ReleaseRolloutState,
+): void {
+  registry.rollouts = [
+    ...registry.rollouts.filter((r) => r.digest !== rollout.digest),
+    rollout,
+  ];
+}
+
+export function startRollout(
+  projectRoot: string,
+  input: {
+    business_module: string;
+    digest: string;
+    update_id?: string;
+    gate?: JsReleaseGate;
+    actor?: string;
+    /** Override soak for AFK tests (ms). */
+    min_soak_ms?: number;
+  },
+): { registry: DeliveryRegistry; rollout: ReleaseRolloutState } {
+  const registry = loadRegistry(projectRoot);
+  const rollout = startRolloutState({
+    business_module: input.business_module,
+    digest: input.digest,
+    update_id: input.update_id,
+    gate: input.gate,
+    actor: input.actor,
+    steps:
+      input.min_soak_ms != null
+        ? [
+            {
+              cohort: "canary",
+              percent: 1,
+              min_soak_ms: input.min_soak_ms,
+            },
+            {
+              cohort: "rolling-10",
+              percent: 10,
+              min_soak_ms: input.min_soak_ms,
+            },
+            {
+              cohort: "full",
+              percent: 100,
+              min_soak_ms: 0,
+            },
+          ]
+        : undefined,
+  });
+  upsertRollout(registry, rollout);
+  saveRegistry(projectRoot, registry);
+  return { registry, rollout };
+}
+
+export function advanceRollout(
+  projectRoot: string,
+  digest: string,
+  opts?: { human_full_approved?: boolean; forceSoak?: boolean },
+): { registry: DeliveryRegistry; rollout: ReleaseRolloutState } {
+  const registry = loadRegistry(projectRoot);
+  const cur = registry.rollouts.find((r) => r.digest === digest);
+  if (!cur) {
+    throw new Error(`no rollout for digest ${digest}`);
+  }
+  const rollout = advanceRolloutState(cur, opts);
+  upsertRollout(registry, rollout);
+  saveRegistry(projectRoot, registry);
+  return { registry, rollout };
+}
+
+export function pauseRollout(
+  projectRoot: string,
+  digest: string,
+): { registry: DeliveryRegistry; rollout: ReleaseRolloutState } {
+  const registry = loadRegistry(projectRoot);
+  const cur = registry.rollouts.find((r) => r.digest === digest);
+  if (!cur) {
+    throw new Error(`no rollout for digest ${digest}`);
+  }
+  const rollout = pauseRolloutState(cur);
+  upsertRollout(registry, rollout);
+  saveRegistry(projectRoot, registry);
+  return { registry, rollout };
+}
+
+export function resumeRollout(
+  projectRoot: string,
+  digest: string,
+): { registry: DeliveryRegistry; rollout: ReleaseRolloutState } {
+  const registry = loadRegistry(projectRoot);
+  const cur = registry.rollouts.find((r) => r.digest === digest);
+  if (!cur) {
+    throw new Error(`no rollout for digest ${digest}`);
+  }
+  const rollout = resumeRolloutState(cur);
+  upsertRollout(registry, rollout);
+  saveRegistry(projectRoot, registry);
+  return { registry, rollout };
 }

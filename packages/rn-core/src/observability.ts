@@ -7,7 +7,9 @@ export type QualitySignalKind =
   | "js_error"
   | "anr"
   | "perf"
-  | "custom";
+  | "custom"
+  /** Map C C1 / P7 — E2E failure on JS train (blocks promote, not compile). */
+  | "e2e_fail";
 
 export type QualitySignalAttribution = {
   business_module: string;
@@ -15,6 +17,9 @@ export type QualitySignalAttribution = {
   kind: QualitySignalKind;
   /** Optional shell / Runtime identity for cross-cutting joins. */
   runtime_fingerprint_digest?: string;
+  /** P7 — artifact digest when known (promote match). */
+  artifact_digest?: string;
+  release_id?: string;
   surface_id?: string;
   ts: number;
   detail?: string;

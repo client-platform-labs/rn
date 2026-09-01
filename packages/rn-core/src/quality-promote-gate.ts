@@ -17,6 +17,7 @@ export const PROMOTE_BLOCKING_SIGNAL_KINDS: readonly QualitySignalKind[] = [
   "crash",
   "anr",
   "js_error",
+  "e2e_fail",
 ] as const;
 
 export function isPromoteBlockingSignalKind(
@@ -36,6 +37,13 @@ export function qualitySignalMatchesCandidate(
   signal: QualitySignalAttribution,
   candidate: PromoteGateCandidate,
 ): boolean {
+  if (
+    signal.artifact_digest &&
+    candidate.digest &&
+    signal.artifact_digest !== candidate.digest
+  ) {
+    return false;
+  }
   if (candidate.business_module && candidate.update_id) {
     return (
       signal.business_module === candidate.business_module &&

@@ -42,11 +42,12 @@ node scripts/run-map-b-loop.mjs
 | B5 | #28 | CP role matrix | AFK | `verify-cp-rbac.mjs` | ✅ landed |
 | B9 | #70 | CP Kill/Pause by business_module | AFK | `verify-cp-kill-pause.mjs` | ✅ landed |
 | B10 | #71 | P4 Hermes/NewArch/tuple + P6 codegen | AFK | `verify-bf-native-doctor-depth.mjs` | ✅ landed |
+| B11 | #72 | CP thin rollout_steps (P10 soak) | AFK | `verify-cp-rollout-steps.mjs` | ✅ landed |
 | B6 | #25 | XCFramework **binary** CI | deferred | 同 B2 + Xcode | blocked on CI Mac |
 | B7 | — | Harmony 真机 | blocked | — | DevEco |
 | B8 | — | CP Postgres multi-tenant | blocked | — | 产品 |
 
-**依赖：** B3 ← B1 · B5 ← B1 · B9 ← B1,B5 · B10 ← B4 · B4 独立（`examples/brownfield-host` fixture）
+**依赖：** B3 ← B1 · B5 ← B1 · B9 ← B1,B5 · B10 ← B4 · B11 ← B1,B5,B9 · B4 独立（`examples/brownfield-host` fixture）
 
 ---
 

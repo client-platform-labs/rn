@@ -61,6 +61,7 @@ const KINDS: QualitySignalKind[] = [
   "anr",
   "perf",
   "custom",
+  "e2e_fail",
 ];
 
 export function parseSignalKind(raw: string | undefined): QualitySignalKind {
@@ -79,6 +80,8 @@ export async function runSignalRecord(options: {
   updateId: string;
   kind: string;
   detail?: string;
+  digest?: string;
+  releaseId?: string;
 }): Promise<void> {
   const projectRoot = path.resolve(options.cwd);
   const signal = createQualitySignal({
@@ -86,6 +89,8 @@ export async function runSignalRecord(options: {
     business_module: options.module.trim(),
     update_id: options.updateId.trim(),
     detail: options.detail,
+    artifact_digest: options.digest?.trim() || undefined,
+    release_id: options.releaseId?.trim() || undefined,
   });
   const store = appendQualitySignal(projectRoot, signal);
   console.log(
