@@ -35,7 +35,6 @@
 | **Dx-6** | AFK | Write `docs/hitl/hermes-43-close-ready.md` when gates green; comment #43 | Y |
 | **Dx-D1** | DEFERRED | Second business_module / channel | N — pain gate |
 | **Dx-D2** | DEFERRED | Re.Pack MF | N — pain gate |
-| **Dx-T-rename** | TRUE/optional | `applicationId` → tiangong | N |
 
 **Loop command:**
 

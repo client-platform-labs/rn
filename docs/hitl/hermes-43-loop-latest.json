@@ -3,7 +3,7 @@
   "mode": "afk",
   "ok": true,
   "closeReady": true,
-  "at": "2026-09-01T00:59:01.014Z",
+  "at": "2026-09-01T01:06:36.821Z",
   "results": [
     {
       "id": "Dx-1-docs",
@@ -16,8 +16,8 @@
       "id": "Dx-2-ota-check-fetch",
       "kind": "AFK",
       "ok": true,
-      "ms": 68,
-      "detail": "PASS ota verify + check/fetch update_id=desk-cf45100f7a05 staged=/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/tiangong-ota-stage-74447/index.hbc"
+      "ms": 75,
+      "detail": "PASS ota verify + check/fetch update_id=desk-d44155905740 staged=/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/tiangong-ota-stage-87770/index.hbc"
     },
     {
       "id": "Dx-3-loop-self",
@@ -30,14 +30,14 @@
       "id": "Dx-4-d0-afk-regression",
       "kind": "AFK",
       "ok": true,
-      "ms": 6715,
+      "ms": 10183,
       "detail": "D0 AFK regression PASS"
     },
     {
       "id": "Dx-5-repo-hygiene",
       "kind": "AFK",
       "ok": true,
-      "ms": 19,
+      "ms": 24,
       "detail": "no modules biz · remotes ok"
     },
     {
@@ -51,7 +51,7 @@
       "id": "Dx-6-close-ready",
       "kind": "AFK",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "detail": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/hermes-43-close-ready.md"
     },
     {
@@ -67,13 +67,6 @@
       "ok": false,
       "skipped": true,
       "detail": "DEFERRED — pain gate; do not build"
-    },
-    {
-      "id": "Dx-T-rename-applicationId",
-      "kind": "TRUE-HITL",
-      "ok": false,
-      "skipped": true,
-      "detail": "TRUE-HITL — human only (non-blocking)"
     }
   ]
 }

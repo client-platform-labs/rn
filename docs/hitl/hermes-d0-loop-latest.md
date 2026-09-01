@@ -1,6 +1,6 @@
 # Hermes D0 loop
 
-mode=afk ok=true at=2026-09-01T00:59:00.986Z
+mode=afk ok=true at=2026-09-01T01:06:36.792Z
 
 | ID | Kind | Status | Detail |
 |----|------|--------|--------|
@@ -8,9 +8,9 @@ mode=afk ok=true at=2026-09-01T00:59:00.986Z
 | D0-1-bundle | AFK | PASS | > @tiangong/desk@0.1.0 bundle:android
 > node scripts/bundle-android.mjs
 
-embedded /Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk/index.hbc update_id=desk-7ca48c0bb9f0 |
+embedded /Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk/index.hbc update_id=desk-fbf34b814149 |
 | D0-2-shell-tsc | AFK | PASS | ok |
-| D0-3-ota-verify-script | AFK | PASS | PASS ota verify + check/fetch update_id=desk-7ca48c0bb9f0 staged=/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/tiangong-ota-stage-74954/index.hbc |
+| D0-3-ota-verify-script | AFK | PASS | PASS ota verify + check/fetch update_id=desk-fbf34b814149 staged=/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/tiangong-ota-stage-88366/index.hbc |
 | D0-4-embed-dry | AFK | PASS | dry-run ok hermesc=/Users/xuwei/code/host-android/node_modules/hermes-compiler/hermesc/osx-bin/hermesc assetsDir=/Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk |
 | D0-5-native-compile | AFK | PASS | ok |
 | D0-6-docs-pointer | AFK | PASS | spec ok |

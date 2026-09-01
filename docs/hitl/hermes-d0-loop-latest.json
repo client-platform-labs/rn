@@ -2,48 +2,48 @@
   "map": 43,
   "mode": "afk",
   "ok": true,
-  "at": "2026-09-01T00:59:00.986Z",
+  "at": "2026-09-01T01:06:36.792Z",
   "results": [
     {
       "id": "D0-1-market-repo",
       "kind": "AFK",
       "ok": true,
-      "ms": 5,
+      "ms": 11,
       "detail": "ok"
     },
     {
       "id": "D0-1-bundle",
       "kind": "AFK",
       "ok": true,
-      "ms": 4731,
-      "detail": "> @tiangong/desk@0.1.0 bundle:android\n> node scripts/bundle-android.mjs\n\nembedded /Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk/index.hbc update_id=desk-7ca48c0bb9f0"
+      "ms": 8406,
+      "detail": "> @tiangong/desk@0.1.0 bundle:android\n> node scripts/bundle-android.mjs\n\nembedded /Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk/index.hbc update_id=desk-fbf34b814149"
     },
     {
       "id": "D0-2-shell-tsc",
       "kind": "AFK",
       "ok": true,
-      "ms": 608,
+      "ms": 725,
       "detail": "ok"
     },
     {
       "id": "D0-3-ota-verify-script",
       "kind": "AFK",
       "ok": true,
-      "ms": 53,
-      "detail": "PASS ota verify + check/fetch update_id=desk-7ca48c0bb9f0 staged=/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/tiangong-ota-stage-74954/index.hbc"
+      "ms": 59,
+      "detail": "PASS ota verify + check/fetch update_id=desk-fbf34b814149 staged=/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/tiangong-ota-stage-88366/index.hbc"
     },
     {
       "id": "D0-4-embed-dry",
       "kind": "AFK",
       "ok": true,
-      "ms": 55,
+      "ms": 60,
       "detail": "dry-run ok hermesc=/Users/xuwei/code/host-android/node_modules/hermes-compiler/hermesc/osx-bin/hermesc assetsDir=/Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk"
     },
     {
       "id": "D0-5-native-compile",
       "kind": "AFK",
       "ok": true,
-      "ms": 1204,
+      "ms": 870,
       "detail": "ok"
     },
     {
@@ -85,7 +85,7 @@
       "id": "D0-T3-remotes-git",
       "kind": "AFK",
       "ok": true,
-      "ms": 29,
+      "ms": 24,
       "detail": "desk=https://github.com/tiangong-labs/desk.git host=https://github.com/tiangong-labs/host-android.git"
     }
   ]

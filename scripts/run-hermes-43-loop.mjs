@@ -207,12 +207,6 @@ sys.exit(0 if r.returncode==0 else 2)`,
     deps: [],
     run: () => null,
   },
-  {
-    id: "Dx-T-rename-applicationId",
-    kind: "TRUE-HITL",
-    deps: [],
-    run: () => null,
-  },
 ];
 
 function sh(cmd, opts = {}) {
