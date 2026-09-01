@@ -45,6 +45,8 @@ node scripts/run-afk-hitl-loop.mjs --plan
 
 **Map C** → `node scripts/run-map-c-loop.mjs` · [map-c-kickoff](../map-c-kickoff.md) · [#73](https://github.com/client-platform-labs/rn/issues/73)
 
+**Map D** → `node scripts/run-map-d-loop.mjs` · [map-d-kickoff](../map-d-kickoff.md) · [#80](https://github.com/client-platform-labs/rn/issues/80)
+
 **Hermes 方案 D · map [#43](https://github.com/client-platform-labs/rn/issues/43)**（D0 CLOSED）· **D1 工业条** [#58](https://github.com/client-platform-labs/rn/issues/58):
 
 ```bash

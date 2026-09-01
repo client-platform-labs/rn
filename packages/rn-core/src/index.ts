@@ -175,6 +175,21 @@ export type {
 } from "./js-rollback-plan.js";
 
 export {
+  defaultFinanceComplianceProfile,
+  evaluateExceptionLedger,
+  validateComplianceProfile,
+} from "./compliance-profile.js";
+export type {
+  ComplianceBindingPlane,
+  ComplianceIssue,
+  ComplianceProfile,
+  ComplianceRule,
+  ComplianceValidation,
+  ExceptionLedgerEntry,
+  ExceptionLedgerEvaluation,
+} from "./compliance-profile.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,
