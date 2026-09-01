@@ -1,14 +1,14 @@
 # Map C — 控制面服务化与渠道执行
 
-GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:map`) — **open**（店侧提交适配器仍 Depth）
+GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:map`) — **open**（店侧适配器 / 真观测仍 Depth）
 
 **Parents:** Map A [#18](https://github.com/client-platform-labs/rn/issues/18) CLOSED · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) open for B6–B8 lab only.
 
 ## Destination
 
-生产控制面缝：服务化入口 · P7 fail-closed · channel_profile 合同。
+生产控制面缝：服务化入口 · P7 fail-closed · channel_profile 合同 · P8 consistency_gate。
 
-**Loop：** `node scripts/run-map-c-loop.mjs` → C1–C3 PASS
+**Loop：** `node scripts/run-map-c-loop.mjs` → C1–C4 PASS
 
 ## 进度板
 
@@ -17,8 +17,9 @@ GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:
 | C1 | [#74](https://github.com/client-platform-labs/rn/issues/74) | P7 e2e_fail fail-closed promote | **resolved** | `verify-cp-e2e-promote-gate.mjs` |
 | C2 | [#75](https://github.com/client-platform-labs/rn/issues/75) | CP standalone service + slo-breach | **resolved** | `verify-cp-service.mjs` |
 | C3 | [#76](https://github.com/client-platform-labs/rn/issues/76) | channel_profile 七渠合同 | **resolved** | `verify-channel-profile.mjs` |
+| C4 | [#77](https://github.com/client-platform-labs/rn/issues/77) | P8 consistency_gate + promote block | **resolved** | `verify-consistency-gate.mjs` |
 | C3b | — | 店侧提交执行适配器 | deferred | needs store backends |
 
 ## Out
 
-宣称 Map C 全国投产 / 七渠已接通商店 API。
+宣称 Map C 全国投产 / 七渠已接通商店 API / 真机一致性农场已上线。

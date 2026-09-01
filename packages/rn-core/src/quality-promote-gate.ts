@@ -18,6 +18,7 @@ export const PROMOTE_BLOCKING_SIGNAL_KINDS: readonly QualitySignalKind[] = [
   "anr",
   "js_error",
   "e2e_fail",
+  "consistency_fail",
 ] as const;
 
 export function isPromoteBlockingSignalKind(

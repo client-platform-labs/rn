@@ -41,6 +41,13 @@ const STEPS = [
     issue: 76,
     verify: "scripts/verify-channel-profile.mjs",
   },
+  {
+    id: "C4",
+    kind: "afk",
+    title: "P8 consistency_gate + consistency_fail promote block",
+    issue: 77,
+    verify: "scripts/verify-consistency-gate.mjs",
+  },
 ];
 
 function printPlan() {

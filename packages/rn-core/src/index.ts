@@ -154,6 +154,14 @@ export type {
   ChannelSupportTier,
 } from "./channel-profile.js";
 
+export { evaluateConsistencyGate } from "./consistency-gate.js";
+export type {
+  ConsistencyGateInput,
+  ConsistencyGateResult,
+  ConsistencyPlatform,
+  JourneyProbeResult,
+} from "./consistency-gate.js";
+
 export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,

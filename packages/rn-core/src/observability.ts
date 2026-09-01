@@ -9,7 +9,9 @@ export type QualitySignalKind =
   | "perf"
   | "custom"
   /** Map C C1 / P7 — E2E failure on JS train (blocks promote, not compile). */
-  | "e2e_fail";
+  | "e2e_fail"
+  /** Map C C4 / P8 — cross-platform consistency_gate failure (blocks promote). */
+  | "consistency_fail";
 
 export type QualitySignalAttribution = {
   business_module: string;

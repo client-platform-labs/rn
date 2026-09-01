@@ -62,6 +62,7 @@ const KINDS: QualitySignalKind[] = [
   "perf",
   "custom",
   "e2e_fail",
+  "consistency_fail",
 ];
 
 export function parseSignalKind(raw: string | undefined): QualitySignalKind {
