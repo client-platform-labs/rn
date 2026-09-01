@@ -38,8 +38,9 @@ const flatGradle = readFileSync(
 );
 step(
   "consumer-flatdir uses flatDir AAR",
-  flatGradle.includes('name = "stub-release"') &&
-    flatGradle.includes('ext = "aar"'),
+  (flatGradle.includes('name = "stub-release"') &&
+    flatGradle.includes('ext = "aar"')) ||
+    flatGradle.includes('mapOf("name" to "stub-release", "ext" to "aar")'),
 );
 
 const mavenGradle = readFileSync(
