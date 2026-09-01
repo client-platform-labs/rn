@@ -50,11 +50,14 @@ node scripts/run-hermes-d1-loop.mjs           # AFK + AUTO if adb
 node scripts/run-hermes-d1-loop.mjs --mode afk
 node scripts/run-hermes-d1-loop.mjs --plan
 
+node scripts/run-hermes-d2-loop.mjs           # D2 Build plugin industrial bar
+node scripts/run-hermes-d2-loop.mjs --mode afk
+
 node scripts/run-hermes-43-loop.mjs           # map closure regression
 node scripts/run-hermes-d0-loop.mjs --mode afk|auto
 ```
 
-Plan/design: [R8](../wayfinding-hermes/research/R8-d1-multi-module-channel.md) · [R9](../wayfinding-hermes/research/R9-d2-repack-ota-plugin.md) · latest: `docs/hitl/hermes-d1-loop-latest.md`
+Plan/design: [R8](../wayfinding-hermes/research/R8-d1-multi-module-channel.md) · [R9](../wayfinding-hermes/research/R9-d2-repack-ota-plugin.md) · latest: `docs/hitl/hermes-d1-loop-latest.md` · `docs/hitl/hermes-d2-loop-latest.md`
 
 ---
 

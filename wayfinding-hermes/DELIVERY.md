@@ -12,6 +12,23 @@
 6. OTA：`checkForUpdate(moduleId, channel)` → `fetchUpdate` → `verifySidecar` → `installAndReload(moduleId, path)`（`TiangongOta` per-module map + optional `setRootModuleId`）。  
 7. 回归：`node scripts/run-hermes-d1-loop.mjs --mode auto`
 
+## D2 · Build 插件（打包器可插拔，OTA 主轴不变）
+
+工业条：[R9 §6](./research/R9-d2-repack-ota-plugin.md)。
+
+1. **只认制品：** 任意 bundler 必须产出 **同构** `index.hbc` + `sidecar.json`（含 `build_plugin` 字段）。  
+2. **打包入口（Host CI / 业务仓可调）：**
+   ```bash
+   cd ~/code/host-android
+   node scripts/pack-business.mjs --plugin host-embed --module desk
+   node scripts/pack-business.mjs --plugin business-pack --module fixture_second
+   # 真 Re.Pack（装在业务仓/CI，禁止进 Host runtime deps）：
+   node scripts/pack-business.mjs --plugin repack --module desk
+   ```
+3. **`VerifiedScriptLoader`：** 只接受 localPath / `assets://`；**禁止** `https://` 进执行面；先 `verifySidecar` 再 `installAndReload`。  
+4. **失败：** verify/loader 拒绝 → FailedUI / 该 module baseline（不绕过 OTA Client）。  
+5. **回归：** `node scripts/run-hermes-d2-loop.mjs --mode auto`
+
 ---
 
 # Hermes GF · 最终交付（Map #29）

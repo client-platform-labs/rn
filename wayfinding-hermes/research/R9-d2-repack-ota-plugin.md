@@ -1,6 +1,6 @@
 # R9 · D2 能力：Re.Pack / MF 作为 Build 插件（OTA 主轴不变）
 
-**Status:** Draft 2026-09-01 · architecture capability (plugin, not second runtime)  
+**Status:** EXITED 2026-09-01 · industrial bar J1–J7 green  
 **Issue:** [#59](https://github.com/client-platform-labs/rn/issues/59)  
 **Spec:** [方案 D](../../docs/superpowers/specs/2026-08-31-hermes-ota-runtime-industrial-design.md) §2 / §4 / §6  
 **Depends:** D0 OTA Client · 建议与 [R8](./R8-d1-multi-module-channel.md) 并行读
@@ -157,5 +157,5 @@ D2 **不替代** D1；先有 module 槽，再有联邦打包选项。
 ## 10. Done when (#59)
 
 - [x] 本文落地（含工业条）  
-- [ ] §6.1 J1–J7 **全部**有证据  
-- [ ] §6.2 信号清零  
+- [x] §6.1 J1–J7 **全部**有证据 — `docs/hitl/hermes-d2-loop-latest.md` + [exit](../../docs/hitl/hermes-d2-exit-2026-09-01.md)  
+- [x] §6.2 信号清零（第二插件 `business-pack` 已入制品链；`repack` fail-closed 直至业务仓安装） 

@@ -1,0 +1,64 @@
+{
+  "mapIssue": 59,
+  "mode": "auto",
+  "ok": true,
+  "at": "2026-09-01T02:01:22.996Z",
+  "results": [
+    {
+      "id": "D2-pack-host-embed-desk",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 7909,
+      "detail": "{\n  \"ok\": true,\n  \"plugin\": \"host-embed\",\n  \"moduleId\": \"desk\",\n  \"hbc\": \"/Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk/index.hbc\",\n  \"update_id\": \"desk-8fd53d612457\",\n  \"build_plugin\": \"host-embed\"\n}"
+    },
+    {
+      "id": "D2-pack-business-pack-fixture",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 2171,
+      "detail": "{\n  \"ok\": true,\n  \"plugin\": \"business-pack\",\n  \"moduleId\": \"fixture_second\",\n  \"hbc\": \"/Users/xuwei/code/host-android/android/app/src/main/assets/ota/fixture_second/index.hbc\",\n  \"update_id\": \"fixture_second-74d04bf9c0a2\",\n  \"build_plugin\": \"business-pack\"\n}"
+    },
+    {
+      "id": "D2-verify-boundary",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 56,
+      "detail": "PASS d2 plugin boundary J1/J3/J5 (+ loader+stamp)"
+    },
+    {
+      "id": "D2-shell-tsc",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 662,
+      "detail": "ok"
+    },
+    {
+      "id": "D2-repack-fail-closed",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 67,
+      "detail": "repack fail-closed ok"
+    },
+    {
+      "id": "D2-runbook",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 0,
+      "detail": "runbook ok"
+    },
+    {
+      "id": "D2-docs-r9",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 0,
+      "detail": "R9 ok"
+    },
+    {
+      "id": "D2-A1-business-pack-file-slot",
+      "kind": "AUTO-HITL",
+      "ok": true,
+      "ms": 5355,
+      "detail": "business-pack file-slot FIXTURE_SECOND ok plugin=business-pack"
+    }
+  ]
+}
