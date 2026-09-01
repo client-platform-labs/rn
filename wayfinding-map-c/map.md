@@ -8,7 +8,7 @@ GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:
 
 生产控制面缝：服务化 · P7/P8/P11 fail-closed · channel_profile · P10 tick。
 
-**Loop：** `node scripts/run-map-c-loop.mjs` → C1–C7 PASS
+**Loop：** `node scripts/run-map-c-loop.mjs` → C1–C9 PASS
 
 ## 进度板
 
@@ -21,6 +21,8 @@ GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:
 | C5 | [#78](https://github.com/client-platform-labs/rn/issues/78) | P10 tick soak∧SLO auto / breach pause | **resolved** | `verify-cp-rollout-tick.mjs` |
 | C6 | [#79](https://github.com/client-platform-labs/rn/issues/79) | P11 planJsRollback | **resolved** | `verify-js-rollback-plan.mjs` |
 | C7 | [#84](https://github.com/client-platform-labs/rn/issues/84) | P9 dual SBOM/attest promote fail-closed | **resolved** | `verify-cp-sbom-promote-gate.mjs` |
+| C8 | [#86](https://github.com/client-platform-labs/rn/issues/86) | P13 RN SLO + error-budget contract | **resolved** | `verify-rn-slo-budget.mjs` |
+| C9 | [#87](https://github.com/client-platform-labs/rn/issues/87) | P15 mixed-stack attribution contract | **resolved** | `verify-attribution-contract.mjs` |
 | C3b | — | 店侧提交执行适配器 | deferred | needs store backends |
 
 ## Out

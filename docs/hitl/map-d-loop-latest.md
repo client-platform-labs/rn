@@ -1,7 +1,7 @@
 # Map D loop
 
-ok=true at=2026-09-01T07:08:34.677Z
+ok=true at=2026-09-01T07:25:21.261Z
 
-PASS: D1, D2, D3, D4
+PASS: D1, D2, D3, D4, D5
 FAIL: —
 BLOCKED: —

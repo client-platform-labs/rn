@@ -23,6 +23,12 @@ export type QualitySignalAttribution = {
   artifact_digest?: string;
   release_id?: string;
   surface_id?: string;
+  /** P15 — mixed-stack correlation (optional on quality signals). */
+  native_crash_id?: string;
+  js_exception_id?: string;
+  sourcemap_digest?: string;
+  dsym_digest?: string;
+  mapping_digest?: string;
   ts: number;
   detail?: string;
 };

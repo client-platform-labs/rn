@@ -69,6 +69,20 @@ const STEPS = [
     issue: 84,
     verify: "scripts/verify-cp-sbom-promote-gate.mjs",
   },
+  {
+    id: "C8",
+    kind: "afk",
+    title: "P13 RN SLO + error-budget contract",
+    issue: 86,
+    verify: "scripts/verify-rn-slo-budget.mjs",
+  },
+  {
+    id: "C9",
+    kind: "afk",
+    title: "P15 mixed-stack attribution contract",
+    issue: 87,
+    verify: "scripts/verify-attribution-contract.mjs",
+  },
 ];
 
 function printPlan() {

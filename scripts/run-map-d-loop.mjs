@@ -46,6 +46,13 @@ const STEPS = [
     issue: 85,
     verify: "scripts/verify-migration-dry-run.mjs",
   },
+  {
+    id: "D5",
+    kind: "afk",
+    title: "ops runbook AFK checklist contract (thin, not GRC live)",
+    issue: 88,
+    verify: "scripts/verify-ops-runbook.mjs",
+  },
 ];
 
 function printPlan() {

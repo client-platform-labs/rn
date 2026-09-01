@@ -226,6 +226,29 @@ export type {
 } from "./sbom-promote-gate.js";
 
 export {
+  defaultRnSloProfile,
+  evaluateRnSloBudget,
+  evaluateRnSloForRollout,
+  missingRnSloKeys,
+  rnSloUpperBoundThresholds,
+} from "./rn-slo-budget.js";
+export type {
+  RnSliSnapshot,
+  RnSloBudgetResult,
+  RnSloMetric,
+  RnSloProfile,
+} from "./rn-slo-budget.js";
+
+export { validateAttributionRecord } from "./attribution-contract.js";
+export type {
+  AttributionIssue,
+  AttributionIssueCode,
+  AttributionRecord,
+  AttributionStackKind,
+  AttributionValidation,
+} from "./attribution-contract.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,

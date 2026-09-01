@@ -399,8 +399,8 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
 | **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
-| **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C7 ✅ · 店侧适配器 deferred |
-| **Map D** | 🔄 **AFK bar green** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D4 ✅ · 运维手册正文 deferred |
+| **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C9 ✅ · 店侧适配器 deferred |
+| **Map D** | 🔄 **AFK bar green** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D5 ✅ · GRC 后端 deferred |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
 **对外口径：** 可称「单 module **可企业推广候选**（L4–L5 thin）」；**不可**称全国投产 / 全渠道 / Map C 能力已就绪。
@@ -485,6 +485,8 @@ flowchart TB
 | C5 | P10 tick soak∧SLO auto-advance / breach pause | ✅ #78 |
 | C6 | P11 planJsRollback（同宿主公式 · 不切坏流量） | ✅ #79 |
 | C7 | P9 dual SBOM/attest promote fail-closed | ✅ #84 |
+| C8 | P13 RN SLO + error-budget 合同 | ✅ #86 |
+| C9 | P15 mixed-stack attribution 合同 | ✅ #87 |
 | C3b | 店侧 submit 执行适配器 | deferred |
 
 ### 9.5c Map D
@@ -497,22 +499,22 @@ flowchart TB
 | D2 | P12 release_unit + module isolation | ✅ #82 |
 | D3 | P16/P17 governance fail-closed promote | ✅ #83 |
 | D4 | migration dry-run contract（expo/bare） | ✅ #85 |
-| D5 | 运维手册正文 · GRC 后端 | deferred |
+| D5 | ops oncall runbook AFK checklist | ✅ #88 |
 
 ### 9.6 P1–P17 · 合同 vs 落地（摘要）
 
 | 态 | 补丁 |
 |----|------|
-| **✅ 代码+验证** | P3 · P4 thin+depth（B4/B10）· P5 · P6 thin+codegen（B4/B10）· P2 部分 · P7 e2e_fail（C1）· P8 consistency_gate 合同（C4）· P9 SBOM promote（C7）· P10 thin+tick（B11/C5）· P11 rollback plan（C6）· P12 release_unit（D2）· P16/P17 合同+CP promote（D1/D3）· 迁移 dry-run（D4） |
-| **⚠️ 接口/薄** | P1 · P2 文案 · P9 真 CycloneDX 生成 |
-| **❌ Map C/D 余量** | P10 真观测后端 · P13–P15 生产联动 · C3b 店侧 · D5 手册/GRC |
+| **✅ 代码+验证** | P3 · P4 thin+depth · P5 · P6 thin+codegen · P2 部分 · P7（C1）· P8（C4）· P9 SBOM promote（C7）· P10 thin+tick（B11/C5）· P11（C6）· P12（D2）· P13 SLO 合同（C8）· P15 attribution（C9）· P16/P17（D1/D3）· 迁移 dry-run（D4）· oncall runbook（D5） |
+| **⚠️ 接口/薄** | P1 · P2 文案 · P9 真 CycloneDX · P14 已有 A5 槽位（生产联动仍薄） |
+| **❌ Map C/D 余量** | P10 真观测后端 · C3b 店侧 · GRC SaaS · B6–B8 实验台 |
 
 合同权威：[research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) — **实现可分期，合同不砍**。
 
 ### 9.7 距目标地 · 优先 backlog
 
 1. **实验台：** Xcode CI（B6）· Harmony（B7）· Postgres 多租户（B8）
-2. **Map C depth：** C3b 店侧 submit 适配器 · 真 SLO 观测后端
-3. **Map D depth：** D5 运维手册 · GRC 后端 · 真 SBOM 生成
+2. **Map C depth：** C3b 店侧 submit · 真 SLO/metrics 后端
+3. **产品深度：** GRC 后端 · 真 SBOM 生成 · 设备农场
 
-*上一结项：C7 [#84](https://github.com/client-platform-labs/rn/issues/84) · D4 [#85](https://github.com/client-platform-labs/rn/issues/85) · Map C AFK C1–C7 · Map D AFK D1–D4 · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) B6–B8。*
+*上一结项：C8 [#86](https://github.com/client-platform-labs/rn/issues/86) · C9 [#87](https://github.com/client-platform-labs/rn/issues/87) · D5 [#88](https://github.com/client-platform-labs/rn/issues/88) · Map C AFK C1–C9 · Map D AFK D1–D5。*
