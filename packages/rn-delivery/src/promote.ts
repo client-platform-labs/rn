@@ -4,6 +4,7 @@ import path from "node:path";
 import { assertSameArtifactPromote } from "./candidate.js";
 import { loadRegistry, promoteStagingToProduction } from "./candidate-store.js";
 import { registryStoragePath } from "./registry-sqlite.js";
+import { assertGovernanceAllowsPromote } from "./governance-gate.js";
 import { assertQualityAllowsPromote } from "./quality-gate.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
@@ -36,6 +37,7 @@ export async function runPromote(options: {
   }
 
   assertQualityAllowsPromote(projectRoot, staging);
+  assertGovernanceAllowsPromote(projectRoot, staging);
 
   const { production } = promoteStagingToProduction(projectRoot, digest);
 

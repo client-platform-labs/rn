@@ -190,6 +190,21 @@ export type {
 } from "./compliance-profile.js";
 
 export {
+  formatReleaseUnitKey,
+  parseReleaseUnitKey,
+  releaseUnitFromCandidate,
+  validateModuleProductIsolation,
+  validateReleaseUnit,
+} from "./release-unit.js";
+export type { ReleaseUnit, ReleaseUnitValidation } from "./release-unit.js";
+
+export { evaluateGovernancePromoteGate } from "./governance-promote-gate.js";
+export type {
+  GovernancePromoteCandidate,
+  GovernancePromoteGateResult,
+} from "./governance-promote-gate.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,

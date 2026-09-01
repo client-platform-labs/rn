@@ -1,2 +1,4 @@
 publish/aar/*.aar
 publish/maven-local/
+.gradle/
+build/

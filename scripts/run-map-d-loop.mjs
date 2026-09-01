@@ -25,6 +25,20 @@ const STEPS = [
     issue: 81,
     verify: "scripts/verify-compliance-profile.mjs",
   },
+  {
+    id: "D2",
+    kind: "afk",
+    title: "P12 release_unit identity + module isolation",
+    issue: 82,
+    verify: "scripts/verify-release-unit.mjs",
+  },
+  {
+    id: "D3",
+    kind: "afk",
+    title: "P16/P17 governance fail-closed on promote",
+    issue: 83,
+    verify: "scripts/verify-cp-governance-promote-gate.mjs",
+  },
 ];
 
 function printPlan() {

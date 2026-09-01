@@ -21,6 +21,14 @@ Enterprise promotion needs governance overlays that Map A–C AFK bars do not cl
 | Expired exception blocks | same |
 | Loop | `run-map-d-loop.mjs` D1 PASS |
 
+## D2/D3 — EXITED 2026-09-01
+
+| Slice | Verify |
+|-------|--------|
+| D2 P12 release_unit | `verify-release-unit.mjs` |
+| D3 governance promote gate | `verify-cp-governance-promote-gate.mjs` |
+| Loop | D1–D3 PASS |
+
 ## Loop
 
 ```bash

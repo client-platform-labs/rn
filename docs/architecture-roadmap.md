@@ -400,7 +400,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
 | **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
 | **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C6 ✅ · 店侧适配器 deferred |
-| **Map D** | 🔄 **In progress** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1 ✅ · D2+ deferred |
+| **Map D** | 🔄 **AFK bar green** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D3 ✅ · D4 deferred |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
 **对外口径：** 可称「单 module **可企业推广候选**（L4–L5 thin）」；**不可**称全国投产 / 全渠道 / Map C 能力已就绪。
@@ -493,15 +493,17 @@ flowchart TB
 | ID | 内容 | 状态 |
 |----|------|------|
 | D1 | P16 dual-landing compliance + P17 exception ledger | ✅ #81 |
-| D2 | 迁移工具链 · 运维手册 | deferred |
+| D2 | P12 release_unit + module isolation | ✅ #82 |
+| D3 | P16/P17 governance fail-closed promote | ✅ #83 |
+| D4 | 迁移工具链 · 运维手册 | deferred |
 
 ### 9.6 P1–P17 · 合同 vs 落地（摘要）
 
 | 态 | 补丁 |
 |----|------|
-| **✅ 代码+验证** | P3 · P4 thin+depth（B4/B10）· P5 · P6 thin+codegen（B4/B10）· P2 部分 · P7 e2e_fail（C1）· P8 consistency_gate 合同（C4）· P10 thin+tick（B11/C5）· P11 rollback plan（C6）· P16/P17 合同（D1） |
+| **✅ 代码+验证** | P3 · P4 thin+depth（B4/B10）· P5 · P6 thin+codegen（B4/B10）· P2 部分 · P7 e2e_fail（C1）· P8 consistency_gate 合同（C4）· P10 thin+tick（B11/C5）· P11 rollback plan（C6）· P12 release_unit（D2）· P16/P17 合同+CP promote（D1/D3） |
 | **⚠️ 接口/薄** | P1 · P2 文案 · P9（SBOM stub） |
-| **❌ Map C/D 余量** | P10 真观测后端 · P12–P15 生产联动 · C3b 店侧 · D2 手册/迁移 |
+| **❌ Map C/D 余量** | P10 真观测后端 · P13–P15 生产联动 · C3b 店侧 · D4 手册/迁移 |
 
 合同权威：[research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) — **实现可分期，合同不砍**。
 
@@ -509,6 +511,6 @@ flowchart TB
 
 1. **实验台：** Xcode CI（B6）· Harmony（B7）· Postgres 多租户（B8）
 2. **Map C depth：** C3b 店侧 submit 适配器 · 真 SLO 观测后端
-3. **Map D depth：** D2 迁移工具链 · 运维手册 · GRC 后端
+3. **Map D depth：** D4 迁移工具链 · 运维手册 · GRC 后端
 
-*上一结项：D1 [#81](https://github.com/client-platform-labs/rn/issues/81) · Map D [#80](https://github.com/client-platform-labs/rn/issues/80) · C6 [#79](https://github.com/client-platform-labs/rn/issues/79) · Map C AFK C1–C6 · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*
+*上一结项：D3 [#83](https://github.com/client-platform-labs/rn/issues/83) · D2 [#82](https://github.com/client-platform-labs/rn/issues/82) · Map D AFK D1–D3 · Map C AFK C1–C6 · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) B6–B8。*
