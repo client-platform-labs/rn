@@ -5,13 +5,18 @@ import { fileURLToPath } from "node:url";
 
 import {
   blockCandidateInRegistry,
+  blockedUpdateIdsForRuntime,
+  killModuleUpdates,
   listInstallableCandidates,
   loadRegistry,
+  pauseModule,
+  resumeModule,
 } from "./candidate-store.js";
 import { checkCpBearerAuth, checkCpMutatingRole, resolveCpAuthToken, resolveCpRole } from "./cp-auth.js";
 import { runPromote } from "./promote.js";
 import { pickCandidate } from "./release-shared.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
+import { KillPauseError } from "@client-platform/rn-core";
 
 const STATIC_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -170,8 +175,80 @@ export async function runServe(options: {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/v1/kills") {
+        const registry = loadRegistry(projectRoot);
+        sendJson(res, 200, {
+          kills: registry.kills,
+          pauses: registry.pauses,
+          blocked_update_ids: blockedUpdateIdsForRuntime(registry),
+        });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/kill") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as {
+              business_module?: string;
+              update_ids?: string[];
+              reason?: string;
+            })
+          : {};
+        const { registry, kill } = killModuleUpdates(projectRoot, {
+          business_module: body.business_module ?? "",
+          update_ids: body.update_ids ?? [],
+          reason: body.reason,
+          actor: cpRole,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          action: "kill",
+          kill,
+          blocked_update_ids: blockedUpdateIdsForRuntime(registry),
+          registry,
+        });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/pause") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as { business_module?: string; reason?: string })
+          : {};
+        const { registry, pause } = pauseModule(projectRoot, {
+          business_module: body.business_module ?? "",
+          reason: body.reason,
+          actor: cpRole,
+        });
+        sendJson(res, 200, { ok: true, action: "pause", pause, registry });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/resume") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as { business_module?: string })
+          : {};
+        if (!body.business_module?.trim()) {
+          throw new DeliveryError(
+            "POST /v1/resume: business_module required",
+            EXIT_FAIL,
+          );
+        }
+        const registry = resumeModule(projectRoot, body.business_module);
+        sendJson(res, 200, { ok: true, action: "resume", registry });
+        return;
+      }
+
       sendJson(res, 404, { error: "not_found", path: url.pathname });
     } catch (err) {
+      if (err instanceof KillPauseError) {
+        sendJson(res, 400, { error: err.message, code: err.code });
+        return;
+      }
       const message = err instanceof Error ? err.message : String(err);
       const code = err instanceof DeliveryError ? err.exitCode : EXIT_FAIL;
       sendJson(res, code === EXIT_FAIL ? 400 : 500, { error: message });
@@ -189,11 +266,14 @@ export async function runServe(options: {
       console.error(
         "  POST /v1/promote { digest } | /v1/block { digest, reason }",
       );
+      console.error(
+        "  GET  /v1/kills | POST /v1/kill | /v1/pause | /v1/resume (B9)",
+      );
       if (cpAuthToken) {
         console.error("  CP auth: RN_CP_TOKEN set — mutating routes require Bearer");
       }
       if (cpAuthToken && cpRole === "viewer") {
-        console.error("  CP role: viewer — POST promote/block disabled (GET read-only)");
+        console.error("  CP role: viewer — POST mutate disabled (GET read-only)");
       }
       if (process.env.RN_CP_REGISTRY?.trim().toLowerCase() === "sqlite") {
         console.error("  CP registry: SQLite (.rn/delivery/registry.sqlite)");

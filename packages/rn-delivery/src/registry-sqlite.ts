@@ -40,6 +40,14 @@ function openDb(projectRoot: string): DatabaseSync {
       digest TEXT PRIMARY KEY,
       record_json TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS kills (
+      business_module TEXT PRIMARY KEY,
+      record_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS pauses (
+      business_module TEXT PRIMARY KEY,
+      record_json TEXT NOT NULL
+    );
   `);
   const row = db
     .prepare("SELECT value FROM registry_meta WHERE key = 'schemaVersion'")
@@ -85,7 +93,17 @@ export function loadRegistrySqlite(projectRoot: string): DeliveryRegistry {
       .prepare("SELECT record_json FROM blocked ORDER BY rowid")
       .all() as Array<{ record_json: string }>
   ).map((r) => JSON.parse(r.record_json) as DeliveryRegistry["blocked"][number]);
-  return { schemaVersion: 1, staging, production, blocked };
+  const kills = (
+    db
+      .prepare("SELECT record_json FROM kills ORDER BY rowid")
+      .all() as Array<{ record_json: string }>
+  ).map((r) => JSON.parse(r.record_json) as DeliveryRegistry["kills"][number]);
+  const pauses = (
+    db
+      .prepare("SELECT record_json FROM pauses ORDER BY rowid")
+      .all() as Array<{ record_json: string }>
+  ).map((r) => JSON.parse(r.record_json) as DeliveryRegistry["pauses"][number]);
+  return { schemaVersion: 1, staging, production, blocked, kills, pauses };
 }
 
 export function saveRegistrySqlite(
@@ -98,6 +116,8 @@ export function saveRegistrySqlite(
   try {
     db.prepare("DELETE FROM candidates").run();
     db.prepare("DELETE FROM blocked").run();
+    db.prepare("DELETE FROM kills").run();
+    db.prepare("DELETE FROM pauses").run();
     const insertCandidate = db.prepare(
       "INSERT INTO candidates (lane, digest, metadata_json) VALUES (?, ?, ?)",
     );
@@ -112,6 +132,18 @@ export function saveRegistrySqlite(
     );
     for (const b of registry.blocked) {
       insertBlocked.run(b.digest, JSON.stringify(b));
+    }
+    const insertKill = db.prepare(
+      "INSERT INTO kills (business_module, record_json) VALUES (?, ?)",
+    );
+    for (const k of registry.kills ?? []) {
+      insertKill.run(k.business_module, JSON.stringify(k));
+    }
+    const insertPause = db.prepare(
+      "INSERT INTO pauses (business_module, record_json) VALUES (?, ?)",
+    );
+    for (const p of registry.pauses ?? []) {
+      insertPause.run(p.business_module, JSON.stringify(p));
     }
     db.exec("COMMIT");
   } catch (err) {

@@ -6,6 +6,15 @@ import {
 } from "node:fs";
 import path from "node:path";
 
+import {
+  assertCanPause,
+  assertCanResume,
+  collectBlockedUpdateIds,
+  normalizeKillInput,
+  type KillRecord,
+  type PauseRecord,
+} from "@client-platform/rn-core";
+
 import type { CandidateMetadata } from "./types.js";
 import {
   loadRegistrySqlite,
@@ -32,6 +41,10 @@ export type DeliveryRegistry = {
     update_id?: string;
     business_module?: string;
   }>;
+  /** Map B B9 — module-scoped kill (update_id → A5 exclude). */
+  kills: KillRecord[];
+  /** Map B B9 — module pause (blocks promote narrative; resume admin-only). */
+  pauses: PauseRecord[];
 };
 
 export function deliveryDir(projectRoot: string): string {
@@ -90,16 +103,36 @@ export function readLastCandidate(
 }
 
 export function emptyRegistry(): DeliveryRegistry {
-  return { schemaVersion: 1, staging: [], production: [], blocked: [] };
+  return {
+    schemaVersion: 1,
+    staging: [],
+    production: [],
+    blocked: [],
+    kills: [],
+    pauses: [],
+  };
+}
+
+function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
+  return {
+    schemaVersion: 1,
+    staging: raw.staging ?? [],
+    production: raw.production ?? [],
+    blocked: raw.blocked ?? [],
+    kills: raw.kills ?? [],
+    pauses: raw.pauses ?? [],
+  };
 }
 
 export function loadRegistry(projectRoot: string): DeliveryRegistry {
   if (useSqliteRegistry()) {
-    return loadRegistrySqlite(projectRoot);
+    return normalizeRegistry(loadRegistrySqlite(projectRoot));
   }
   const file = path.join(deliveryDir(projectRoot), REGISTRY_FILE);
   if (!existsSync(file)) return emptyRegistry();
-  return JSON.parse(readFileSync(file, "utf8")) as DeliveryRegistry;
+  return normalizeRegistry(
+    JSON.parse(readFileSync(file, "utf8")) as DeliveryRegistry,
+  );
 }
 
 const INSTALLABLE_KINDS = new Set(["app-host", "app-host-debug"]);
@@ -203,4 +236,62 @@ export function promoteStagingToProduction(
   ];
   saveRegistry(projectRoot, registry);
   return { registry, production };
+}
+
+export function killModuleUpdates(
+  projectRoot: string,
+  input: {
+    business_module: string;
+    update_ids: string[];
+    reason?: string;
+    actor?: string;
+  },
+): { registry: DeliveryRegistry; kill: KillRecord } {
+  const registry = loadRegistry(projectRoot);
+  const kill = normalizeKillInput(input);
+  registry.kills = [
+    ...registry.kills.filter((k) => k.business_module !== kill.business_module),
+    kill,
+  ];
+  saveRegistry(projectRoot, registry);
+  return { registry, kill };
+}
+
+export function pauseModule(
+  projectRoot: string,
+  input: { business_module: string; reason?: string; actor?: string },
+): { registry: DeliveryRegistry; pause: PauseRecord } {
+  const registry = loadRegistry(projectRoot);
+  assertCanPause(registry.pauses, input.business_module);
+  const pause: PauseRecord = {
+    business_module: input.business_module.trim(),
+    reason: input.reason?.trim() || "cp pause",
+    paused_at: new Date().toISOString(),
+    actor: input.actor?.trim() || "admin",
+  };
+  registry.pauses = [...registry.pauses, pause];
+  saveRegistry(projectRoot, registry);
+  return { registry, pause };
+}
+
+export function resumeModule(
+  projectRoot: string,
+  business_module: string,
+): DeliveryRegistry {
+  const registry = loadRegistry(projectRoot);
+  assertCanResume(registry.pauses, business_module);
+  const mod = business_module.trim();
+  registry.pauses = registry.pauses.filter((p) => p.business_module !== mod);
+  saveRegistry(projectRoot, registry);
+  return registry;
+}
+
+/** update_ids CP kill (+ digest-block) → feed A5 excludeSlotsByBlockedUpdates */
+export function blockedUpdateIdsForRuntime(
+  registry: DeliveryRegistry,
+): string[] {
+  return collectBlockedUpdateIds({
+    kills: registry.kills,
+    blocked: registry.blocked,
+  });
 }

@@ -109,6 +109,19 @@ export type {
 } from "./fallback-runtime.js";
 
 export {
+  assertCanPause,
+  assertCanResume,
+  collectBlockedUpdateIds,
+  KillPauseError,
+  normalizeKillInput,
+} from "./release-kill.js";
+export type {
+  KillPauseErrorCode,
+  KillRecord,
+  PauseRecord,
+} from "./release-kill.js";
+
+export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,

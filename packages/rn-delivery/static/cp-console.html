@@ -171,6 +171,10 @@
       <h2>Blocked</h2>
       <div id="blocked"></div>
     </section>
+    <section>
+      <h2>Kills · Pauses (B9 · by business_module)</h2>
+      <div id="kills-pauses"></div>
+    </section>
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
@@ -196,12 +200,22 @@
       el.textContent = msg;
     }
 
-    function rowActions(digest, lane) {
+    function rowActions(c, lane) {
+      const digest = c.digest;
+      const mod = c.business_module || "";
+      const uid = c.update_id || "";
       const promote =
         lane === "staging"
           ? `<button type="button" data-act="promote" data-digest="${digest}">Promote</button>`
           : "";
-      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">Block</button>`;
+      const kill =
+        mod && uid
+          ? `<button type="button" class="danger" data-act="kill" data-module="${mod}" data-update="${uid}">Kill</button>`
+          : "";
+      const pause = mod
+        ? `<button type="button" data-act="pause" data-module="${mod}">Pause</button>`
+        : "";
+      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">Block</button>${kill}${pause}`;
     }
 
     function renderCandidates(el, list, lane) {
@@ -216,7 +230,7 @@
             <td><span class="tag">${c.artifact_kind || "—"}</span></td>
             <td>${c.business_module || c.platform || "—"}</td>
             <td>${c.update_id || c.release_id || "—"}</td>
-            <td class="actions">${rowActions(c.digest, lane)}</td>
+            <td class="actions">${rowActions(c, lane)}</td>
           </tr>`,
         )
         .join("");
@@ -246,6 +260,40 @@
       </table>`;
     }
 
+    function renderKillsPauses(el, data) {
+      const kills = data.kills || [];
+      const pauses = data.pauses || [];
+      if (kills.length === 0 && pauses.length === 0) {
+        el.innerHTML = `<div class="empty">empty — Kill / Pause from candidate rows</div>`;
+        return;
+      }
+      const killRows = kills
+        .map(
+          (k) => `<tr>
+            <td><span class="tag">kill</span> ${k.business_module}</td>
+            <td><code>${(k.update_ids || []).join(", ")}</code></td>
+            <td>${k.reason || "—"} · ${k.killed_at || ""}</td>
+          </tr>`,
+        )
+        .join("");
+      const pauseRows = pauses
+        .map(
+          (p) => `<tr>
+            <td><span class="tag">pause</span> ${p.business_module}</td>
+            <td>${p.reason || "—"}</td>
+            <td class="actions">
+              <button type="button" data-act="resume" data-module="${p.business_module}">Resume</button>
+              · ${p.paused_at || ""}
+            </td>
+          </tr>`,
+        )
+        .join("");
+      el.innerHTML = `<table>
+        <thead><tr><th>module</th><th>detail</th><th></th></tr></thead>
+        <tbody>${killRows}${pauseRows}</tbody>
+      </table>`;
+    }
+
     async function load() {
       $("status").textContent = "loading…";
       showError("");
@@ -256,8 +304,9 @@
         renderCandidates($("staging"), data.staging, "staging");
         renderCandidates($("production"), data.production, "production");
         renderBlocked($("blocked"), data.blocked);
+        renderKillsPauses($("kills-pauses"), data);
         $("status").textContent =
-          `staging ${data.staging?.length ?? 0} · production ${data.production?.length ?? 0} · blocked ${data.blocked?.length ?? 0}`;
+          `staging ${data.staging?.length ?? 0} · production ${data.production?.length ?? 0} · blocked ${data.blocked?.length ?? 0} · kills ${data.kills?.length ?? 0} · pauses ${data.pauses?.length ?? 0}`;
       } catch (err) {
         showError(String(err.message || err));
         $("status").textContent = "error";
@@ -280,6 +329,8 @@
       if (!btn) return;
       const act = btn.getAttribute("data-act");
       const digest = btn.getAttribute("data-digest");
+      const mod = btn.getAttribute("data-module");
+      const updateId = btn.getAttribute("data-update");
       try {
         showError("");
         if (act === "promote") {
@@ -287,6 +338,18 @@
         } else if (act === "block") {
           const reason = prompt("Block reason", "cp-web demo block") || "cp-web demo block";
           await post("/v1/block", { digest, reason });
+        } else if (act === "kill") {
+          const reason = prompt("Kill reason", "cp-web kill") || "cp-web kill";
+          await post("/v1/kill", {
+            business_module: mod,
+            update_ids: [updateId],
+            reason,
+          });
+        } else if (act === "pause") {
+          const reason = prompt("Pause reason", "cp-web pause") || "cp-web pause";
+          await post("/v1/pause", { business_module: mod, reason });
+        } else if (act === "resume") {
+          await post("/v1/resume", { business_module: mod });
         }
         await load();
       } catch (err) {

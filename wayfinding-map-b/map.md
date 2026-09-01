@@ -26,6 +26,7 @@ GitHub: #23 (`wayfinder:map`) — **open**
 | B3 | [#26](https://github.com/client-platform-labs/rn/issues/26) | CP registry SQLite | **resolved** | `verify-cp-registry-sqlite.mjs` |
 | B4 | [#27](https://github.com/client-platform-labs/rn/issues/27) | P4/P6 BF native doctor | **resolved** | `verify-bf-native-doctor.mjs` |
 | B5 | [#28](https://github.com/client-platform-labs/rn/issues/28) | CP role matrix | **resolved** | `verify-cp-rbac.mjs` |
+| B9 | [#70](https://github.com/client-platform-labs/rn/issues/70) | CP Kill/Pause by module | **resolved** | `verify-cp-kill-pause.mjs` |
 | B6 | #25 | XCFramework binary CI | deferred | full Xcode |
 | B7 | — | Harmony 真机 | blocked | DevEco |
 | B8 | — | CP Postgres | blocked | 产品 |

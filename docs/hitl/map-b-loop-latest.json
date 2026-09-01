@@ -6,7 +6,8 @@
     "B2",
     "B3",
     "B4",
-    "B5"
+    "B5",
+    "B9"
   ],
   "fail": [],
   "skip": [
@@ -17,8 +18,8 @@
     "B8"
   ],
   "ok": true,
-  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-08-26T14-07-20-143Z.jsonl",
-  "ts": "2026-08-26T14:07:22.843Z",
+  "report": "/Users/xuwei/Work/client-platform-labs/rn/docs/hitl/map-b-loop-2026-09-01T03-05-16-410Z.jsonl",
+  "ts": "2026-09-01T03:05:22.153Z",
   "inventory": [
     {
       "id": "B1",
@@ -62,6 +63,17 @@
       "verify": "scripts/verify-cp-rbac.mjs",
       "deps": [
         "B1"
+      ]
+    },
+    {
+      "id": "B9",
+      "kind": "afk",
+      "title": "CP Kill/Pause by business_module",
+      "issue": 70,
+      "verify": "scripts/verify-cp-kill-pause.mjs",
+      "deps": [
+        "B1",
+        "B5"
       ]
     },
     {

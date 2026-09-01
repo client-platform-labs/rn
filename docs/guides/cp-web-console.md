@@ -1,17 +1,21 @@
-# Thin Control Plane Web (#7 / Map B #24)
+# Thin Control Plane Web (#7 / Map B)
 
-**Status:** Map B thin demo — Bearer auth + SQLite registry + role matrix.
+**Status:** Map B thin demo — Bearer auth + SQLite registry + role matrix + **Kill/Pause (B9)**.
 
 ```bash
 cd <app-with-.rn/delivery>
 RN_CP_REGISTRY=sqlite RN_CP_TOKEN=your-secret RN_CP_ROLE=admin rn-delivery serve --port 4040
-# open http://127.0.0.1:4040/ — enter same token in CP token field for Promote/Block
+# open http://127.0.0.1:4040/ — enter same token for Promote/Block/Kill/Pause
 ```
 
-Page lists staging / production / blocked from `GET /v1/registry`, with **Promote** / **Block** calling the same POST APIs as CLI.
+Page lists staging / production / blocked / kills / pauses from `GET /v1/registry`.
 
-Verify: `node scripts/verify-cp-stub-api.mjs` · `node scripts/verify-cp-auth.mjs` · `node scripts/verify-cp-registry-sqlite.mjs` · `node scripts/verify-cp-rbac.mjs`
+| Action | API |
+|--------|-----|
+| Promote / Block | `POST /v1/promote` · `POST /v1/block` |
+| Kill (by module + update_ids) | `POST /v1/kill` → A5 `excludeSlotsByBlockedUpdates` |
+| Pause / Resume | `POST /v1/pause` · `POST /v1/resume` (admin only) |
 
-Map B loop: `node scripts/run-map-b-loop.mjs`
+Verify: `node scripts/verify-cp-auth.mjs` · `verify-cp-rbac.mjs` · `verify-cp-kill-pause.mjs` · `node scripts/run-map-b-loop.mjs`
 
-Full state machine / rollout_steps / Kill UI / role matrix remain Map B depth.
+Still Map B depth / Map C: full `rollout_steps` soak UI · true multi-tenant CP service.

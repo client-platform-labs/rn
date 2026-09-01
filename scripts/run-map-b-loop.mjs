@@ -80,6 +80,14 @@ const STEPS = [
     deps: ["B1"],
   },
   {
+    id: "B9",
+    kind: "afk",
+    title: "CP Kill/Pause by business_module",
+    issue: 70,
+    verify: "scripts/verify-cp-kill-pause.mjs",
+    deps: ["B1", "B5"],
+  },
+  {
     id: "B6",
     kind: "deferred",
     title: "XCFramework binary artifact on CI",
