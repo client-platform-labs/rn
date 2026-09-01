@@ -56,13 +56,15 @@ host-android.git (tiangong-labs/host-android) (壳仓 · 零业务实现源码)
 - Dev：壳指业务仓 Metro（或业务 DevServer）；Prod：只读已激活槽。  
 - 平台可推广口径：**「带 Build 插件的 OTA 宿主 SDK」**。
 
-## 4. Phases (pain-gated)
+## 4. Phases (design ahead · implement by seam)
 
-| Phase | Scope | Open when |
-|-------|--------|-----------|
-| **D0** | 独立仓 + OTA Client + 内置/远程/验签/reload + 单入口 HBC | 现在 |
-| **D1** | 第二 `business_module` 或第二 channel | 真有第二可独立发版业务 |
-| **D2** | Re.Pack MF；ScriptManager → **仅**已 verify 本地路径 | 同产品 ≥2 团队必须子域独立 OTA，且多 module 不够 |
+| Phase | Scope | Architecture now | Implement when |
+|-------|--------|------------------|----------------|
+| **D0** | 独立仓 + OTA Client + 内置/远程/验签/reload + 单入口 HBC | **DONE** | — |
+| **D1** | 第二 `business_module` / channel 的**契约与壳槽** | **设计中** [#58](https://github.com/client-platform-labs/rn/issues/58) | 缝冻结后；可用 fixture 第二 module 验契约，不要求假产品 |
+| **D2** | Re.Pack MF 作 **Build 插件**；ScriptManager → **仅**已 verify 本地路径 | **设计中** [#59](https://github.com/client-platform-labs/rn/issues/59) | 设计关门后；**禁止**把 MF 做成第二套运行时 |
+
+**原则修正（2026-09-01）：** 架构必须**提前设计可扩展缝**，不得「等业务痛了再画图」。同时 **YAGNI 仍约束实现**：不预建全量第二业务产品、不上 Day-1 全量 MF。设计 ≠ 堆实体。
 
 ## 5. D0 contracts (minimal)
 
@@ -124,7 +126,7 @@ rollback() → last-good / embedded baseline
 - [x] D0：远程 update verify 通过后 **真 reload 一屏**（HITL）；失败回退 baseline — **PASS** 2026-08-31（A2 file-slot · T1 Me updateId · T2 FailedUI→使用基线）  
 - [x] D0：Dev 路径不依赖壳仓内业务源码树 — **PASS**（Metro → `~/code/desk`；壳无 `modules/<biz>`）  
 - [x] 文档：Topology B「业务源嵌壳」标为 **deprecated**；推广叙事改为方案 D — **PASS**（ARCHITECTURE/CONTEXT/DELIVERY/map 头注 + R7）  
-- [x] D1/D2：仅开门条件满足时开票，不预建 — **DEFERRED out of #43** 2026-09-01（#58/#59 wontfix；pain gate）
+- [x] D1/D2：**架构设计提前开票**（#58/#59 research）；实现仍按缝冻结推进，不预堆 MF/假业务 — **corrected 2026-09-01**（废止「等痛点再开」措辞）
 
 ## 9. Spec self-review
 
