@@ -1,0 +1,78 @@
+{
+  "mapIssue": 58,
+  "mode": "auto",
+  "ok": true,
+  "at": "2026-09-01T01:36:07.002Z",
+  "results": [
+    {
+      "id": "D1-fixture-package",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 0,
+      "detail": "fixture_second package ok"
+    },
+    {
+      "id": "D1-embed-desk",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 3934,
+      "detail": "embedded /Users/xuwei/code/host-android/android/app/src/main/assets/ota/desk/index.hbc update_id=desk-f4280e259dc5"
+    },
+    {
+      "id": "D1-embed-fixture_second",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 3988,
+      "detail": "embedded /Users/xuwei/code/host-android/android/app/src/main/assets/ota/fixture_second/index.hbc update_id=fixture_second-2fc3c2b88385"
+    },
+    {
+      "id": "D1-shell-tsc",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 705,
+      "detail": "ok"
+    },
+    {
+      "id": "D1-native-compile",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 5385,
+      "detail": "▒▒▓▓▓▓▒▒\n                     ▒▓▓▓▒▒░░▒▒▓▓▓▒\n                  ▒▓▓▓▓░░░▒▒▒▒░░░▓▓▓▓▒\n                 ▓▓▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▓▓\n                 ▓▓░░░░░▒▓▓▓▓▓▓▒░░░░░▓▓\n                 ▓▓░░▓▓▒░░░▒▒░░░▒▓▒░"
+    },
+    {
+      "id": "D1-verify-slots",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 77,
+      "detail": "PASS d1 slots I1/I2/I3/I4/I6 dual-embed + channel + isolation"
+    },
+    {
+      "id": "D1-runbook",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 0,
+      "detail": "runbook present"
+    },
+    {
+      "id": "D1-docs-r8",
+      "kind": "AFK",
+      "ok": true,
+      "ms": 0,
+      "detail": "R8 ok"
+    },
+    {
+      "id": "D1-A1-release-desk",
+      "kind": "AUTO-HITL",
+      "ok": true,
+      "ms": 4756,
+      "detail": "Release desk cold start ok"
+    },
+    {
+      "id": "D1-A2-fixture-root-debug",
+      "kind": "AUTO-HITL",
+      "ok": false,
+      "skipped": true,
+      "detail": "debug install fail/timeout"
+    }
+  ]
+}

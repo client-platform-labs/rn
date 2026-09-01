@@ -1,5 +1,19 @@
 > **2026-08-31:** Topology B「业务源嵌壳 modules/」**DEPRECATED**。工业终点 → 方案 D · map #43 · 本地 `~/code/desk` + `~/code/host-android`（目标 GitHub `tiangong-labs/desk` · `tiangong-labs/host-android`）。
 
+## D1 · 登记第二 module（业务只填契约）
+
+工业条：[R8 §6](./research/R8-d1-multi-module-channel.md)。参考实现：`@tiangong/fixture_second` + Host `ModuleRegistry`。
+
+1. **独立包/仓** 导出 `getModuleApp()`（禁止进壳 `modules/` 源码）。  
+2. Host `metro.config.js`：`watchFolders` + `extraNodeModules` 指到该包。  
+3. `shell/ModuleRegistry.ts`：`registerModule({ moduleId, getApp, loadSidecar })`。  
+4. Sidecar：`shell/fixtures/modules/<moduleId>/sidecar.json`（`business_module` = moduleId）。  
+5. Embed：`node scripts/embed-baseline.mjs --module <moduleId>` → `android/app/src/main/assets/ota/<moduleId>/`.  
+6. OTA：`checkForUpdate(moduleId, channel)` → `fetchUpdate` → `verifySidecar` → `installAndReload(moduleId, path)`（`TiangongOta` per-module map + optional `setRootModuleId`）。  
+7. 回归：`node scripts/run-hermes-d1-loop.mjs --mode auto`
+
+---
+
 # Hermes GF · 最终交付（Map #29）
 
 **Date:** 2026-08-31  
