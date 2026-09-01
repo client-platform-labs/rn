@@ -55,6 +55,13 @@ const STEPS = [
     issue: 78,
     verify: "scripts/verify-cp-rollout-tick.mjs",
   },
+  {
+    id: "C6",
+    kind: "afk",
+    title: "P11 planJsRollback compatibility (no unsafe cut)",
+    issue: 79,
+    verify: "scripts/verify-js-rollback-plan.mjs",
+  },
 ];
 
 function printPlan() {

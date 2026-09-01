@@ -399,7 +399,7 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
 | **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B5+B9–B11 ✅ · B6 SKIP · B7/B8 BLOCKED |
-| **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C5 ✅ · 店侧适配器 deferred |
+| **Map C** | 🔄 **AFK bar green** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C6 ✅ · 店侧适配器 deferred |
 | **Map D** | ⬜ 未开 | 合规 · 迁移 · 运维手册 |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
@@ -483,15 +483,16 @@ flowchart TB
 | C3 | channel_profile 七渠合同 + pending-rules | ✅ #76 |
 | C4 | P8 consistency_gate + consistency_fail promote | ✅ #77 |
 | C5 | P10 tick soak∧SLO auto-advance / breach pause | ✅ #78 |
+| C6 | P11 planJsRollback（同宿主公式 · 不切坏流量） | ✅ #79 |
 | C3b | 店侧 submit 执行适配器 | deferred |
 
 ### 9.6 P1–P17 · 合同 vs 落地（摘要）
 
 | 态 | 补丁 |
 |----|------|
-| **✅ 代码+验证** | P3 · P4 thin+depth（B4/B10）· P5 · P6 thin+codegen（B4/B10）· P2 部分 · P7 e2e_fail（C1）· P8 consistency_gate 合同（C4）· P10 thin+tick（B11/C5） |
+| **✅ 代码+验证** | P3 · P4 thin+depth（B4/B10）· P5 · P6 thin+codegen（B4/B10）· P2 部分 · P7 e2e_fail（C1）· P8 consistency_gate 合同（C4）· P10 thin+tick（B11/C5）· P11 rollback plan（C6） |
 | **⚠️ 接口/薄** | P1 · P2 文案 · P9（SBOM stub） |
-| **❌ Map C/D 余量** | P10 真观测后端 · P11–P17 生产联动 · C3b 店侧 |
+| **❌ Map C/D 余量** | P10 真观测后端 · P12–P17 生产联动 · C3b 店侧 |
 
 合同权威：[research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) — **实现可分期，合同不砍**。
 
@@ -501,4 +502,4 @@ flowchart TB
 2. **Map C depth：** C3b 店侧 submit 适配器 · 真 SLO 观测后端
 3. **Map D：** 迁移工具链 · 合规叠加档 · 运维手册
 
-*上一结项：C5 [#78](https://github.com/client-platform-labs/rn/issues/78) · C4 [#77](https://github.com/client-platform-labs/rn/issues/77) · Map C AFK bar C1–C5 · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*
+*上一结项：C6 [#79](https://github.com/client-platform-labs/rn/issues/79) · C5 [#78](https://github.com/client-platform-labs/rn/issues/78) · Map C AFK bar C1–C6 · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) 仍 open（B6–B8）。*

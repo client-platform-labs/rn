@@ -1,14 +1,14 @@
 # Map C — 控制面服务化与渠道执行
 
-GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:map`) — **open**（店侧适配器 / 真观测后端仍 Depth）
+GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:map`) — **open**（店侧适配器 / 真观测仍 Depth）
 
 **Parents:** Map A [#18](https://github.com/client-platform-labs/rn/issues/18) CLOSED · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) open for B6–B8 lab only.
 
 ## Destination
 
-生产控制面缝：服务化 · P7/P8 fail-closed · channel_profile 合同 · P10 tick 自动放量。
+生产控制面缝：服务化 · P7/P8/P11 fail-closed · channel_profile · P10 tick。
 
-**Loop：** `node scripts/run-map-c-loop.mjs` → C1–C5 PASS
+**Loop：** `node scripts/run-map-c-loop.mjs` → C1–C6 PASS
 
 ## 进度板
 
@@ -19,6 +19,7 @@ GitHub: [#73](https://github.com/client-platform-labs/rn/issues/73) (`wayfinder:
 | C3 | [#76](https://github.com/client-platform-labs/rn/issues/76) | channel_profile 七渠合同 | **resolved** | `verify-channel-profile.mjs` |
 | C4 | [#77](https://github.com/client-platform-labs/rn/issues/77) | P8 consistency_gate + promote block | **resolved** | `verify-consistency-gate.mjs` |
 | C5 | [#78](https://github.com/client-platform-labs/rn/issues/78) | P10 tick soak∧SLO auto / breach pause | **resolved** | `verify-cp-rollout-tick.mjs` |
+| C6 | [#79](https://github.com/client-platform-labs/rn/issues/79) | P11 planJsRollback | **resolved** | `verify-js-rollback-plan.mjs` |
 | C3b | — | 店侧提交执行适配器 | deferred | needs store backends |
 
 ## Out

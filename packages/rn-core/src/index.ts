@@ -168,6 +168,12 @@ export type {
   JourneyProbeResult,
 } from "./consistency-gate.js";
 
+export { planJsRollback } from "./js-rollback-plan.js";
+export type {
+  JsRollbackPlan,
+  RollbackPlanAction,
+} from "./js-rollback-plan.js";
+
 export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
