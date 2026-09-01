@@ -65,7 +65,11 @@ const flatGradle = readFileSync(
   path.join(androidRoot, "consumer-flatdir/build.gradle.kts"),
   "utf8",
 );
-step("flatDir AAR dependency", flatGradle.includes('name = "stub-release"'));
+step(
+  "flatDir AAR dependency",
+  flatGradle.includes('name = "stub-release"') ||
+    flatGradle.includes('mapOf("name" to "stub-release", "ext" to "aar")'),
+);
 
 if (!device) {
   console.log("");
