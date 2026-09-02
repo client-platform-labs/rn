@@ -29,6 +29,8 @@ node scripts/run-afk-hitl-loop.mjs --plan
 | `docs/hitl/afk-hitl-loop-latest.md` | 人类可读：逐步状态表 + 汇总 |
 | `docs/hitl/afk-hitl-loop-<stamp>.jsonl` | 单次运行逐行 trace |
 
+以上 `*-latest.*` 与 `*.jsonl` 为本地 loop 产物，已写入根目录 `.gitignore`，不纳入 git。
+
 ---
 
 ## 三类门禁

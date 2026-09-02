@@ -1,3 +1,0 @@
-{"id":"C1","status":"pass","ms":657,"ts":"2026-09-01T03:30:59.140Z"}
-{"id":"C2","status":"blocked","reason":"product — Map C serviceization after C1","ts":"2026-09-01T03:30:59.141Z"}
-{"id":"C3","status":"blocked","reason":"needs channel backends","ts":"2026-09-01T03:30:59.141Z"}
