@@ -3,6 +3,7 @@ import {
   blockCandidateInRegistry,
   promoteCandidateToStaging,
 } from "./candidate-store.js";
+import { assertDependencyAllowsPublish } from "./dependency-gate.js";
 import { installAndroidApk } from "./install.js";
 import { pickCandidate } from "./release-shared.js";
 import { assertProfileAllowsStage } from "./stages.js";
@@ -36,6 +37,8 @@ export async function runRelease(options: {
       EXIT_FAIL,
     );
   }
+
+  assertDependencyAllowsPublish(projectRoot, validation.candidate);
 
   const registry = promoteCandidateToStaging(projectRoot, validation.candidate);
   const promoted = registry.staging.find(

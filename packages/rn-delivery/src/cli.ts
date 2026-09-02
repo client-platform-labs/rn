@@ -1,3 +1,5 @@
+import { runIngestHost } from "./ingest-host.js";
+import { runIngestPack } from "./ingest-pack.js";
 import { runBuild } from "./build.js";
 import { runPromote } from "./promote.js";
 import { runBlock, runRelease } from "./release.js";
@@ -25,6 +27,10 @@ Commands:
     App-host compile (Gradle/xcodebuild). Writes .rn/delivery/last-candidate.json.
   update --module <id> [--profile release]
     Per-module js-update bundle (compile). Not Metro dev output.
+  ingest-pack --module <id> [--hbc <path>]
+    Ingest pack-business HBC at assets/ota/<id>/index.hbc as js-update candidate.
+  ingest-host --apk <path> [--profile release|debug-host]
+    Register existing APK as app-host candidate (skip Gradle rebuild).
   sign [--candidate <path>]
     Thin sign stage: digest-seal signature + stub SBOM slot (M5).
   validate [--candidate <path>]
@@ -57,6 +63,8 @@ Exit: 0 help/success | 1 failure / not implemented | 2 usage
 const KNOWN = new Set([
   "build",
   "update",
+  "ingest-pack",
+  "ingest-host",
   "sign",
   "validate",
   "release",
@@ -178,6 +186,29 @@ export async function run(argv = process.argv): Promise<number> {
       await runUpdate({
         cwd: process.cwd(),
         module: requireModule(rest),
+        profile: parseProfile(rest) ?? "release",
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "ingest-pack") {
+      await runIngestPack({
+        cwd: process.cwd(),
+        module: requireModule(rest),
+        hbcPath: flagValue(rest, "--hbc"),
+        profile: parseProfile(rest) ?? "release",
+      });
+      return EXIT_OK;
+    }
+
+    if (cmd === "ingest-host") {
+      const apk = flagValue(rest, "--apk");
+      if (!apk?.trim()) {
+        throw new DeliveryError("ingest-host: --apk <path> required", EXIT_USAGE);
+      }
+      await runIngestHost({
+        cwd: process.cwd(),
+        apkPath: apk,
         profile: parseProfile(rest) ?? "release",
       });
       return EXIT_OK;

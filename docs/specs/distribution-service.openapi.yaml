@@ -1,0 +1,625 @@
+openapi: 3.1.0
+info:
+  title: RN Distribution Service API
+  version: 1.0.0-draft
+  description: |
+    Map E — single Distribution Service contract (host install portal + JS/offline train + shared CP).
+
+    **Reference implementation:** `@client-platform/rn-delivery cp-serve` (Node).
+
+    **Truth:** one registry per `(tenant_id, product_app)` when Postgres is used; file/SQLite mode uses `RN_CP_PROJECT/.rn/delivery/`.
+
+    Mutating routes require `Authorization: Bearer <RN_CP_TOKEN>` when the server has `RN_CP_TOKEN` set.
+  contact:
+    name: client-platform-labs/rn
+
+servers:
+  - url: http://127.0.0.1:4040
+    description: Local Compose / dev
+  - url: https://distribution.example.com
+    description: Enterprise deployment (ECS, K8s, etc.)
+
+tags:
+  - name: service
+  - name: registry
+  - name: host-plane
+  - name: js-plane
+  - name: dependencies
+  - name: rollout
+  - name: console
+
+paths:
+  /health:
+    get:
+      tags: [service]
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /v1/service:
+    get:
+      tags: [service]
+      summary: Service identity and storage mode
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+
+  /:
+    get:
+      tags: [console]
+      summary: Reference Console (HTML)
+      description: Returns 404 when `RN_CP_DISABLE_CONSOLE=1`.
+      responses:
+        "200":
+          description: HTML console
+          content:
+            text/html: {}
+        "404":
+          $ref: "#/components/responses/ConsoleDisabled"
+
+  /console:
+    get:
+      tags: [console]
+      summary: Reference Console alias
+      responses:
+        "200":
+          content:
+            text/html: {}
+        "404":
+          $ref: "#/components/responses/ConsoleDisabled"
+
+  /v1/registry:
+    get:
+      tags: [registry]
+      summary: Full delivery registry
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryRegistry"
+
+  /v1/registry/staging:
+    get:
+      tags: [registry]
+      summary: Staging lane only
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  staging:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Candidate"
+
+  /v1/registry/production:
+    get:
+      tags: [registry]
+      summary: Production lane only
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  production:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Candidate"
+
+  /v1/candidates:
+    get:
+      tags: [host-plane]
+      summary: Installable Android host builds
+      parameters:
+        - name: lane
+          in: query
+          schema:
+            type: string
+            enum: [staging, production, all]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HostCandidate"
+
+  /v1/artifacts/{digest}:
+    get:
+      tags: [host-plane]
+      summary: Download host artifact bytes (APK)
+      parameters:
+        - name: digest
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: APK stream
+          content:
+            application/vnd.android.package-archive:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/js-updates:
+    get:
+      tags: [js-plane]
+      summary: JS / offline-package train candidates
+      parameters:
+        - name: lane
+          in: query
+          schema:
+            type: string
+            enum: [staging, production, all]
+        - name: module
+          in: query
+          schema:
+            type: string
+          description: Filter by business_module
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JsCandidate"
+
+  /v1/dependency-manifest:
+    get:
+      tags: [dependencies]
+      summary: Dependency manifest store
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DependencyManifest"
+    put:
+      tags: [dependencies]
+      security:
+        - bearerAuth: []
+      summary: Replace dependency manifest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DependencyManifestInput"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  action:
+                    type: string
+                  manifest:
+                    $ref: "#/components/schemas/DependencyManifest"
+
+  /v1/promote:
+    post:
+      tags: [registry]
+      security:
+        - bearerAuth: []
+      summary: Promote staging candidate to production
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digest]
+              properties:
+                digest:
+                  type: string
+      responses:
+        "200":
+          description: Promoted
+        "400":
+          $ref: "#/components/responses/DependencyGateFailed"
+
+  /v1/block:
+    post:
+      tags: [registry]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digest]
+              properties:
+                digest:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Blocked
+
+  /v1/kill:
+    post:
+      tags: [registry]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [business_module, update_ids]
+              properties:
+                business_module:
+                  type: string
+                update_ids:
+                  type: array
+                  items:
+                    type: string
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Kill recorded
+
+  /v1/pause:
+    post:
+      tags: [registry]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [business_module]
+              properties:
+                business_module:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Paused
+
+  /v1/resume:
+    post:
+      tags: [registry]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [business_module]
+              properties:
+                business_module:
+                  type: string
+      responses:
+        "200":
+          description: Resumed
+
+  /v1/rollouts:
+    get:
+      tags: [rollout]
+      summary: Active rollouts
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rollouts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Rollout"
+
+  /v1/rollout/start:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RolloutStart"
+      responses:
+        "200":
+          description: Started
+
+  /v1/rollout/advance:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digest]
+              properties:
+                digest:
+                  type: string
+      responses:
+        "200":
+          description: Advanced
+
+  /v1/rollout/pause:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digest]
+              properties:
+                digest:
+                  type: string
+      responses:
+        "200":
+          description: Paused
+
+  /v1/rollout/resume:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digest]
+              properties:
+                digest:
+                  type: string
+      responses:
+        "200":
+          description: Resumed
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Same value as server env RN_CP_TOKEN
+
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ConsoleDisabled:
+      description: Reference console disabled
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: console_disabled
+    DependencyGateFailed:
+      description: publish/promote/runtime dependency gate
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              dependencyCode:
+                type: string
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        projectRoot:
+          type: string
+        service:
+          type: string
+        api:
+          type: integer
+
+    ServiceInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        api:
+          type: integer
+        mode:
+          type: string
+          enum: [cli-serve, cp-serve]
+        storage:
+          type: string
+          enum: [file, sqlite]
+        replaceable_backend:
+          type: boolean
+        postgres:
+          type: boolean
+
+    Candidate:
+      type: object
+      description: Unified candidate metadata (host or js-update)
+      required: [digest, artifact_kind, platform, profile]
+      properties:
+        schemaVersion:
+          type: integer
+        release_id:
+          type: string
+        digest:
+          type: string
+          description: sha256 promote key
+        artifact_kind:
+          type: string
+          enum: [app-host, app-host-debug, js-update, rn-module]
+        platform:
+          type: string
+          enum: [android, ios, js, harmonyos]
+        profile:
+          type: string
+        business_module:
+          type: string
+        update_id:
+          type: string
+        path:
+          type: string
+          description: Local path or future blob URI
+        stage:
+          type: string
+
+    HostCandidate:
+      allOf:
+        - $ref: "#/components/schemas/Candidate"
+        - type: object
+          properties:
+            download_url:
+              type: string
+              format: uri-reference
+
+    JsCandidate:
+      allOf:
+        - $ref: "#/components/schemas/Candidate"
+
+    DeliveryRegistry:
+      type: object
+      properties:
+        schemaVersion:
+          type: integer
+        staging:
+          type: array
+          items:
+            $ref: "#/components/schemas/Candidate"
+        production:
+          type: array
+          items:
+            $ref: "#/components/schemas/Candidate"
+        blocked:
+          type: array
+          items:
+            type: object
+        kills:
+          type: array
+          items:
+            type: object
+        pauses:
+          type: array
+          items:
+            type: object
+        rollouts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rollout"
+
+    DependencyManifest:
+      type: object
+      properties:
+        schemaVersion:
+          type: integer
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/DependencyEdge"
+        version_labels:
+          type: object
+          additionalProperties:
+            type: string
+        host_capability_set:
+          type: array
+          items:
+            type: string
+
+    DependencyManifestInput:
+      allOf:
+        - $ref: "#/components/schemas/DependencyManifest"
+
+    DependencyEdge:
+      type: object
+      properties:
+        from_update_id:
+          type: string
+        from_module:
+          type: string
+        strength:
+          type: string
+          enum: [hard, peer, soft]
+        kind:
+          type: string
+        to_update_id:
+          type: string
+        to_module:
+          type: string
+        to_range:
+          type: string
+
+    Rollout:
+      type: object
+      properties:
+        digest:
+          type: string
+        business_module:
+          type: string
+        phase:
+          type: string
+        gate:
+          type: string
+
+    RolloutStart:
+      type: object
+      required: [business_module, digest]
+      properties:
+        business_module:
+          type: string
+        digest:
+          type: string
+        update_id:
+          type: string
+        gate:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string

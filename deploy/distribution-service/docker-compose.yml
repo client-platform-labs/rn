@@ -1,0 +1,31 @@
+# Map E L1 — local / ECS single-node Distribution Service
+# Usage (from repo root):
+#   cp deploy/distribution-service/.env.example deploy/distribution-service/.env
+#   docker compose -f deploy/distribution-service/docker-compose.yml up -d --build
+#   curl http://127.0.0.1:4040/health
+
+services:
+  distribution:
+    build:
+      context: ../..
+      dockerfile: deploy/distribution-service/Dockerfile
+    image: client-platform/distribution-service:local
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "${DISTRIBUTION_PORT:-4040}:4040"
+    environment:
+      RN_CP_PROJECT: /data/project
+      RN_CP_HOST: 0.0.0.0
+      PORT: "4040"
+      RN_CP_TOKEN: ${RN_CP_TOKEN:-}
+      RN_CP_ROLE: ${RN_CP_ROLE:-admin}
+      RN_CP_REGISTRY: ${RN_CP_REGISTRY:-file}
+      RN_CP_DISABLE_CONSOLE: ${RN_CP_DISABLE_CONSOLE:-0}
+    volumes:
+      - distribution-data:/data/project
+
+volumes:
+  distribution-data:

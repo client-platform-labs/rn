@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { checkCpBearerAuth, checkCpMutatingRole, resolveCpRole } from "../dist/cp-auth.js";
+import { checkCpBearerAuth, checkCpMutatingRole, resolveCpMinSoakMs, resolveCpRole } from "../dist/cp-auth.js";
 
 describe("checkCpBearerAuth", () => {
   it("allows all when token unset", () => {
@@ -45,5 +45,22 @@ describe("resolveCpRole", () => {
     delete process.env.RN_CP_ROLE;
     assert.equal(resolveCpRole(), "admin");
     if (prev) process.env.RN_CP_ROLE = prev;
+  });
+});
+
+describe("resolveCpMinSoakMs", () => {
+  it("returns undefined when unset", () => {
+    const prev = process.env.RN_CP_MIN_SOAK_MS;
+    delete process.env.RN_CP_MIN_SOAK_MS;
+    assert.equal(resolveCpMinSoakMs(), undefined);
+    if (prev) process.env.RN_CP_MIN_SOAK_MS = prev;
+  });
+
+  it("parses non-negative integer", () => {
+    const prev = process.env.RN_CP_MIN_SOAK_MS;
+    process.env.RN_CP_MIN_SOAK_MS = "5000";
+    assert.equal(resolveCpMinSoakMs(), 5000);
+    if (prev) process.env.RN_CP_MIN_SOAK_MS = prev;
+    else delete process.env.RN_CP_MIN_SOAK_MS;
   });
 });

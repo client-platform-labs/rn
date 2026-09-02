@@ -1,7 +1,12 @@
 /**
  * Load-time identity gate (ADR-008 P0.2): signature + selector/compat window.
+ * Optional Map E composition peer check when `composition` + `dependencies` provided.
  * Unsigned / failed-verify packages must not execute.
  */
+import {
+  evaluateRuntimeCompositionGate,
+  type BundleDependencyEdge,
+} from "./dependency-manifest.js";
 import { gateJsCandidate } from "./selector.js";
 import type {
   GateJsCandidateResult,
@@ -23,6 +28,13 @@ export type BundleLoadArtifact = {
   expectedDigest?: string | null;
   /** Dev Session may skip signature while still requiring fingerprint gate. */
   allowUnsignedInDev?: boolean;
+  /**
+   * Map E — live module composition on device (module id → candidate).
+   * When set with `dependencies`, peer/hard coexistence is fail-closed.
+   */
+  composition?: Readonly<Record<string, JsUpdateCandidate | undefined>>;
+  dependencies?: readonly BundleDependencyEdge[];
+  version_labels?: Readonly<Record<string, string>>;
 };
 
 export type BundleLoadGateResult =
@@ -32,12 +44,14 @@ export type BundleLoadGateResult =
       signatureStatus: BundleSignatureStatus;
       reason: string;
       selector?: GateJsCandidateResult & { ok: false };
+      dependencyCode?: string;
     };
 
 /**
  * Verify payload identity before execute.
  * Production path: signature required + selector must pass.
  * Dev path: `allowUnsignedInDev` may skip signature only.
+ * Optional: composition dependency gate (Map E).
  */
 export function gateBundleLoad(
   artifact: BundleLoadArtifact,
@@ -56,18 +70,19 @@ export function gateBundleLoad(
   const sig = artifact.signature?.trim() || null;
   const expected = artifact.expectedDigest?.trim() || null;
 
+  let signatureStatus: BundleSignatureStatus = "verified";
+
   if (!sig) {
     if (artifact.allowUnsignedInDev) {
-      return { ok: true, signatureStatus: "skipped_dev" };
+      signatureStatus = "skipped_dev";
+    } else {
+      return {
+        ok: false,
+        signatureStatus: "missing",
+        reason: `unsigned package refused for business_module=${artifact.candidate.business_module} update_id=${artifact.candidate.update_id}`,
+      };
     }
-    return {
-      ok: false,
-      signatureStatus: "missing",
-      reason: `unsigned package refused for business_module=${artifact.candidate.business_module} update_id=${artifact.candidate.update_id}`,
-    };
-  }
-
-  if (expected && sig !== expected) {
+  } else if (expected && sig !== expected) {
     return {
       ok: false,
       signatureStatus: "invalid",
@@ -75,5 +90,27 @@ export function gateBundleLoad(
     };
   }
 
-  return { ok: true, signatureStatus: "verified" };
+  if (
+    artifact.composition &&
+    artifact.dependencies &&
+    artifact.dependencies.length > 0
+  ) {
+    const dep = evaluateRuntimeCompositionGate({
+      host,
+      composition: artifact.composition,
+      version_labels: artifact.version_labels ?? {},
+      dependencies: artifact.dependencies,
+    });
+    if (!dep.ok) {
+      const first = dep.checks.find((c) => !c.pass);
+      return {
+        ok: false,
+        signatureStatus,
+        reason: first?.message ?? "dependency composition gate failed",
+        dependencyCode: first?.code,
+      };
+    }
+  }
+
+  return { ok: true, signatureStatus };
 }

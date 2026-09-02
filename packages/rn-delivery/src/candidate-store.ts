@@ -169,6 +169,50 @@ export function listInstallableCandidates(
   );
 }
 
+/** Map E #105 — resolve one installable host candidate by digest. */
+export function findInstallableByDigest(
+  registry: DeliveryRegistry,
+  digest: string,
+): CandidateMetadata | undefined {
+  const needle = digest.trim().toLowerCase();
+  if (!needle) return undefined;
+  return listInstallableCandidates(registry, "all").find(
+    (c) => c.digest.toLowerCase() === needle,
+  );
+}
+
+/** Map E E-T10 — any staged/production artifact with on-disk path (host or js-update). */
+export function findArtifactByDigest(
+  registry: DeliveryRegistry,
+  digest: string,
+): CandidateMetadata | undefined {
+  const needle = digest.trim().toLowerCase();
+  if (!needle) return undefined;
+  return [...registry.staging, ...registry.production].find(
+    (c) => c.digest.toLowerCase() === needle && Boolean(c.path?.trim()),
+  );
+}
+
+/** Map E #106 — js-update candidates for offline-package train console. */
+export function listJsUpdateCandidates(
+  registry: DeliveryRegistry,
+  lane: "staging" | "production" | "all" = "all",
+  businessModule?: string,
+): CandidateMetadata[] {
+  const lanes: CandidateMetadata[] =
+    lane === "staging"
+      ? registry.staging
+      : lane === "production"
+        ? registry.production
+        : [...registry.staging, ...registry.production];
+  const mod = businessModule?.trim();
+  return lanes.filter((c) => {
+    if (c.artifact_kind !== "js-update") return false;
+    if (mod && c.business_module !== mod) return false;
+    return true;
+  });
+}
+
 export function saveRegistry(
   projectRoot: string,
   registry: DeliveryRegistry,
@@ -226,10 +270,16 @@ export function writeLastCandidate(
   candidate: CandidateMetadata,
 ): void {
   ensureDeliveryDir(projectRoot);
-  writeFileSync(
-    path.join(deliveryDir(projectRoot), LAST_CANDIDATE_FILE),
-    `${JSON.stringify(candidate, null, 2)}\n`,
-  );
+  const candidateFile = path.join(deliveryDir(projectRoot), LAST_CANDIDATE_FILE);
+  writeFileSync(candidateFile, `${JSON.stringify(candidate, null, 2)}\n`);
+
+  const buildFile = path.join(deliveryDir(projectRoot), LAST_BUILD_FILE);
+  if (!existsSync(buildFile)) return;
+  const record = JSON.parse(readFileSync(buildFile, "utf8")) as LastBuildRecord;
+  const idx = record.candidates.findIndex((c) => c.digest === candidate.digest);
+  if (idx < 0) return;
+  record.candidates[idx] = candidate;
+  writeFileSync(buildFile, `${JSON.stringify(record, null, 2)}\n`);
 }
 
 export function promoteStagingToProduction(

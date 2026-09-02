@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>rn-delivery · Control Plane (thin)</title>
+  <title>RN 分发服务 · 运维验证页</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -19,7 +19,7 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
       background: var(--bg);
       color: var(--text);
     }
@@ -29,14 +29,14 @@
     }
     header h1 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 600;
-      letter-spacing: 0.02em;
     }
-    header p {
+    header .subtitle {
       margin: 0.35rem 0 0;
       color: var(--muted);
-      font-size: 0.85rem;
+      font-size: 0.88rem;
+      max-width: 52rem;
     }
     main {
       display: grid;
@@ -59,6 +59,8 @@
       border-radius: 4px;
       cursor: pointer;
       font: inherit;
+      text-decoration: none;
+      display: inline-block;
     }
     button:hover { border-color: var(--accent); }
     button.primary {
@@ -67,17 +69,8 @@
       color: #fff;
     }
     button.danger { border-color: var(--danger); color: #f0c0c0; }
-    input.token {
-      min-width: 12rem;
-      padding: 0.35rem 0.55rem;
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      background: var(--bg);
-      color: var(--text);
-      font: inherit;
-    }
-    input.token {
-      min-width: 12rem;
+    input.token, select {
+      min-width: 8rem;
       padding: 0.35rem 0.55rem;
       border: 1px solid var(--line);
       border-radius: 4px;
@@ -98,13 +91,21 @@
     }
     section h2 {
       margin: 0;
-      padding: 0.65rem 0.9rem;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
+      padding: 0.65rem 0.9rem 0.35rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
       border-bottom: 1px solid var(--line);
     }
+    .section-desc {
+      margin: 0;
+      padding: 0 0.9rem 0.65rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      line-height: 1.5;
+    }
+    .section-desc code { font-size: 0.75rem; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -134,6 +135,7 @@
     .empty {
       padding: 1rem 0.9rem;
       color: var(--muted);
+      line-height: 1.5;
     }
     .err {
       color: var(--danger);
@@ -142,41 +144,201 @@
     }
     .actions { white-space: nowrap; }
     .actions button { margin-right: 0.25rem; }
+    .dep-meta {
+      padding: 0.55rem 0.9rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .dep-edit {
+      padding: 0.75rem 0.9rem;
+      border-top: 1px solid var(--line);
+    }
+    .dep-edit textarea {
+      width: 100%;
+      min-height: 8rem;
+      margin: 0.4rem 0 0.6rem;
+      padding: 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font: 0.78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      resize: vertical;
+    }
+    .dep-edit .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .glossary {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.5rem 0.9rem;
+    }
+    .glossary summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--accent);
+      padding: 0.35rem 0;
+    }
+    .glossary dl {
+      margin: 0.75rem 0 0.25rem;
+      display: grid;
+      gap: 0.65rem;
+    }
+    .glossary dt {
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .glossary dt span.en {
+      font-weight: 400;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .glossary dd {
+      margin: 0.15rem 0 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    .flow-hint {
+      font-size: 0.82rem;
+      color: var(--muted);
+      padding: 0.75rem 0.9rem;
+      background: #141b24;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      line-height: 1.55;
+    }
+    .flow-hint strong { color: var(--text); }
   </style>
 </head>
-<body>
+<body data-console="distribution-reference">
   <header>
-    <h1>Control Plane · thin demo</h1>
-    <p>Reads <code>.rn/delivery/registry.json</code> via the same HTTP API as CLI. Set <code>RN_CP_TOKEN</code> on serve for mutating routes.</p>
+    <h1>分发服务 · 运维验证页</h1>
+    <p class="subtitle">
+      面向<strong>平台运维 / 发布工程师</strong>：验证分发 API 与注册表是否正常，<strong>不是</strong>给测试或业务方用的成品控制台。
+      企业正式环境可设 <code>RN_CP_DISABLE_CONSOLE=1</code> 仅暴露 API，自建装包台与发版 UI。
+      数据来自 <code>.rn/delivery/registry.json</code>；列表为空表示尚无制品入库。
+    </p>
   </header>
   <main>
+    <details class="glossary" id="glossary-panel">
+      <summary>名词解释</summary>
+      <dl>
+        <dt>控制面 <span class="en">Control Plane</span></dt>
+        <dd>管「发什么、发到哪、能否回滚」的策略中心；本页是它的 Web 操作入口，真相在注册表与 API。</dd>
+        <dt>注册表 <span class="en">Registry</span></dt>
+        <dd>所有待发布/已发布制品的清单，分<strong>预发</strong>与<strong>生产</strong>两条泳道。</dd>
+        <dt>预发 / 生产 <span class="en">Staging / Production</span></dt>
+        <dd>预发 = 内测/QA 可见；生产 = 正式对用户或设备生效。晋级（Promote）把制品从预发推到生产。</dd>
+        <dt>制品指纹 <span class="en">digest</span></dt>
+        <dd>包内容的 SHA256，全平台唯一 ID。晋级、封禁、下载都认 digest，不认「内部版本号」。</dd>
+        <dt>宿主装包 <span class="en">app-host / app-host-debug</span></dt>
+        <dd>整包 APK/IPA（壳应用），给测试人员安装，不是 JS 热更新。</dd>
+        <dt>JS / 离线包 <span class="en">js-update</span></dt>
+        <dd>业务侧 JavaScript 资源包：用户<strong>已安装 App 后</strong>，在不重装整包的情况下更新页面与逻辑（类似常见 OTA 热更）。与「宿主装包」是两条线。</dd>
+        <dt>业务模块 <span class="en">business_module</span></dt>
+        <dd>多 Bundle 场景下的模块名（如 checkout、home），用于 Kill/Pause 与 JS 列表筛选。</dd>
+        <dt>晋级 / 封禁 <span class="en">Promote / Block</span></dt>
+        <dd>晋级：预发 → 生产；封禁：禁止该 digest 再被选用。</dd>
+        <dt>熔断 / 暂停 <span class="en">Kill / Pause</span></dt>
+        <dd>按业务模块紧急停更：Kill 指定 update_id；Pause 暂停整个模块下发。</dd>
+        <dt>灰度发布 <span class="en">Rollout</span></dt>
+        <dd>按阶梯逐步提高下发比例（如 5% → 25% → 100%），可中途暂停。</dd>
+        <dt>依赖清单 <span class="en">dependency-manifest</span></dt>
+        <dd>壳↔包、包↔包依赖合同；发布/晋级/运行时加载时会做门禁校验。</dd>
+        <dt>管理令牌 <span class="en">RN_CP_TOKEN</span></dt>
+        <dd>服务端环境变量；填写后，晋级/封禁等写操作需 Bearer 鉴权。</dd>
+      </dl>
+    </details>
+
+    <p class="flow-hint">
+      <strong>典型流程：</strong>
+      CI 或本地打包 → 入库预发 → 本页核对 → 晋级到生产 → 装包台下 APK，或 App 内拉取 JS/离线包。
+      产品门户（接 API）：<a href="/portal/host">宿主装包台</a> · <a href="/portal/js">JS 发版台</a>。
+      静态设计稿见 <code>wayfinding-map-e/prototypes/</code>。
+    </p>
+
     <div class="toolbar">
-      <button type="button" class="primary" id="btn-refresh">Refresh</button>
+      <button type="button" class="primary" id="btn-refresh">刷新数据</button>
       <label>
-        <span class="status">CP token</span>
-        <input class="token" id="cp-token" type="password" placeholder="Bearer (RN_CP_TOKEN)" autocomplete="off" />
+        <span class="status" title="与服务端 RN_CP_TOKEN 一致，写操作必填">管理令牌</span>
+        <input class="token" id="cp-token" type="password" placeholder="Bearer 令牌" autocomplete="off" />
       </label>
-      <span class="status" id="status">loading…</span>
+      <span class="status" id="status">加载中…</span>
     </div>
     <div id="error" class="err" hidden></div>
+
     <section>
-      <h2>Staging</h2>
+      <h2>预发泳道</h2>
+      <p class="section-desc">内测/QA 可见的制品。可在此对行点击「晋级」推到生产，或「封禁」「熔断」「暂停」「开始灰度」。</p>
       <div id="staging"></div>
     </section>
     <section>
-      <h2>Production</h2>
+      <h2>生产泳道</h2>
+      <p class="section-desc">已对用户或设备正式生效的制品。一般不再晋级，仍可封禁或模块级熔断。</p>
       <div id="production"></div>
     </section>
     <section>
-      <h2>Blocked</h2>
+      <h2>已封禁</h2>
+      <p class="section-desc">被标记为不可再选用的 digest 及原因。</p>
       <div id="blocked"></div>
     </section>
     <section>
-      <h2>Kills · Pauses (B9 · by business_module)</h2>
+      <h2>宿主装包台</h2>
+      <p class="section-desc">可安装的 Android 壳包（APK）。测试人员在此下载整包安装，与 JS 热更无关。</p>
+      <div class="dep-meta">
+        接口：<code>GET /v1/candidates</code> · 下载：<code>/v1/artifacts/:digest</code>
+        · 泳道
+        <select id="host-lane">
+          <option value="all">全部</option>
+          <option value="staging">仅预发</option>
+          <option value="production">仅生产</option>
+        </select>
+      </div>
+      <div id="host-builds"></div>
+    </section>
+    <section>
+      <h2>JS / 离线包</h2>
+      <p class="section-desc">已入库的业务 JS/离线包列表（热更用，不需重装 App）。晋级、封禁等操作请在上方预发/生产表中进行。</p>
+      <div class="dep-meta">
+        接口：<code>GET /v1/js-updates</code> · 用量统计尚未接入
+        · 泳道
+        <select id="js-lane">
+          <option value="all">全部</option>
+          <option value="staging">仅预发</option>
+          <option value="production">仅生产</option>
+        </select>
+        · 模块筛选
+        <input class="token" id="js-module" type="text" placeholder="如 checkout" style="min-width:8rem" />
+      </div>
+      <div id="js-updates"></div>
+    </section>
+    <section>
+      <h2>依赖清单</h2>
+      <p class="section-desc">发布 / 晋级 / 运行时组合的三道门禁依据。hard=强依赖，peer=同壳版本域，soft=仅告警。</p>
+      <div id="deps-meta" class="dep-meta">加载中…</div>
+      <div id="deps"></div>
+      <div class="dep-edit">
+        <div class="row">
+          <span class="status">编辑 JSON 后保存 → <code>PUT /v1/dependency-manifest</code></span>
+          <button type="button" id="btn-dep-save">保存清单</button>
+        </div>
+        <textarea id="deps-json" spellcheck="false" aria-label="dependency-manifest JSON"></textarea>
+      </div>
+    </section>
+    <section>
+      <h2>熔断与模块暂停</h2>
+      <p class="section-desc">按 business_module 紧急停更。Kill 针对具体 update_id；Pause 暂停整个模块。</p>
       <div id="kills-pauses"></div>
     </section>
     <section>
-      <h2>Rollouts (B11 · P10 soak ladder)</h2>
+      <h2>灰度发布</h2>
+      <p class="section-desc">进行中的阶梯灰度任务。可从预发行点击「开始灰度」，在此推进/暂停/恢复。</p>
       <div id="rollouts"></div>
     </section>
   </main>
@@ -201,7 +363,38 @@
       const el = $("error");
       if (!msg) { el.hidden = true; el.textContent = ""; return; }
       el.hidden = false;
-      el.textContent = msg;
+      el.textContent = formatApiError(msg);
+    }
+
+    let soakTimer = null;
+
+    function formatApiError(msg) {
+      const text = String(msg || "");
+      const soak = /min_soak not met — (\d+)ms remaining on ([\w-]+)/i.exec(text);
+      if (soak) {
+        const sec = Math.ceil(Number(soak[1]) / 1000);
+        return `灰度浸泡时间未到：${soak[2]} 阶段还需等待约 ${sec} 秒后再点「下一步」`;
+      }
+      return text;
+    }
+
+    function soakRemainingMs(r) {
+      if (r.phase === "paused") return 0;
+      const step = r.steps?.[r.step_index];
+      if (!step?.min_soak_ms) return 0;
+      const entered = Date.parse(r.step_entered_at);
+      if (Number.isNaN(entered)) return step.min_soak_ms;
+      return Math.max(0, step.min_soak_ms - (Date.now() - entered));
+    }
+
+    function scheduleSoakRefresh(rollouts) {
+      if (soakTimer) clearTimeout(soakTimer);
+      soakTimer = null;
+      if (!rollouts?.length) return;
+      const pending = rollouts.map(soakRemainingMs).filter((n) => n > 0);
+      if (!pending.length) return;
+      const wait = Math.min(...pending);
+      soakTimer = setTimeout(load, Math.min(wait + 300, 5000));
     }
 
     function rowActions(c, lane) {
@@ -210,25 +403,25 @@
       const uid = c.update_id || "";
       const promote =
         lane === "staging"
-          ? `<button type="button" data-act="promote" data-digest="${digest}">Promote</button>`
+          ? `<button type="button" data-act="promote" data-digest="${digest}">晋级</button>`
           : "";
       const kill =
         mod && uid
-          ? `<button type="button" class="danger" data-act="kill" data-module="${mod}" data-update="${uid}">Kill</button>`
+          ? `<button type="button" class="danger" data-act="kill" data-module="${mod}" data-update="${uid}">熔断</button>`
           : "";
       const pause = mod
-        ? `<button type="button" data-act="pause" data-module="${mod}">Pause</button>`
+        ? `<button type="button" data-act="pause" data-module="${mod}">暂停模块</button>`
         : "";
       const startRollout =
         mod && digest
-          ? `<button type="button" data-act="rollout-start" data-module="${mod}" data-digest="${digest}" data-update="${uid}">Start rollout</button>`
+          ? `<button type="button" data-act="rollout-start" data-module="${mod}" data-digest="${digest}" data-update="${uid}">开始灰度</button>`
           : "";
-      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">Block</button>${kill}${pause}${startRollout}`;
+      return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">封禁</button>${kill}${pause}${startRollout}`;
     }
 
     function renderCandidates(el, list, lane) {
       if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty">empty</div>`;
+        el.innerHTML = `<div class="empty">暂无数据 — 请先用 rn-delivery 把制品 release 到${lane === "staging" ? "预发" : "生产"}</div>`;
         return;
       }
       const body = list
@@ -243,14 +436,14 @@
         )
         .join("");
       el.innerHTML = `<table>
-        <thead><tr><th>digest</th><th>kind</th><th>module / platform</th><th>id</th><th></th></tr></thead>
+        <thead><tr><th>指纹 digest</th><th>类型</th><th>模块/平台</th><th>更新 ID</th><th>操作</th></tr></thead>
         <tbody>${body}</tbody>
       </table>`;
     }
 
     function renderBlocked(el, list) {
       if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty">empty</div>`;
+        el.innerHTML = `<div class="empty">暂无封禁记录</div>`;
         return;
       }
       const body = list
@@ -263,7 +456,7 @@
         )
         .join("");
       el.innerHTML = `<table>
-        <thead><tr><th>digest</th><th>reason</th><th>at</th></tr></thead>
+        <thead><tr><th>指纹</th><th>原因</th><th>时间</th></tr></thead>
         <tbody>${body}</tbody>
       </table>`;
     }
@@ -272,13 +465,13 @@
       const kills = data.kills || [];
       const pauses = data.pauses || [];
       if (kills.length === 0 && pauses.length === 0) {
-        el.innerHTML = `<div class="empty">empty — Kill / Pause from candidate rows</div>`;
+        el.innerHTML = `<div class="empty">暂无记录 — 可在预发/生产表中对 JS 行点击「熔断」或「暂停模块」</div>`;
         return;
       }
       const killRows = kills
         .map(
           (k) => `<tr>
-            <td><span class="tag">kill</span> ${k.business_module}</td>
+            <td><span class="tag">熔断</span> ${k.business_module}</td>
             <td><code>${(k.update_ids || []).join(", ")}</code></td>
             <td>${k.reason || "—"} · ${k.killed_at || ""}</td>
           </tr>`,
@@ -287,62 +480,187 @@
       const pauseRows = pauses
         .map(
           (p) => `<tr>
-            <td><span class="tag">pause</span> ${p.business_module}</td>
+            <td><span class="tag">暂停</span> ${p.business_module}</td>
             <td>${p.reason || "—"}</td>
             <td class="actions">
-              <button type="button" data-act="resume" data-module="${p.business_module}">Resume</button>
+              <button type="button" data-act="resume" data-module="${p.business_module}">恢复</button>
               · ${p.paused_at || ""}
             </td>
           </tr>`,
         )
         .join("");
       el.innerHTML = `<table>
-        <thead><tr><th>module</th><th>detail</th><th></th></tr></thead>
+        <thead><tr><th>模块</th><th>详情</th><th>操作</th></tr></thead>
         <tbody>${killRows}${pauseRows}</tbody>
       </table>`;
     }
 
     function renderRollouts(el, list) {
       if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty">empty — Start rollout from candidate rows</div>`;
+        el.innerHTML = `<div class="empty">暂无进行中的灰度 — 在预发行点击「开始灰度」</div>`;
         return;
       }
       const body = list
         .map(
-          (r) => `<tr>
+          (r) => {
+            const remain = soakRemainingMs(r);
+            const soakHint =
+              remain > 0
+                ? `<br/><span class="hint">浸泡剩余约 ${Math.ceil(remain / 1000)} 秒</span>`
+                : "";
+            const advanceDisabled = remain > 0 ? " disabled" : "";
+            return `<tr>
             <td>${r.business_module}<br/><code>${short(r.digest)}</code></td>
-            <td><span class="tag">${r.phase}</span> ${r.steps?.[r.step_index]?.percent ?? "—"}% · ${r.gate}</td>
+            <td><span class="tag">${r.phase}</span> ${r.steps?.[r.step_index]?.percent ?? "—"}% · ${r.gate}${soakHint}</td>
             <td class="actions">
-              <button type="button" data-act="rollout-advance" data-digest="${r.digest}">Advance</button>
-              <button type="button" data-act="rollout-pause" data-digest="${r.digest}">Pause</button>
-              <button type="button" data-act="rollout-resume" data-digest="${r.digest}">Resume</button>
+              <button type="button" data-act="rollout-advance" data-digest="${r.digest}"${advanceDisabled}>下一步</button>
+              <button type="button" data-act="rollout-pause" data-digest="${r.digest}">暂停</button>
+              <button type="button" data-act="rollout-resume" data-digest="${r.digest}">恢复</button>
             </td>
-          </tr>`,
+          </tr>`;
+          },
         )
         .join("");
       el.innerHTML = `<table>
-        <thead><tr><th>module / digest</th><th>phase</th><th></th></tr></thead>
+        <thead><tr><th>模块 / 指纹</th><th>阶段</th><th>操作</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+      scheduleSoakRefresh(list);
+    }
+
+    function edgeTarget(e) {
+      if (e.to_update_id) return `<code>${e.to_update_id}</code>`;
+      if (e.to_module) {
+        const range = e.to_range ? ` ${e.to_range}` : "";
+        return `${e.to_module}<span class="tag">${range.trim() || "模块"}</span>`;
+      }
+      return "—";
+    }
+
+    function renderDeps(manifest) {
+      const edges = manifest.dependencies || [];
+      const labels = manifest.version_labels || {};
+      const caps = manifest.host_capability_set || [];
+      $("deps-meta").textContent =
+        `结构版本 ${manifest.schemaVersion ?? 1} · ${edges.length} 条依赖` +
+        (caps.length ? ` · 宿主能力: ${caps.join(", ")}` : "") +
+        (Object.keys(labels).length
+          ? ` · 版本标签: ${Object.entries(labels)
+              .map(([k, v]) => `${k}=${v}`)
+              .join(", ")}`
+          : "");
+      $("deps-json").value = JSON.stringify(
+        {
+          schemaVersion: manifest.schemaVersion ?? 1,
+          dependencies: edges,
+          version_labels: labels,
+          host_capability_set: manifest.host_capability_set,
+          require_declared: manifest.require_declared === true,
+        },
+        null,
+        2,
+      );
+      if (edges.length === 0) {
+        $("deps").innerHTML =
+          `<div class="empty">暂无依赖边 — 配置 hard/peer/soft 后，发布/晋级/运行时将自动门禁</div>`;
+        return;
+      }
+      const body = edges
+        .map(
+          (e) => `<tr>
+            <td>${e.from_module || "—"}<br/><code>${e.from_update_id || "—"}</code></td>
+            <td><span class="tag">${e.strength || "—"}</span> ${e.kind || ""}</td>
+            <td>${edgeTarget(e)}</td>
+          </tr>`,
+        )
+        .join("");
+      $("deps").innerHTML = `<table>
+        <thead><tr><th>来源</th><th>强度/类型</th><th>目标</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
+
+    function renderHostBuilds(list) {
+      if (!list || list.length === 0) {
+        $("host-builds").innerHTML =
+          `<div class="empty">暂无可装 APK — 请 release 一个 Android app-host 或 app-host-debug 到预发/生产</div>`;
+        return;
+      }
+      const body = list
+        .map((c) => {
+          const href = c.download_url || `/v1/artifacts/${encodeURIComponent(c.digest)}`;
+          return `<tr>
+            <td><code title="${c.digest}">${short(c.digest)}</code></td>
+            <td><span class="tag">${c.artifact_kind || "—"}</span> ${c.profile || ""}</td>
+            <td>${c.platform || "—"} · ${c.configuration || "—"}</td>
+            <td class="actions"><a class="btn" href="${href}">下载 APK</a></td>
+          </tr>`;
+        })
+        .join("");
+      $("host-builds").innerHTML = `<table>
+        <thead><tr><th>指纹</th><th>类型</th><th>平台</th><th></th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
+
+    function renderJsUpdates(list) {
+      if (!list || list.length === 0) {
+        $("js-updates").innerHTML =
+          `<div class="empty">暂无 JS 包 — 请 pack/sign/release 一个 js-update 到泳道</div>`;
+        return;
+      }
+      const body = list
+        .map(
+          (c) => `<tr>
+            <td>${c.business_module || "—"}<br/><code>${c.update_id || "—"}</code></td>
+            <td><code title="${c.digest}">${short(c.digest)}</code></td>
+            <td><span class="tag">${c.stage || "—"}</span></td>
+            <td><code>${c.path ? c.path.split("/").slice(-2).join("/") : "—"}</code></td>
+          </tr>`,
+        )
+        .join("");
+      $("js-updates").innerHTML = `<table>
+        <thead><tr><th>模块 / update_id</th><th>指纹</th><th>阶段</th><th>路径</th></tr></thead>
         <tbody>${body}</tbody>
       </table>`;
     }
 
     async function load() {
-      $("status").textContent = "loading…";
+      $("status").textContent = "加载中…";
       showError("");
       try {
-        const res = await fetch("/v1/registry");
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || res.statusText);
+        const hostLane = $("host-lane").value || "all";
+        const jsLane = $("js-lane").value || "all";
+        const jsMod = ($("js-module").value || "").trim();
+        const jsQs = new URLSearchParams({ lane: jsLane });
+        if (jsMod) jsQs.set("module", jsMod);
+        const [regRes, depRes, hostRes, jsRes] = await Promise.all([
+          fetch("/v1/registry"),
+          fetch("/v1/dependency-manifest"),
+          fetch(`/v1/candidates?lane=${encodeURIComponent(hostLane)}`),
+          fetch(`/v1/js-updates?${jsQs}`),
+        ]);
+        const data = await regRes.json();
+        if (!regRes.ok) throw new Error(data.error || regRes.statusText);
+        const deps = await depRes.json();
+        if (!depRes.ok) throw new Error(deps.error || depRes.statusText);
+        const hosts = await hostRes.json();
+        if (!hostRes.ok) throw new Error(hosts.error || hostRes.statusText);
+        const js = await jsRes.json();
+        if (!jsRes.ok) throw new Error(js.error || jsRes.statusText);
         renderCandidates($("staging"), data.staging, "staging");
         renderCandidates($("production"), data.production, "production");
         renderBlocked($("blocked"), data.blocked);
+        renderHostBuilds(hosts.candidates);
+        renderJsUpdates(js.candidates);
+        renderDeps(deps);
         renderKillsPauses($("kills-pauses"), data);
         renderRollouts($("rollouts"), data.rollouts);
         $("status").textContent =
-          `staging ${data.staging?.length ?? 0} · production ${data.production?.length ?? 0} · blocked ${data.blocked?.length ?? 0} · kills ${data.kills?.length ?? 0} · pauses ${data.pauses?.length ?? 0} · rollouts ${data.rollouts?.length ?? 0}`;
+          `预发 ${data.staging?.length ?? 0} · 生产 ${data.production?.length ?? 0} · 装包 ${hosts.candidates?.length ?? 0} · JS ${js.candidates?.length ?? 0} · 依赖 ${deps.dependencies?.length ?? 0} · 灰度 ${data.rollouts?.length ?? 0}`;
       } catch (err) {
         showError(String(err.message || err));
-        $("status").textContent = "error";
+        $("status").textContent = "加载失败";
       }
     }
 
@@ -353,7 +671,7 @@
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || res.statusText);
+      if (!res.ok) throw new Error(formatApiError(data.error || res.statusText));
       return data;
     }
 
@@ -369,17 +687,17 @@
         if (act === "promote") {
           await post("/v1/promote", { digest });
         } else if (act === "block") {
-          const reason = prompt("Block reason", "cp-web demo block") || "cp-web demo block";
+          const reason = prompt("封禁原因", "控制台手动封禁") || "控制台手动封禁";
           await post("/v1/block", { digest, reason });
         } else if (act === "kill") {
-          const reason = prompt("Kill reason", "cp-web kill") || "cp-web kill";
+          const reason = prompt("熔断原因", "控制台熔断") || "控制台熔断";
           await post("/v1/kill", {
             business_module: mod,
             update_ids: [updateId],
             reason,
           });
         } else if (act === "pause") {
-          const reason = prompt("Pause reason", "cp-web pause") || "cp-web pause";
+          const reason = prompt("暂停原因", "控制台暂停模块") || "控制台暂停模块";
           await post("/v1/pause", { business_module: mod, reason });
         } else if (act === "resume") {
           await post("/v1/resume", { business_module: mod });
@@ -389,6 +707,7 @@
             digest,
             update_id: updateId || undefined,
             gate: "js-standard",
+            min_soak_ms: 5000,
           });
         } else if (act === "rollout-advance") {
           await post("/v1/rollout/advance", { digest });
@@ -404,6 +723,30 @@
     });
 
     $("btn-refresh").addEventListener("click", load);
+    $("host-lane").addEventListener("change", load);
+    $("js-lane").addEventListener("change", load);
+    $("js-module").addEventListener("change", load);
+    $("btn-dep-save").addEventListener("click", async () => {
+      try {
+        showError("");
+        let body;
+        try {
+          body = JSON.parse($("deps-json").value);
+        } catch {
+          throw new Error("依赖清单 JSON 格式错误");
+        }
+        const res = await fetch("/v1/dependency-manifest", {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        await load();
+      } catch (err) {
+        showError(String(err.message || err));
+      }
+    });
     load();
   </script>
 </body>

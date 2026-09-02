@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOTYPE · 依赖与兼容（壳↔包 · 包↔包）</title>
+  <style>
+    :root {
+      --bg: #0c1014; --panel: #151c24; --panel2: #1a2330; --text: #e8eef5;
+      --muted: #8494a7; --line: #263041; --ok: #3d9a6a; --warn: #c4a035;
+      --danger: #c45c5c; --accent: #4a8fd4; --shell: #5a9e6e; --bundle: #9b7bb8;
+      --hard: #c45c5c; --peer: #4a8fd4; --soft: #c4a035; --provides: #3d9a6a;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 13px/1.45 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .banner { background: linear-gradient(90deg, #1a2a22, #1a2030); border-bottom: 1px solid #3a5040; padding: 0.45rem 1rem; font-size: 0.75rem; color: #c8e0d0; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .banner strong { color: #fff; }
+    header.app { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--line); background: var(--panel); align-items: center; flex-wrap: wrap; }
+    header h1 { margin: 0; font-size: 1rem; }
+    header .sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
+    .hdr-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    button {
+      appearance: none; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+      padding: 0.35rem 0.65rem; border-radius: 4px; cursor: pointer; font: inherit;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.active, button.on { border-color: var(--accent); background: #1a2a3c; }
+    .layout { display: grid; grid-template-columns: 210px 1fr 300px; min-height: calc(100vh - 90px); }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+    .side, .detail { background: #0e1319; padding: 0.75rem; }
+    .side { border-right: 1px solid var(--line); }
+    .detail { border-left: 1px solid var(--line); }
+    .main { padding: 0.85rem 1rem 2rem; overflow: auto; }
+    h3 { margin: 0 0 0.55rem; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .side button { width: 100%; text-align: left; margin-bottom: 0.3rem; }
+    .side .group { margin: 0.85rem 0 0.35rem; font-size: 0.68rem; color: #6a7a8e; letter-spacing: 0.08em; text-transform: uppercase; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
+    @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+    .hint { color: var(--muted); font-size: 0.78rem; }
+    .pill { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.68rem; border: 1px solid var(--line); margin: 0.05rem; }
+    .pill.ok { color: var(--ok); border-color: #2f6b4a; }
+    .pill.bad { color: var(--danger); border-color: #6b2f2f; }
+    .pill.warn { color: var(--warn); border-color: #6b5a20; }
+    .pill.hard { color: #f0c0c0; border-color: var(--hard); }
+    .pill.peer { color: #9ec9ff; border-color: var(--peer); }
+    .pill.soft { color: #f0e0a8; border-color: var(--soft); }
+    .pill.shell { color: var(--shell); border-color: #2f6b4a; }
+    .pill.bundle { color: #c4b0e0; border-color: #5a4070; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th, td { text-align: left; padding: 0.4rem 0.35rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; }
+    tr.sel, tr:hover { background: #162030; cursor: pointer; }
+    .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.74rem; }
+    .kv { display: grid; grid-template-columns: 7rem 1fr; gap: 0.3rem 0.45rem; font-size: 0.8rem; }
+    .kv .k { color: var(--muted); }
+    .kv .v { font-family: ui-monospace, Menlo, monospace; font-size: 0.74rem; word-break: break-all; }
+    .stat { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem; }
+    .stat .n { font-size: 1.25rem; font-weight: 600; }
+    .stat .l { color: var(--muted); font-size: 0.75rem; }
+    #ego { width: 100%; height: 340px; background: #0e1319; border: 1px solid var(--line); border-radius: 8px; }
+    .gate { border-left: 3px solid var(--line); padding-left: 0.65rem; margin: 0.45rem 0; }
+    .gate.pass { border-color: var(--ok); }
+    .gate.fail { border-color: var(--danger); }
+    .gate.warn { border-color: var(--warn); }
+    ul.compact { margin: 0.25rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.78rem; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.45rem 0; }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <strong>PROTOTYPE · THROWAWAY · Map E</strong>
+    <span>默认：兼容线表 + 查询邻域。依赖 = 清单声明，在 publish / promote / gateBundleLoad 三道门处理——不对全量图负责。</span>
+  </div>
+  <header class="app">
+    <div>
+      <h1>依赖与兼容 · 壳↔包 / 包↔包</h1>
+      <div class="sub">对齐 ADR-007（跨 module 总线）· ADR-008（fingerprint / 能力门禁）· runtime 兼容线</div>
+    </div>
+    <div class="hdr-actions">
+      <a href="./host-distribution.html"><button type="button">装包台</button></a>
+      <a href="./js-offline-publish.html"><button type="button">离线包面</button></a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="side">
+      <h3>主视图（工业默认）</h3>
+      <button class="active" data-view="compat-lines">兼容线表</button>
+      <button data-view="ego">邻域图（点选展开）</button>
+      <button data-view="pkg-deps">包 ↔ 包依赖</button>
+      <button data-view="shell-deps">壳 ↔ 包依赖</button>
+      <button data-view="gates">三道门禁演练</button>
+      <div class="group">高级</div>
+      <button data-view="advanced">全量图（审计用）</button>
+      <div class="group">平台</div>
+      <button id="plat-android" class="active">Android</button>
+      <button id="plat-ios">iOS</button>
+      <div class="group">依赖强度</div>
+      <p class="hint"><span class="pill hard">hard</span> 阻断加载<br/><span class="pill peer">peer</span> 同壳共存版本约束<br/><span class="pill soft">soft</span> 告警不阻断</p>
+    </aside>
+    <section class="main" id="view-root"></section>
+    <aside class="detail">
+      <h3>选中 / 门禁结果</h3>
+      <div id="detail" class="hint">点选兼容线、包或壳。</div>
+    </aside>
+  </div>
+
+  <script>
+/**
+ * Dependency model (prototype) — industrial handling without giant graphs.
+ *
+ * Shell→Bundle: capability contract (fingerprint, shellMin, nativeApis⊇nativeDeps)
+ * Bundle→Bundle: rarely direct JS import across OTA packages (ADR-007).
+ *   Instead: peer version ranges on same host, shared contract packages,
+ *   or soft "works better with" hints. Hard deps on another business_module
+ *   OTA digest are discouraged; prefer shell bus + capability APIs.
+ */
+
+const STRENGTH = { hard: "hard", peer: "peer", soft: "soft" };
+
+function seed(platform) {
+  const shells = [
+    {
+      digest: platform === "ios" ? "ipa-prod-210" : "apk-prod-210",
+      label: "Host 2.1.0",
+      runtimeLine: "fp-host-87-na",
+      kind: "production",
+      provides: ["PaymentTurbo", "MapTurbo", "ShellBus.v2"],
+      activeShare: 0.58,
+    },
+    {
+      digest: platform === "ios" ? "ipa-prod-209" : "apk-prod-209",
+      label: "Host 2.0.9",
+      runtimeLine: "fp-host-87-na",
+      kind: "production",
+      provides: ["PaymentTurbo", "ShellBus.v2"],
+      activeShare: 0.28,
+    },
+    {
+      digest: platform === "ios" ? "ipa-prod-208" : "apk-prod-208",
+      label: "Host 2.0.8",
+      runtimeLine: "fp-host-86-legacy",
+      kind: "production",
+      provides: ["PaymentTurbo", "ShellBus.v1"],
+      activeShare: 0.1,
+    },
+    {
+      digest: platform === "ios" ? "ipa-test-211rc2" : "apk-test-211rc2",
+      label: "Host 2.1.1-rc.2",
+      runtimeLine: "fp-host-87-na",
+      kind: "test",
+      provides: ["PaymentTurbo", "MapTurbo", "BiometricTurbo", "ShellBus.v2"],
+      activeShare: 0.01,
+    },
+  ];
+
+  const bundles = [
+    {
+      digest: "js-chk-p184",
+      module: "checkout",
+      label: "checkout 1.8.4",
+      kind: "production",
+      runtimeLine: "fp-host-87-na",
+      shellMin: "2.0.9",
+      needs: ["PaymentTurbo", "ShellBus.v2"],
+      activeUsers: 54000,
+    },
+    {
+      digest: "js-chk-t185rc2",
+      module: "checkout",
+      label: "checkout 1.8.5-rc.2",
+      kind: "test",
+      runtimeLine: "fp-host-87-na",
+      shellMin: "2.1.0",
+      needs: ["PaymentTurbo", "BiometricTurbo", "ShellBus.v2"],
+      activeUsers: 14,
+    },
+    {
+      digest: "js-home-p30",
+      module: "home",
+      label: "home 3.0.0",
+      kind: "production",
+      runtimeLine: "fp-host-87-na",
+      shellMin: "2.1.0",
+      needs: ["MapTurbo", "ShellBus.v2"],
+      activeUsers: 21000,
+    },
+    {
+      digest: "js-home-p29",
+      module: "home",
+      label: "home 2.9.4",
+      kind: "production",
+      runtimeLine: "fp-host-87-na",
+      shellMin: "2.0.8",
+      needs: ["ShellBus.v2"],
+      activeUsers: 8200,
+    },
+    {
+      digest: "js-home-legacy",
+      module: "home",
+      label: "home 2.8.0",
+      kind: "production",
+      runtimeLine: "fp-host-86-legacy",
+      shellMin: "2.0.8",
+      needs: ["ShellBus.v1"],
+      activeUsers: 900,
+    },
+    {
+      digest: "js-base-p12",
+      module: "shared-contract",
+      label: "shared-contract 1.2.0",
+      kind: "production",
+      runtimeLine: "fp-host-87-na",
+      shellMin: "2.0.9",
+      needs: ["ShellBus.v2"],
+      activeUsers: 0,
+      note: "合同包：DTO/事件 schema；非独立 Surface，随业务包校验",
+    },
+  ];
+
+  // Bundle→bundle deps (declared in manifest, not inferred from import graph alone)
+  const bundleDeps = [
+    {
+      from: "js-chk-p184",
+      to: "js-base-p12",
+      strength: STRENGTH.hard,
+      kind: "contract",
+      range: "^1.2.0",
+      reason: "下单完成事件 DTO 与 ShellBus topic 契约",
+    },
+    {
+      from: "js-chk-p184",
+      toModule: "home",
+      toRange: ">=2.9.4 <4.0.0",
+      strength: STRENGTH.peer,
+      kind: "coexistence",
+      reason: "同壳上 home 需能消费 checkout.completed（ADR-007 总线）；不绑死某一 digest",
+    },
+    {
+      from: "js-chk-t185rc2",
+      to: "js-base-p12",
+      strength: STRENGTH.hard,
+      kind: "contract",
+      range: "^1.2.0",
+      reason: "同上 + 生物识别结果事件",
+    },
+    {
+      from: "js-chk-t185rc2",
+      toModule: "home",
+      toRange: ">=3.0.0",
+      strength: STRENGTH.peer,
+      kind: "coexistence",
+      reason: "rc 依赖 home 新 UI 契约",
+    },
+    {
+      from: "js-home-p30",
+      to: "js-base-p12",
+      strength: STRENGTH.hard,
+      kind: "contract",
+      range: "^1.2.0",
+      reason: "订阅 checkout.completed schema",
+    },
+    {
+      from: "js-home-p29",
+      to: "js-base-p12",
+      strength: STRENGTH.soft,
+      kind: "contract",
+      range: "^1.1.0 || ^1.2.0",
+      reason: "旧 home 仍兼容 1.1；建议升 1.2（soft）",
+    },
+    {
+      from: "js-chk-p184",
+      to: "js-home-p30",
+      strength: STRENGTH.soft,
+      kind: "hint",
+      reason: "反模式示例：业务包硬绑另一业务包 digest —— 仅 soft 提示，promote 可告警",
+    },
+  ];
+
+  const fleet = {
+    // shell digest -> module -> { embedded, ota }
+    [shells[0].digest]: {
+      checkout: { embedded: "js-chk-p184", ota: "js-chk-p184" },
+      home: { embedded: "js-home-p29", ota: "js-home-p30" },
+    },
+    [shells[1].digest]: {
+      checkout: { embedded: "js-chk-p184", ota: "js-chk-p184" },
+      home: { embedded: "js-home-p29", ota: "js-home-p29" },
+    },
+    [shells[2].digest]: {
+      checkout: { embedded: null, ota: null },
+      home: { embedded: "js-home-legacy", ota: "js-home-legacy" },
+    },
+    [shells[3].digest]: {
+      checkout: { embedded: "js-chk-p184", ota: "js-chk-t185rc2" },
+      home: { embedded: "js-home-p30", ota: "js-home-p30" },
+    },
+  };
+
+  return { platform, shells, bundles, bundleDeps, fleet };
+}
+
+function semverGte(label, min) {
+  const m = label.match(/(\d+\.\d+\.\d+)/);
+  if (!m) return true;
+  const a = m[1].split(".").map(Number);
+  const b = min.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] || 0) > (b[i] || 0)) return true;
+    if ((a[i] || 0) < (b[i] || 0)) return false;
+  }
+  return true;
+}
+
+function shellBundleCompat(shell, bundle) {
+  const reasons = [];
+  if (shell.runtimeLine !== bundle.runtimeLine) {
+    reasons.push(`runtimeLine 不等：壳 ${shell.runtimeLine} vs 包 ${bundle.runtimeLine}`);
+  }
+  if (!semverGte(shell.label, bundle.shellMin)) {
+    reasons.push(`壳版本 < shellMin ${bundle.shellMin}`);
+  }
+  const missing = bundle.needs.filter((n) => !shell.provides.includes(n));
+  if (missing.length) reasons.push(`壳缺少能力: ${missing.join(", ")}`);
+  return { ok: reasons.length === 0, reasons, missing };
+}
+
+function resolvePeerOnShell(world, shellDig, dep) {
+  // Find OTA or embedded bundle for toModule on this shell
+  const slot = world.fleet[shellDig]?.[dep.toModule];
+  if (!slot) return { ok: false, reason: `壳上无 ${dep.toModule} 槽位` };
+  const dig = slot.ota || slot.embedded;
+  if (!dig) return { ok: false, reason: `${dep.toModule} 未安装` };
+  const b = world.bundles.find((x) => x.digest === dig);
+  // naive range check: parse >=X
+  const m = (dep.toRange || "").match(/>=?\s*([\d.]+)/);
+  if (m && b && !semverGte(b.label, m[1])) {
+    return { ok: false, reason: `${b.label} 不满足 ${dep.toRange}`, digest: dig };
+  }
+  return { ok: true, digest: dig, label: b?.label };
+}
+
+/** Three gates */
+function gatePublish(world, bundleDig) {
+  const b = world.bundles.find((x) => x.digest === bundleDig);
+  const checks = [];
+  // hard contract deps must exist in registry
+  world.bundleDeps
+    .filter((d) => d.from === bundleDig && d.to)
+    .forEach((d) => {
+      const target = world.bundles.find((x) => x.digest === d.to);
+      const pass = !!target;
+      checks.push({
+        gate: "publish",
+        strength: d.strength,
+        pass: d.strength === STRENGTH.soft ? true : pass,
+        warn: d.strength === STRENGTH.soft && !pass,
+        msg: pass
+          ? `合同依赖 ${d.to} 已在 registry`
+          : `缺少合同包 ${d.to}（${d.reason}）`,
+      });
+    });
+  checks.push({
+    gate: "publish",
+    strength: STRENGTH.hard,
+    pass: !!b.runtimeLine && b.needs.length >= 0,
+    msg: `已声明 runtimeLine=${b.runtimeLine} · needs=[${b.needs.join(", ")}]`,
+  });
+  return checks;
+}
+
+function gatePromote(world, bundleDig, shellDig) {
+  const b = world.bundles.find((x) => x.digest === bundleDig);
+  const s = world.shells.find((x) => x.digest === shellDig);
+  const checks = [];
+  const c = shellBundleCompat(s, b);
+  checks.push({
+    gate: "promote",
+    strength: STRENGTH.hard,
+    pass: c.ok,
+    msg: c.ok ? `壳↔包能力闭合` : c.reasons.join("；"),
+  });
+  world.bundleDeps
+    .filter((d) => d.from === bundleDig)
+    .forEach((d) => {
+      if (d.toModule) {
+        const peer = resolvePeerOnShell(world, shellDig, d);
+        const pass = d.strength === STRENGTH.soft ? true : peer.ok;
+        checks.push({
+          gate: "promote",
+          strength: d.strength,
+          pass,
+          warn: d.strength === STRENGTH.soft && !peer.ok,
+          msg: peer.ok
+            ? `peer ${d.toModule} OK → ${peer.label || peer.digest}`
+            : `peer 失败: ${peer.reason}（${d.reason}）`,
+        });
+      }
+      if (d.to && d.kind === "hint" && d.strength === STRENGTH.soft) {
+        checks.push({
+          gate: "promote",
+          strength: STRENGTH.soft,
+          pass: true,
+          warn: true,
+          msg: `告警：${d.reason}`,
+        });
+      }
+    });
+  return checks;
+}
+
+function gateBundleLoad(world, shellDig, composition) {
+  // composition: { checkout: digest, home: digest }
+  const s = world.shells.find((x) => x.digest === shellDig);
+  const checks = [];
+  Object.entries(composition).forEach(([mod, dig]) => {
+    if (!dig) return;
+    const b = world.bundles.find((x) => x.digest === dig);
+    const c = shellBundleCompat(s, b);
+    checks.push({
+      gate: "runtime",
+      strength: STRENGTH.hard,
+      pass: c.ok,
+      msg: c.ok ? `load ${mod} OK` : `拒绝 load ${mod}: ${c.reasons.join("；")}`,
+    });
+  });
+  // peer among composition
+  Object.values(composition).forEach((dig) => {
+    if (!dig) return;
+    world.bundleDeps
+      .filter((d) => d.from === dig && d.toModule)
+      .forEach((d) => {
+        const peerDig = composition[d.toModule];
+        const peerB = world.bundles.find((x) => x.digest === peerDig);
+        let ok = !!peerB;
+        const m = (d.toRange || "").match(/>=?\s*([\d.]+)/);
+        if (ok && m) ok = semverGte(peerB.label, m[1]);
+        const pass = d.strength === STRENGTH.hard ? ok : d.strength === STRENGTH.peer ? ok : true;
+        checks.push({
+          gate: "runtime",
+          strength: d.strength,
+          pass,
+          warn: d.strength !== STRENGTH.hard && !ok,
+          msg: ok
+            ? `runtime peer ${d.toModule} 满足`
+            : `runtime peer 不满足 ${d.toModule} ${d.toRange || ""}`,
+        });
+      });
+  });
+  return checks;
+}
+
+let world = seed("android");
+let view = "compat-lines";
+let focus = { type: "bundle", id: "js-chk-p184" };
+
+function setDetail(html) {
+  document.getElementById("detail").innerHTML = html;
+}
+
+function showChecks(title, checks) {
+  const allHardPass = checks.filter((c) => c.strength === STRENGTH.hard).every((c) => c.pass);
+  setDetail(`
+    <div class="pill ${allHardPass ? "ok" : "bad"}">${allHardPass ? "HARD PASS" : "HARD FAIL"}</div>
+    <p class="hint" style="margin-top:0.4rem">${title}</p>
+    ${checks
+      .map(
+        (c) => `
+      <div class="gate ${c.pass ? (c.warn ? "warn" : "pass") : "fail"}">
+        <span class="pill ${c.strength}">${c.strength}</span>
+        <span class="pill">${c.gate}</span>
+        ${c.pass ? (c.warn ? "⚠" : "✓") : "✗"} ${c.msg}
+      </div>`,
+      )
+      .join("")}
+  `);
+}
+
+function compatLines() {
+  // Aggregate: runtimeLine -> modules production bundles (active)
+  const lines = {};
+  world.bundles.forEach((b) => {
+    if (!lines[b.runtimeLine]) lines[b.runtimeLine] = [];
+    lines[b.runtimeLine].push(b);
+  });
+  const shellByLine = {};
+  world.shells.forEach((s) => {
+    if (!shellByLine[s.runtimeLine]) shellByLine[s.runtimeLine] = [];
+    shellByLine[s.runtimeLine].push(s);
+  });
+  return { lines, shellByLine };
+}
+
+function renderCompatLines() {
+  const { lines, shellByLine } = compatLines();
+  return `
+    <div class="grid3">
+      <div class="stat"><div class="n">${Object.keys(lines).length}</div><div class="l">runtime / fingerprint 线</div></div>
+      <div class="stat"><div class="n">${world.shells.filter((s) => s.kind === "production").length}</div><div class="l">生产壳版本（示意）</div></div>
+      <div class="stat"><div class="n">${world.bundleDeps.length}</div><div class="l">已声明包↔包依赖</div></div>
+    </div>
+    <div class="card">
+      <h3>兼容线表（工业默认首页）</h3>
+      <p class="hint">不展开每个 digest 边。先选线，再看该线上的壳与包；依赖在邻域 / 门禁里查。</p>
+      ${Object.keys(lines)
+        .map((line) => {
+          const shells = shellByLine[line] || [];
+          const bundles = lines[line];
+          const share = shells.reduce((s, x) => s + x.activeShare, 0);
+          return `<div style="margin:0.75rem 0;padding:0.65rem;border:1px solid var(--line);border-radius:8px">
+            <button data-line="${line}" style="width:auto"><strong>${line}</strong></button>
+            <span class="hint">机群约占 ${(share * 100).toFixed(0)}%</span>
+            <div class="hint" style="margin-top:0.35rem">壳：${shells.map((s) => s.label).join(" · ") || "—"}</div>
+            <div class="hint">包：${bundles.map((b) => b.label).join(" · ")}</div>
+          </div>`;
+        })
+        .join("")}
+    </div>`;
+}
+
+function renderEgo() {
+  const id = focus.id;
+  const isShell = focus.type === "shell";
+  const W = 720;
+  const H = 340;
+  let center, neighbors = [];
+
+  if (isShell) {
+    const s = world.shells.find((x) => x.digest === id);
+    center = { label: s.label, kind: "shell" };
+    world.bundles.forEach((b) => {
+      const c = shellBundleCompat(s, b);
+      if (c.ok || Object.values(world.fleet[s.digest] || {}).some((slot) => slot.embedded === b.digest || slot.ota === b.digest)) {
+        neighbors.push({
+          id: b.digest,
+          label: b.label,
+          kind: "bundle",
+          edge: c.ok ? "compat" : "block",
+        });
+      }
+    });
+  } else {
+    const b = world.bundles.find((x) => x.digest === id);
+    center = { label: b.label, kind: "bundle" };
+    world.shells.forEach((s) => {
+      const c = shellBundleCompat(s, b);
+      if (c.ok) neighbors.push({ id: s.digest, label: s.label, kind: "shell", edge: "compat" });
+      else if (s.runtimeLine === b.runtimeLine) neighbors.push({ id: s.digest, label: s.label, kind: "shell", edge: "block" });
+    });
+    world.bundleDeps
+      .filter((d) => d.from === id)
+      .forEach((d) => {
+        if (d.to) {
+          const t = world.bundles.find((x) => x.digest === d.to);
+          neighbors.push({ id: d.to, label: t.label, kind: "bundle", edge: d.strength });
+        } else if (d.toModule) {
+          neighbors.push({
+            id: "mod:" + d.toModule,
+            label: `${d.toModule} ${d.toRange}`,
+            kind: "peer",
+            edge: d.strength,
+          });
+        }
+      });
+  }
+
+  const cx = 160;
+  const cy = H / 2;
+  const nx = 520;
+  const nodes = neighbors
+    .map((n, i) => {
+      const y = 40 + (i * (H - 60)) / Math.max(neighbors.length - 1, 1);
+      const color =
+        n.edge === "hard"
+          ? "var(--hard)"
+          : n.edge === "peer"
+            ? "var(--peer)"
+            : n.edge === "soft"
+              ? "var(--soft)"
+              : n.edge === "block"
+                ? "var(--danger)"
+                : "var(--ok)";
+      return `
+        <path d="M ${cx + 70} ${cy} C 300 ${cy}, 400 ${y}, ${nx - 70} ${y}" fill="none" stroke="${color}" stroke-width="1.8"/>
+        <g data-ego="${n.id}" data-kind="${n.kind}" style="cursor:pointer">
+          <rect x="${nx - 70}" y="${y - 16}" width="140" height="32" rx="6" fill="#1a2330" stroke="${color}"/>
+          <text x="${nx}" y="${y + 4}" text-anchor="middle" fill="#e8eef5" font-size="10">${n.label}</text>
+        </g>`;
+    })
+    .join("");
+
+  return `
+    <div class="card">
+      <h3>邻域图 · 仅 1 跳（Backstage 式）</h3>
+      <div class="row-actions">
+        ${world.bundles
+          .slice(0, 4)
+          .map(
+            (b) =>
+              `<button data-focus-b="${b.digest}" class="${focus.type === "bundle" && focus.id === b.digest ? "active" : ""}">${b.label}</button>`,
+          )
+          .join("")}
+        ${world.shells
+          .map(
+            (s) =>
+              `<button data-focus-s="${s.digest}" class="${focus.type === "shell" && focus.id === s.digest ? "active" : ""}">${s.label}</button>`,
+          )
+          .join("")}
+      </div>
+      <svg id="ego" viewBox="0 0 ${W} ${H}">
+        <rect x="${cx - 70}" y="${cy - 20}" width="140" height="40" rx="8" fill="#221a2a" stroke="#9b7bb8"/>
+        <text x="${cx}" y="${cy + 5}" text-anchor="middle" fill="#fff" font-size="12">${center.label}</text>
+        ${nodes}
+      </svg>
+      <p class="hint">边颜色：绿兼容 · 红阻断/hard · 蓝 peer · 黄 soft。不渲染全库。</p>
+    </div>`;
+}
+
+function renderPkgDeps() {
+  return `
+    <div class="card">
+      <h3>包 ↔ 包依赖（清单声明）</h3>
+      <p class="hint">ADR-007：业务包<strong>不应</strong>同步 import 另一业务包 JS。推荐 hard→合同包；peer→同壳 module 版本域；digest 级互绑仅 soft 告警。</p>
+      <table>
+        <thead><tr><th>from</th><th>to</th><th>强度</th><th>类型</th><th>约束</th><th>原因</th></tr></thead>
+        <tbody>
+          ${world.bundleDeps
+            .map((d) => {
+              const from = world.bundles.find((b) => b.digest === d.from);
+              const to = d.to
+                ? world.bundles.find((b) => b.digest === d.to)?.label
+                : `${d.toModule} ${d.toRange}`;
+              return `<tr data-from="${d.from}">
+                <td>${from.label}</td>
+                <td>${to}</td>
+                <td><span class="pill ${d.strength}">${d.strength}</span></td>
+                <td>${d.kind}</td>
+                <td class="mono">${d.range || d.toRange || "—"}</td>
+                <td class="hint">${d.reason}</td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>如何处理</h3>
+        <ul class="compact">
+          <li><strong>hard + contract</strong>：publish/promote 缺目标则失败</li>
+          <li><strong>peer + coexistence</strong>：按「同壳上另一 module 的当前包」校验版本域，不锁死 digest</li>
+          <li><strong>soft</strong>：告警、报表、可破例；不挡加载</li>
+          <li><strong>禁止默认</strong>：业务包 A hard 依赖业务包 B 的具体 digest（双列车无法独立灰度）</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>与通信的关系（ADR-007）</h3>
+        <ul class="compact">
+          <li>运行时协作走 <strong>ShellBus</strong> / 能力 API，不是 bundle require</li>
+          <li>DTO/topic 版本进 <strong>shared-contract</strong> 包（可版本化、可门禁）</li>
+          <li>观测带 business_module + update_id，便于归因</li>
+        </ul>
+      </div>
+    </div>`;
+}
+
+function renderShellDeps() {
+  return `
+    <div class="card">
+      <h3>壳 ↔ 包依赖 = 能力闭合（不是「安装依赖树」）</h3>
+      <p class="hint">包声明 needs[]；壳声明 provides[]；再加 runtimeLine + shellMin。矩阵按<strong>兼容线聚合</strong>时可再下钻。</p>
+      <table>
+        <thead>
+          <tr>
+            <th>壳 \\ 包</th>
+            ${world.bundles
+              .filter((b) => b.module !== "shared-contract")
+              .map((b) => `<th>${b.label}</th>`)
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${world.shells
+            .map((s) => {
+              return `<tr>
+                <td><span class="pill shell">${s.label}</span><div class="mono hint">${s.runtimeLine}</div></td>
+                ${world.bundles
+                  .filter((b) => b.module !== "shared-contract")
+                  .map((b) => {
+                    const c = shellBundleCompat(s, b);
+                    return `<td data-s="${s.digest}" data-b="${b.digest}">${
+                      c.ok ? '<span class="pill ok">可承载</span>' : '<span class="pill bad">阻断</span>'
+                    }</td>`;
+                  })
+                  .join("")}
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderGates() {
+  const shell = world.shells[0];
+  const bundle = world.bundles.find((b) => b.digest === "js-chk-t185rc2");
+  return `
+    <div class="card">
+      <h3>三道门禁演练</h3>
+      <p class="hint">依赖不靠人看图，靠流水线机读。选场景：</p>
+      <div class="row-actions">
+        <button class="primary" id="g-pub-ok">1. publish checkout 1.8.4</button>
+        <button id="g-promo-fail">2. promote rc → Host 2.0.9（应失败）</button>
+        <button id="g-promo-ok">3. promote rc → Host 2.1.1-rc（peer home）</button>
+        <button id="g-rt-fail">4. runtime：2.1.0 上 rc + home 2.9.4（peer 失败）</button>
+        <button id="g-rt-ok">5. runtime：2.1.0 上 1.8.4 + home 3.0.0</button>
+      </div>
+      <div class="grid2" style="margin-top:0.75rem">
+        <div>
+          <h3>壳能力</h3>
+          <ul class="compact">${world.shells.map((s) => `<li>${s.label}: ${s.provides.join(", ")}</li>`).join("")}</ul>
+        </div>
+        <div>
+          <h3>示例包 needs</h3>
+          <ul class="compact">
+            <li>checkout 1.8.4: PaymentTurbo, ShellBus.v2</li>
+            <li>checkout 1.8.5-rc.2: + BiometricTurbo；peer home ≥3.0.0</li>
+          </ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderAdvanced() {
+  return `
+    <div class="card">
+      <h3>全量图（审计 / 高级）</h3>
+      <p class="hint">保留给审计与事故复盘。默认产品路径请用兼容线 + 邻域。节点多时请按 runtimeLine / module 过滤（此处仅说明，不渲染力导向全图）。</p>
+      <ul class="compact">
+        <li>壳 ${world.shells.length} · 包 ${world.bundles.length} · 包依赖声明 ${world.bundleDeps.length}</li>
+        <li>若画全量二分：边数 ≈ 壳×包 + 包依赖，长期迭代后不可读</li>
+        <li>导出：Cypher / JSON 清单给安全与架构，不进日常控制台首页</li>
+      </ul>
+      <a href="./shell-bundle-relation.html"><button type="button">打开旧版全量关系沙盘（对照）</button></a>
+    </div>`;
+}
+
+function render() {
+  document.querySelectorAll(".side > button[data-view]").forEach((b) => {
+    b.classList.toggle("active", b.dataset.view === view);
+  });
+  document.getElementById("plat-android").classList.toggle("active", world.platform === "android");
+  document.getElementById("plat-ios").classList.toggle("active", world.platform === "ios");
+
+  const root = document.getElementById("view-root");
+  if (view === "compat-lines") root.innerHTML = renderCompatLines();
+  else if (view === "ego") root.innerHTML = renderEgo();
+  else if (view === "pkg-deps") root.innerHTML = renderPkgDeps();
+  else if (view === "shell-deps") root.innerHTML = renderShellDeps();
+  else if (view === "gates") root.innerHTML = renderGates();
+  else root.innerHTML = renderAdvanced();
+
+  root.querySelectorAll("[data-line]").forEach((b) => {
+    b.onclick = () => {
+      const line = b.dataset.line;
+      const shells = world.shells.filter((s) => s.runtimeLine === line);
+      const bundles = world.bundles.filter((x) => x.runtimeLine === line);
+      setDetail(`
+        <div class="pill ok">兼容线</div>
+        <div class="kv" style="margin-top:0.5rem">
+          <div class="k">line</div><div class="v">${line}</div>
+          <div class="k">壳</div><div class="v">${shells.map((s) => s.label).join(", ")}</div>
+          <div class="k">包</div><div class="v">${bundles.map((x) => x.label).join(", ")}</div>
+        </div>
+        <p class="hint">跨线 = 硬不兼容。线内仍要查 shellMin / native / peer。</p>
+        <button id="ego-from-line" class="primary" style="margin-top:0.5rem">用该线首包打开邻域</button>
+      `);
+      document.getElementById("ego-from-line").onclick = () => {
+        focus = { type: "bundle", id: bundles[0].digest };
+        view = "ego";
+        render();
+      };
+    };
+  });
+
+  root.querySelectorAll("[data-focus-b]").forEach((b) => {
+    b.onclick = () => {
+      focus = { type: "bundle", id: b.dataset.focusB };
+      render();
+      const bundle = world.bundles.find((x) => x.digest === focus.id);
+      setDetail(`<div class="pill bundle">包</div><div class="kv" style="margin-top:0.4rem">
+        <div class="k">label</div><div class="v">${bundle.label}</div>
+        <div class="k">needs</div><div class="v">${bundle.needs.join(", ")}</div>
+        <div class="k">line</div><div class="v">${bundle.runtimeLine}</div>
+      </div>`);
+    };
+  });
+  root.querySelectorAll("[data-focus-s]").forEach((b) => {
+    b.onclick = () => {
+      focus = { type: "shell", id: b.dataset.focusS };
+      render();
+    };
+  });
+  root.querySelectorAll("[data-ego]").forEach((g) => {
+    g.onclick = () => {
+      const kind = g.dataset.kind;
+      const id = g.dataset.ego;
+      if (kind === "shell") focus = { type: "shell", id };
+      else if (kind === "bundle") focus = { type: "bundle", id };
+      render();
+    };
+  });
+  root.querySelectorAll("[data-from]").forEach((tr) => {
+    tr.onclick = () => {
+      focus = { type: "bundle", id: tr.dataset.from };
+      showChecks("publish 预检", gatePublish(world, tr.dataset.from));
+    };
+  });
+  root.querySelectorAll("[data-s]").forEach((td) => {
+    td.onclick = () => {
+      showChecks(
+        `promote 预检 ${td.dataset.b} → ${td.dataset.s}`,
+        gatePromote(world, td.dataset.b, td.dataset.s),
+      );
+    };
+  });
+
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.onclick = fn;
+  };
+  bind("g-pub-ok", () => showChecks("publish checkout 1.8.4", gatePublish(world, "js-chk-p184")));
+  bind("g-promo-fail", () =>
+    showChecks(
+      "promote rc → Host 2.0.9",
+      gatePromote(world, "js-chk-t185rc2", world.shells[1].digest),
+    ),
+  );
+  bind("g-promo-ok", () =>
+    showChecks(
+      "promote rc → Host 2.1.1-rc",
+      gatePromote(world, "js-chk-t185rc2", world.shells[3].digest),
+    ),
+  );
+  bind("g-rt-fail", () =>
+    showChecks(
+      "runtime 组合不满足 peer",
+      gateBundleLoad(world, world.shells[0].digest, {
+        checkout: "js-chk-t185rc2",
+        home: "js-home-p29",
+      }),
+    ),
+  );
+  bind("g-rt-ok", () =>
+    showChecks(
+      "runtime 组合 OK",
+      gateBundleLoad(world, world.shells[0].digest, {
+        checkout: "js-chk-p184",
+        home: "js-home-p30",
+      }),
+    ),
+  );
+}
+
+document.querySelectorAll(".side > button[data-view]").forEach((b) => {
+  b.onclick = () => {
+    view = b.dataset.view;
+    render();
+  };
+});
+document.getElementById("plat-android").onclick = () => {
+  world = seed("android");
+  render();
+};
+document.getElementById("plat-ios").onclick = () => {
+  world = seed("ios");
+  render();
+};
+
+render();
+setDetail(`<p class="hint">会有依赖，但分两类处理：壳↔包=能力闭合；包↔包=合同/peer，禁止业务 digest 硬绑。打开「三道门禁演练」看 fail-closed。</p>`);
+  </script>
+</body>
+</html>

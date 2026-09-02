@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOTYPE · 宿主装包台（发版 + 装测 + 用量）</title>
+  <style>
+    :root {
+      --bg: #0b100e; --panel: #141c18; --panel2: #1a241e; --text: #e8eee9;
+      --muted: #84948a; --line: #26332a; --ok: #3d9a6a; --warn: #c4a035;
+      --danger: #c45c5c; --accent: #5a9e6e; --stage: #1e2c24;
+      --c1: #5a9e6e; --c2: #4a8fd4; --c3: #c4a035; --c4: #9b7bb8; --c5: #c45c5c; --c6: #5bb8a8;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 13px/1.45 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .banner { background: linear-gradient(90deg, #1e2a18, #1a2220); border-bottom: 1px solid #3a5028; padding: 0.45rem 1rem; font-size: 0.75rem; color: #d8e8c8; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .banner strong { color: #fff; }
+    header.app { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--line); background: var(--panel); align-items: center; }
+    header h1 { margin: 0; font-size: 1rem; }
+    header .sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
+    .hdr-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    button {
+      appearance: none; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+      padding: 0.35rem 0.65rem; border-radius: 4px; cursor: pointer; font: inherit;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.danger { border-color: var(--danger); color: #f0c0c0; }
+    button.warn { border-color: var(--warn); color: #f0e0a8; }
+    button.ghost { background: transparent; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .layout { display: grid; grid-template-columns: 220px 1fr 300px; min-height: calc(100vh - 88px); }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+    .side, .agent { background: #0e1410; padding: 0.75rem; }
+    .side { border-right: 1px solid var(--line); }
+    .agent { border-left: 1px solid var(--line); }
+    .main { padding: 0.85rem 1rem 2rem; overflow: auto; }
+    h3 { margin: 0 0 0.55rem; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .side button { width: 100%; text-align: left; margin-bottom: 0.3rem; }
+    .side button.active { border-color: var(--accent); background: #1a2a20; }
+    .side .group { margin: 0.85rem 0 0.35rem; font-size: 0.68rem; color: #6a7a6e; letter-spacing: 0.08em; text-transform: uppercase; }
+    .pipe { display: flex; gap: 0.25rem; overflow-x: auto; padding: 0.4rem 0 0.8rem; }
+    .stage { flex: 1; min-width: 68px; background: var(--stage); border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem; text-align: center; }
+    .stage .n { font-size: 0.62rem; color: var(--muted); }
+    .stage .t { font-size: 0.68rem; font-weight: 600; margin-top: 0.1rem; }
+    .stage.done { border-color: #2f6b4a; background: #13261c; }
+    .stage.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .stage.fail { border-color: var(--danger); background: #2a1515; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem; }
+    .grid2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 0.75rem; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
+    @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+    .stat { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; }
+    .stat .n { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat .l { color: var(--muted); font-size: 0.75rem; margin-top: 0.15rem; }
+    .kv { display: grid; grid-template-columns: 7.2rem 1fr; gap: 0.3rem 0.5rem; font-size: 0.82rem; }
+    .kv .k { color: var(--muted); }
+    .kv .v { font-family: ui-monospace, Menlo, monospace; font-size: 0.76rem; word-break: break-all; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th, td { text-align: left; padding: 0.4rem 0.3rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 500; position: sticky; top: 0; background: var(--panel); }
+    tr.sel { background: #1a2a20; }
+    tr:hover { background: #162018; }
+    .pill { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.68rem; border: 1px solid var(--line); }
+    .pill.ok { color: var(--ok); border-color: #2f6b4a; }
+    .pill.bad { color: var(--danger); border-color: #6b2f2f; }
+    .pill.warn { color: var(--warn); border-color: #6b5a20; }
+    .pill.info { color: #8ec4a0; border-color: #2f5a40; }
+    .pill.prod { color: #9ec9ff; border-color: #3a5a80; }
+    .pill.test { color: #e0c88a; border-color: #6b5a20; }
+    .qr {
+      width: 120px; height: 120px; border-radius: 8px; border: 1px dashed var(--line);
+      display: grid; place-items: center; text-align: center; font-size: 0.7rem; color: var(--muted);
+      background: repeating-conic-gradient(#1c2820 0% 25%, #141c18 0% 50%) 50% / 10px 10px;
+    }
+    .phone { border: 2px solid #2a3a30; border-radius: 18px; padding: 0.7rem; background: #0a100c; min-height: 360px; }
+    .phone .bar { height: 10px; background: #1a241e; border-radius: 6px; margin-bottom: 0.7rem; }
+    .phone .screen { background: #121a14; border-radius: 8px; padding: 0.65rem; min-height: 280px; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; align-items: center; }
+    .hint { color: var(--muted); font-size: 0.78rem; }
+    .timeline { max-height: 200px; overflow: auto; font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; }
+    .timeline .e { padding: 0.28rem 0; border-bottom: 1px solid #1c281f; color: var(--muted); }
+    .timeline .e b { color: var(--text); font-weight: 500; }
+    .wizard { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.65rem; }
+    .tabs-plat { display: flex; gap: 0.3rem; margin-bottom: 0.5rem; }
+    .bar-row { display: grid; grid-template-columns: 6.5rem 1fr 3.2rem 4.5rem; gap: 0.45rem; align-items: center; margin: 0.35rem 0; font-size: 0.78rem; }
+    .bar-track { height: 10px; background: #1a241e; border-radius: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 5px; }
+    .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.75rem; }
+    .search { min-width: 10rem; background: #0e1410; border: 1px solid var(--line); color: var(--text); border-radius: 4px; padding: 0.3rem 0.45rem; font: inherit; }
+    .table-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+    .donut-wrap { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .legend { font-size: 0.78rem; }
+    .legend div { display: flex; align-items: center; gap: 0.4rem; margin: 0.25rem 0; }
+    .sw { width: 10px; height: 10px; border-radius: 2px; }
+    .persona { display: inline-flex; gap: 0.25rem; background: #0e1410; border: 1px solid var(--line); border-radius: 6px; padding: 0.15rem; }
+    .persona button { border: none; background: transparent; }
+    .persona button.on { background: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <strong>PROTOTYPE · THROWAWAY · #100</strong>
+    <span>发版流水线（必须）+ 开发/测试装包入口 + 测试包/生产包全量列表（下载量 · 在用人数 · 占比）+ 生产壳版本用量图形化。身份仍只认 CP digest。</span>
+  </div>
+  <header class="app">
+    <div>
+      <h1>宿主装包台 · Distribution Console</h1>
+      <div class="sub">发版面 / 装测面 / 生产用量 — 同一 CP candidates 投影</div>
+    </div>
+    <div class="hdr-actions">
+      <div class="persona" id="persona">
+        <button type="button" data-persona="ops" class="on">发版运维</button>
+        <button type="button" data-persona="devqa">开发/测试装包</button>
+      </div>
+      <button class="primary" id="btn-seed-traffic">模拟一批装机/心跳</button>
+      <button class="ghost" id="btn-reset">重置数据</button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="side" id="side-nav"></aside>
+    <section class="main">
+      <div id="pipe-wrap"></div>
+      <div id="view-root"></div>
+    </section>
+    <aside class="agent">
+      <h3>设备 Agent（装测）</h3>
+      <div class="phone">
+        <div class="bar"></div>
+        <div class="screen" id="agent-screen"></div>
+      </div>
+      <div class="row-actions">
+        <button class="primary" id="btn-install">安装选中包</button>
+        <button id="btn-download">仅下载（计次）</button>
+        <button class="warn" id="btn-heartbeat">上报在用心跳</button>
+      </div>
+      <p class="hint" style="margin-top:0.5rem">开发/测试：列表装测包并一键装。下载次数与在用人数回写 CP 统计投影。</p>
+    </aside>
+  </div>
+
+  <script>
+const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)", "var(--c6)"];
+const Stages = [
+  { id: "build", t: "构建壳" },
+  { id: "meta", t: "元数据" },
+  { id: "sign", t: "签名" },
+  { id: "register", t: "注册 CP" },
+  { id: "catalog", t: "进目录" },
+  { id: "page", t: "安装页" },
+  { id: "agent", t: "装测" },
+  { id: "audit", t: "审计" },
+  { id: "promote", t: "晋级生产" },
+  { id: "done", t: "闭环" },
+];
+
+function uid(p) { return p + Math.random().toString(16).slice(2, 7); }
+
+/** Seed industrial-ish catalog: multiple test + prod shells with usage stats */
+function seedCandidates() {
+  const mk = (o) => ({
+    installable: true,
+    module: "app-host",
+    downloads: 0,
+    activeUsers: 0,
+    ...o,
+  });
+  return [
+    mk({ digest: "apk-prod-210", platform: "android", lane: "production", kind: "production", label: "2.1.0", versionCode: 21000, artifact: "host-2.1.0.apk", sizeMb: 36, downloads: 12840, activeUsers: 9200, blobUri: "delivery://blobs/apk-prod-210" }),
+    mk({ digest: "apk-prod-209", platform: "android", lane: "production", kind: "production", label: "2.0.9", versionCode: 20900, artifact: "host-2.0.9.apk", sizeMb: 35, downloads: 22100, activeUsers: 4100, blobUri: "delivery://blobs/apk-prod-209" }),
+    mk({ digest: "apk-prod-208", platform: "android", lane: "production", kind: "production", label: "2.0.8", versionCode: 20800, artifact: "host-2.0.8.apk", sizeMb: 34, downloads: 18400, activeUsers: 1800, blobUri: "delivery://blobs/apk-prod-208" }),
+    mk({ digest: "apk-prod-207", platform: "android", lane: "production", kind: "production", label: "2.0.7", versionCode: 20700, artifact: "host-2.0.7.apk", sizeMb: 34, downloads: 9600, activeUsers: 620, blobUri: "delivery://blobs/apk-prod-207" }),
+    mk({ digest: "apk-test-211rc2", platform: "android", lane: "staging", kind: "test", label: "2.1.1-rc.2", versionCode: 21102, artifact: "host-2.1.1-rc.2.apk", sizeMb: 37, downloads: 86, activeUsers: 12, blobUri: "delivery://blobs/apk-test-211rc2" }),
+    mk({ digest: "apk-test-211rc1", platform: "android", lane: "staging", kind: "test", label: "2.1.1-rc.1", versionCode: 21101, artifact: "host-2.1.1-rc.1.apk", sizeMb: 37, downloads: 142, activeUsers: 4, blobUri: "delivery://blobs/apk-test-211rc1" }),
+    mk({ digest: "apk-test-nightly", platform: "android", lane: "staging", kind: "test", label: "2.1.2-nightly.0901", versionCode: 21200, artifact: "host-nightly.apk", sizeMb: 38, downloads: 28, activeUsers: 3, blobUri: "delivery://blobs/apk-test-nightly" }),
+    mk({ digest: "ipa-prod-210", platform: "ios", lane: "production", kind: "production", label: "2.1.0", versionCode: 21000, artifact: "host-2.1.0.ipa", sizeMb: 48, downloads: 6420, activeUsers: 5100, blobUri: "delivery://blobs/ipa-prod-210" }),
+    mk({ digest: "ipa-prod-209", platform: "ios", lane: "production", kind: "production", label: "2.0.9", versionCode: 20900, artifact: "host-2.0.9.ipa", sizeMb: 47, downloads: 9800, activeUsers: 2200, blobUri: "delivery://blobs/ipa-prod-209" }),
+    mk({ digest: "ipa-prod-208", platform: "ios", lane: "production", kind: "production", label: "2.0.8", versionCode: 20800, artifact: "host-2.0.8.ipa", sizeMb: 46, downloads: 7100, activeUsers: 900, blobUri: "delivery://blobs/ipa-prod-208" }),
+    mk({ digest: "ipa-test-211rc2", platform: "ios", lane: "staging", kind: "test", label: "2.1.1-rc.2", versionCode: 21102, artifact: "host-2.1.1-rc.2.ipa", sizeMb: 49, downloads: 44, activeUsers: 8, blobUri: "delivery://blobs/ipa-test-211rc2" }),
+    mk({ digest: "ipa-test-211rc1", platform: "ios", lane: "staging", kind: "test", label: "2.1.1-rc.1", versionCode: 21101, artifact: "host-2.1.1-rc.1.ipa", sizeMb: 49, downloads: 61, activeUsers: 2, blobUri: "delivery://blobs/ipa-test-211rc1" }),
+  ];
+}
+
+function createWorld() {
+  return {
+    persona: "devqa", // ops | devqa — default to install portal per user ask
+    platform: "android",
+    view: "install-portal",
+    listFilter: "all", // all | test | production
+    search: "",
+    stageIndex: 0,
+    stageStatus: Object.fromEntries(Stages.map((s) => [s.id, "pending"])),
+    pending: null,
+    cp: { candidates: seedCandidates() },
+    console: {
+      selectedDigest: "apk-test-211rc2",
+      installPage: null,
+      rogueLocalVersion: null,
+    },
+    agent: { serial: "V2425A", installed: null, history: [] },
+    audit: [],
+    timeline: [],
+    lastMsg: "装测面：全量测试包/生产包列表 + 下载与在用占比。发版运维可切到流水线。",
+  };
+}
+
+function log(w, msg) {
+  w.timeline.unshift({ ts: new Date().toISOString().slice(11, 19), msg });
+  w.lastMsg = msg;
+}
+
+function setStage(w, id, status) {
+  w.stageStatus[id] = status;
+  const i = Stages.findIndex((s) => s.id === id);
+  if (status === "active") w.stageIndex = i;
+}
+
+function totalActive(w, opts = {}) {
+  return w.cp.candidates
+    .filter((c) => c.platform === (opts.platform || w.platform))
+    .filter((c) => !opts.kind || c.kind === opts.kind)
+    .reduce((s, c) => s + (c.activeUsers || 0), 0);
+}
+
+function totalDownloads(w, opts = {}) {
+  return w.cp.candidates
+    .filter((c) => c.platform === (opts.platform || w.platform))
+    .filter((c) => !opts.kind || c.kind === opts.kind)
+    .reduce((s, c) => s + (c.downloads || 0), 0);
+}
+
+function shareOf(c, total) {
+  if (!total) return 0;
+  return (c.activeUsers / total) * 100;
+}
+
+function filteredList(w) {
+  const q = (w.search || "").trim().toLowerCase();
+  return w.cp.candidates
+    .filter((c) => c.platform === w.platform)
+    .filter((c) => {
+      if (w.listFilter === "test") return c.kind === "test";
+      if (w.listFilter === "production") return c.kind === "production";
+      return true;
+    })
+    .filter((c) => {
+      if (!q) return true;
+      return (
+        c.digest.toLowerCase().includes(q) ||
+        c.label.toLowerCase().includes(q) ||
+        c.artifact.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => b.versionCode - a.versionCode || b.activeUsers - a.activeUsers);
+}
+
+function findCand(w, dig) {
+  return w.cp.candidates.find((c) => c.digest === dig);
+}
+
+function fail(w, msg) {
+  log(w, "✗ " + msg);
+  return w;
+}
+
+const Host = {
+  reset: () => createWorld(),
+
+  build(w) {
+    const dig = uid(w.platform === "ios" ? "ipa-" : "apk-");
+    w.pending = {
+      digest: dig,
+      platform: w.platform,
+      module: "app-host",
+      kind: "test",
+      label: "2.1.2-rc." + dig.slice(-2),
+      versionCode: 21200 + Math.floor(Math.random() * 20),
+      artifact: `${dig}.${w.platform === "ios" ? "ipa" : "apk"}`,
+      sizeMb: w.platform === "ios" ? 49 : 37,
+      lane: "staging",
+      signed: false,
+      downloads: 0,
+      activeUsers: 0,
+      installable: true,
+    };
+    setStage(w, "build", "done");
+    setStage(w, "meta", "active");
+    w.stageIndex = 1;
+    log(w, `构建测试壳 ${w.pending.artifact}`);
+    return w;
+  },
+
+  meta(w) {
+    if (!w.pending) return fail(w, "无在途构建");
+    w.pending.meta = { package: "com.example.host", versionName: w.pending.label };
+    setStage(w, "meta", "done");
+    setStage(w, "sign", "active");
+    w.stageIndex = 2;
+    log(w, "元数据解析完成");
+    return w;
+  },
+
+  sign(w) {
+    if (!w.pending?.meta) return fail(w, "需先元数据");
+    w.pending.signed = true;
+    w.pending.sig = w.platform === "ios" ? "codesign" : "apksigner";
+    setStage(w, "sign", "done");
+    setStage(w, "register", "active");
+    w.stageIndex = 3;
+    log(w, "签名完成");
+    return w;
+  },
+
+  register(w) {
+    if (!w.pending?.signed) return fail(w, "需先签名");
+    const c = {
+      digest: w.pending.digest,
+      platform: w.pending.platform,
+      module: "app-host",
+      kind: "test",
+      label: w.pending.label,
+      versionCode: w.pending.versionCode,
+      lane: "staging",
+      artifact: w.pending.artifact,
+      sizeMb: w.pending.sizeMb,
+      installable: true,
+      downloads: 0,
+      activeUsers: 0,
+      blobUri: `delivery://blobs/${w.pending.digest}`,
+    };
+    w.cp.candidates.unshift(c);
+    setStage(w, "register", "done");
+    setStage(w, "catalog", "active");
+    w.stageIndex = 4;
+    log(w, `进入测试包列表 ${c.digest}`);
+    return w;
+  },
+
+  intoCatalog(w) {
+    w.console.selectedDigest = w.pending?.digest || filteredList(w)[0]?.digest;
+    setStage(w, "catalog", "done");
+    setStage(w, "page", "active");
+    w.stageIndex = 5;
+    w.view = "install-portal";
+    w.listFilter = "test";
+    log(w, "测试包已出现在装测目录");
+    return w;
+  },
+
+  makePage(w, digest) {
+    const dig = digest || w.console.selectedDigest;
+    const c = findCand(w, dig);
+    if (!c) return fail(w, "无候选");
+    w.console.selectedDigest = c.digest;
+    w.console.installPage = {
+      digest: c.digest,
+      url:
+        w.platform === "ios"
+          ? `itms-services://?action=download-manifest&url=https://dist.example/m/${c.digest}.plist`
+          : `https://dist.example/i/${c.digest}`,
+    };
+    setStage(w, "page", "done");
+    setStage(w, "agent", "active");
+    w.stageIndex = 6;
+    log(w, `安装页 → ${c.digest}`);
+    return w;
+  },
+
+  downloadOnly(w) {
+    const c = findCand(w, w.console.selectedDigest);
+    if (!c) return fail(w, "未选中包");
+    c.downloads += 1;
+    w.audit.unshift({ ts: new Date().toISOString(), op: "download", digest: c.digest, serial: w.agent.serial });
+    log(w, `下载 +1 → ${c.digest} 累计 ${c.downloads}`);
+    return w;
+  },
+
+  install(w) {
+    const c = findCand(w, w.console.selectedDigest);
+    if (!c) return fail(w, "未选中包");
+    // previous install loses one active if same device
+    if (w.agent.installed) {
+      const prev = findCand(w, w.agent.installed);
+      if (prev && prev.activeUsers > 0) prev.activeUsers -= 1;
+      w.agent.history.unshift(w.agent.installed);
+    }
+    c.downloads += 1;
+    c.activeUsers += 1;
+    w.agent.installed = c.digest;
+    w.audit.unshift({ ts: new Date().toISOString(), op: "install", digest: c.digest, serial: w.agent.serial });
+    setStage(w, "agent", "done");
+    setStage(w, "audit", "active");
+    w.stageIndex = 7;
+    log(w, `装机成功 ${c.digest} · 在用 ${c.activeUsers} · 下载 ${c.downloads}`);
+    return w;
+  },
+
+  heartbeat(w) {
+    const c = findCand(w, w.agent.installed);
+    if (!c) return fail(w, "设备未安装任何壳");
+    log(w, `心跳：仍在使用 ${c.digest}（在用统计保持）`);
+    return w;
+  },
+
+  sealAudit(w) {
+    setStage(w, "audit", "done");
+    setStage(w, "promote", "active");
+    w.stageIndex = 8;
+    log(w, "审计确认");
+    return w;
+  },
+
+  promote(w) {
+    const c = findCand(w, w.console.selectedDigest || w.pending?.digest);
+    if (!c) return fail(w, "无候选");
+    if (c.kind === "production") return fail(w, "已是生产包");
+    c.lane = "production";
+    c.kind = "production";
+    c.label = c.label.replace(/-rc\.\d+$/, "").replace(/-nightly\.\d+$/, "");
+    setStage(w, "promote", "done");
+    setStage(w, "done", "done");
+    w.stageIndex = 9;
+    log(w, `CP promote → 生产包列表 ${c.digest} ${c.label}`);
+    return w;
+  },
+
+  seedTraffic(w) {
+    const prod = w.cp.candidates.filter((c) => c.platform === w.platform && c.kind === "production");
+    const test = w.cp.candidates.filter((c) => c.platform === w.platform && c.kind === "test");
+    prod.forEach((c, i) => {
+      c.downloads += 40 + i * 12;
+      c.activeUsers += 5 + Math.floor(Math.random() * 30);
+    });
+    test.forEach((c) => {
+      c.downloads += 2 + Math.floor(Math.random() * 5);
+      c.activeUsers = Math.max(0, c.activeUsers + Math.floor(Math.random() * 3) - 1);
+    });
+    log(w, "已模拟一批下载与在用心跳（示意遥测）");
+    return w;
+  },
+};
+
+function advance(w) {
+  const id = Stages[w.stageIndex].id;
+  const map = {
+    build: () => Host.build(w),
+    meta: () => Host.meta(w),
+    sign: () => Host.sign(w),
+    register: () => Host.register(w),
+    catalog: () => Host.intoCatalog(w),
+    page: () => Host.makePage(w),
+    agent: () => Host.install(w),
+    audit: () => Host.sealAudit(w),
+    promote: () => Host.promote(w),
+    done: () => (log(w, "发版闭环完成"), w),
+  };
+  return (map[id] || (() => w))();
+}
+
+let world = createWorld();
+
+function bind(id, fn) {
+  const el = document.getElementById(id);
+  if (el) el.onclick = fn;
+}
+
+function pct(n) {
+  return (Math.round(n * 10) / 10).toFixed(1) + "%";
+}
+
+function donutSVG(segments) {
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  const r = 54;
+  const c = 2 * Math.PI * r;
+  let off = 0;
+  const circles = segments
+    .map((seg, i) => {
+      const len = (seg.value / total) * c;
+      const circle = `<circle cx="70" cy="70" r="${r}" fill="none" stroke="${COLORS[i % COLORS.length]}" stroke-width="18"
+        stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}"
+        transform="rotate(-90 70 70)" />`;
+      off += len;
+      return circle;
+    })
+    .join("");
+  return `<svg width="140" height="140" viewBox="0 0 140 140">${circles}
+    <circle cx="70" cy="70" r="36" fill="#141c18"/>
+    <text x="70" y="66" text-anchor="middle" fill="#84948a" font-size="10">在用</text>
+    <text x="70" y="82" text-anchor="middle" fill="#e8eee9" font-size="14" font-weight="600">${total}</text>
+  </svg>`;
+}
+
+function renderNav(w) {
+  const ops = w.persona === "ops";
+  const items = ops
+    ? [
+        ["pipeline", "发版流水线"],
+        ["prod-analytics", "生产壳用量占比"],
+        ["install-portal", "全量包列表"],
+        ["relation", "壳 ↔ 包关系"],
+        ["audit", "审计"],
+      ]
+    : [
+        ["install-portal", "装测：全量包列表"],
+        ["prod-analytics", "生产壳用量占比"],
+        ["relation", "壳 ↔ 包关系"],
+        ["install-page", "安装页 / QR"],
+        ["pipeline", "（只读）发版流水线"],
+      ];
+  document.getElementById("side-nav").innerHTML = `
+    <div class="group">${ops ? "发版运维" : "开发 / 测试"}</div>
+    ${items
+      .map(
+        ([id, label]) =>
+          `<button data-view="${id}" class="${w.view === id ? "active" : ""}">${label}</button>`,
+      )
+      .join("")}
+    <div class="group">平台</div>
+    <div class="tabs-plat">
+      <button id="plat-android" class="${w.platform === "android" ? "active" : ""}">Android</button>
+      <button id="plat-ios" class="${w.platform === "ios" ? "active" : ""}">iOS</button>
+    </div>
+    <div class="group">说明</div>
+    <p class="hint">测试包 = staging/内测；生产包 = production。壳上有哪些离线包见「壳↔包关系」。</p>
+  `;
+  document.querySelectorAll("#side-nav [data-view]").forEach((b) => {
+    b.onclick = () => {
+      world.view = b.dataset.view;
+      renderAll(world);
+    };
+  });
+  bind("plat-android", () => {
+    world.platform = "android";
+    const list = filteredList(world);
+    world.console.selectedDigest = list.find((c) => c.kind === "test")?.digest || list[0]?.digest;
+    renderAll(world);
+  });
+  bind("plat-ios", () => {
+    world.platform = "ios";
+    const list = filteredList(world);
+    world.console.selectedDigest = list.find((c) => c.kind === "test")?.digest || list[0]?.digest;
+    renderAll(world);
+  });
+}
+
+function renderPipe(w) {
+  const wrap = document.getElementById("pipe-wrap");
+  if (w.view !== "pipeline") {
+    wrap.innerHTML = "";
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="pipe">${Stages.map((s, i) => {
+      const st = w.stageStatus[s.id];
+      let cls = "stage";
+      if (st === "done") cls += " done";
+      if (st === "active" || i === w.stageIndex) cls += " active";
+      if (st === "fail") cls += " fail";
+      return `<div class="${cls}"><div class="n">${String(i + 1).padStart(2, "0")}</div><div class="t">${s.t}</div></div>`;
+    }).join("")}</div>
+    <div class="wizard">
+      <button class="primary" id="btn-advance">推进发版阶段 →</button>
+      <button id="btn-e2e-pipe">一键发版进测试目录</button>
+      <span class="hint">${w.lastMsg}</span>
+    </div>`;
+  bind("btn-advance", () => {
+    world = advance(world);
+    renderAll(world);
+  });
+  bind("btn-e2e-pipe", () => {
+    world = Host.build(world);
+    world = Host.meta(world);
+    world = Host.sign(world);
+    world = Host.register(world);
+    world = Host.intoCatalog(world);
+    world = Host.makePage(world);
+    world.view = "install-portal";
+    world.persona = "devqa";
+    renderAll(world);
+  });
+}
+
+function renderAgent(w) {
+  const c = findCand(w, w.console.selectedDigest);
+  const tot = totalActive(w);
+  document.getElementById("agent-screen").innerHTML = `
+    <div style="font-weight:600;margin-bottom:0.4rem">装测 Agent</div>
+    <div class="kv">
+      <div class="k">serial</div><div class="v">${w.agent.serial}</div>
+      <div class="k">platform</div><div class="v">${w.platform}</div>
+      <div class="k">已装</div><div class="v">${w.agent.installed || "—"}</div>
+      <div class="k">选中</div><div class="v">${c ? `${c.label}<br/>${c.digest}` : "—"}</div>
+      <div class="k">该包下载</div><div class="v">${c ? c.downloads : "—"}</div>
+      <div class="k">该包在用</div><div class="v">${c ? c.activeUsers : "—"}</div>
+      <div class="k">占平台在用</div><div class="v">${c && tot ? pct(shareOf(c, tot)) : "—"}</div>
+    </div>
+  `;
+}
+
+function packageTable(w, list, totActive) {
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th><th>类型</th><th>版本</th><th>digest</th><th>下载次数</th><th>在用人数</th><th>占平台在用</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            list
+              .map((c) => {
+                const share = shareOf(c, totActive);
+                return `<tr class="${c.digest === w.console.selectedDigest ? "sel" : ""}">
+                  <td><span class="pill ${c.kind === "production" ? "prod" : "test"}">${c.kind === "production" ? "生产" : "测试"}</span></td>
+                  <td>${c.lane}</td>
+                  <td><strong>${c.label}</strong></td>
+                  <td class="mono">${c.digest}</td>
+                  <td>${c.downloads.toLocaleString()}</td>
+                  <td>${c.activeUsers.toLocaleString()}</td>
+                  <td>
+                    <div class="bar-track" style="width:72px;display:inline-block;vertical-align:middle">
+                      <div class="bar-fill" style="width:${Math.min(100, share)}%;background:${c.kind === "production" ? "var(--c2)" : "var(--c3)"}"></div>
+                    </div>
+                    ${pct(share)}
+                  </td>
+                  <td>
+                    <button data-sel="${c.digest}">选中</button>
+                    <button data-inst="${c.digest}">安装</button>
+                  </td>
+                </tr>`;
+              })
+              .join("") || `<tr><td colspan="8">无包</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderView(w) {
+  const root = document.getElementById("view-root");
+  const list = filteredList(w);
+  const totA = totalActive(w);
+  const totD = totalDownloads(w);
+  const totProdA = totalActive(w, { kind: "production" });
+  const totTestA = totalActive(w, { kind: "test" });
+
+  if (w.view === "relation") {
+    root.innerHTML = `
+      <div class="card">
+        <h3>壳 ↔ 离线包关系（本控制台摘要）</h3>
+        <p class="hint">每个壳版本携带 <strong>fingerprint</strong> 与 <strong>nativeApis</strong>；离线包声明依赖后，决定能否预置/OTA 到该壳。</p>
+        <div class="row-actions">
+          <a href="./shell-bundle-relation.html"><button type="button" class="primary">打开完整关系图 / 矩阵 / 依赖</button></a>
+          <a href="./js-offline-publish.html"><button type="button">离线包发布面</button></a>
+        </div>
+        <table>
+          <thead><tr><th>壳</th><th>fingerprint</th><th>预置包</th><th>当前 OTA</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Host 2.1.0</td><td class="mono">fp-host-87-na</td>
+              <td>checkout 1.8.3 · home 2.9.4</td>
+              <td>checkout 1.8.4 · home 3.0.0</td>
+              <td>主流生产壳</td>
+            </tr>
+            <tr>
+              <td>Host 2.0.8</td><td class="mono">fp-host-86-legacy</td>
+              <td>checkout 1.8.3 · home 2.8.0</td>
+              <td>home 2.8.0（checkout 无 OTA）</td>
+              <td>新包 fingerprint 不匹配 → 阻断</td>
+            </tr>
+            <tr>
+              <td>Host 2.1.1-rc.2</td><td class="mono">fp-host-87-na + Biometric</td>
+              <td>checkout 1.8.4 · home 3.0.0</td>
+              <td>checkout 1.8.5-rc.2</td>
+              <td>测试壳可跑需 Biometric 的包</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+    return;
+  }
+
+  if (w.view === "install-portal") {
+    root.innerHTML = `
+      <div class="grid3">
+        <div class="stat"><div class="n">${list.length}</div><div class="l">当前列表包数（${w.platform}）</div></div>
+        <div class="stat"><div class="n">${totD.toLocaleString()}</div><div class="l">平台累计下载</div></div>
+        <div class="stat"><div class="n">${totA.toLocaleString()}</div><div class="l">平台当前在用 · 测试 ${totTestA} / 生产 ${totProdA}</div></div>
+      </div>
+      <div class="card">
+        <h3>全量测试包 / 生产包（开发·测试装包入口）</h3>
+        <div class="row-actions" style="margin-bottom:0.55rem">
+          <button id="f-all" class="${w.listFilter === "all" ? "primary" : ""}">全部</button>
+          <button id="f-test" class="${w.listFilter === "test" ? "primary" : ""}">仅测试包</button>
+          <button id="f-prod" class="${w.listFilter === "production" ? "primary" : ""}">仅生产包</button>
+          <input class="search" id="search" placeholder="搜版本 / digest / 文件名" value="${w.search}" />
+          <span class="hint">选中后右侧 Agent 可一键安装；下载次数与在用人数计入占比。</span>
+        </div>
+        ${packageTable(w, list, totA)}
+        <p class="hint" style="margin-top:0.5rem">「占平台在用」= 该 digest 在用人数 / 本平台全部壳在用人数。生产专项占比图见「生产壳用量占比」。</p>
+      </div>`;
+    bind("f-all", () => ((world.listFilter = "all"), renderAll(world)));
+    bind("f-test", () => ((world.listFilter = "test"), renderAll(world)));
+    bind("f-prod", () => ((world.listFilter = "production"), renderAll(world)));
+    const search = document.getElementById("search");
+    if (search) {
+      search.oninput = () => {
+        world.search = search.value;
+        renderAll(world);
+        const s2 = document.getElementById("search");
+        if (s2) {
+          s2.focus();
+          s2.selectionStart = s2.selectionEnd = s2.value.length;
+        }
+      };
+    }
+    root.querySelectorAll("[data-sel]").forEach((b) => {
+      b.onclick = () => {
+        world.console.selectedDigest = b.dataset.sel;
+        world = Host.makePage(world, b.dataset.sel);
+        renderAll(world);
+      };
+    });
+    root.querySelectorAll("[data-inst]").forEach((b) => {
+      b.onclick = () => {
+        world.console.selectedDigest = b.dataset.inst;
+        world = Host.install(world);
+        renderAll(world);
+      };
+    });
+    return;
+  }
+
+  if (w.view === "prod-analytics") {
+    const prod = w.cp.candidates
+      .filter((c) => c.platform === w.platform && c.kind === "production")
+      .sort((a, b) => b.activeUsers - a.activeUsers);
+    const segments = prod.map((c) => ({ label: c.label, value: c.activeUsers, digest: c.digest }));
+    const sum = totProdA || 1;
+    root.innerHTML = `
+      <div class="grid3">
+        <div class="stat"><div class="n">${prod.length}</div><div class="l">生产壳版本数</div></div>
+        <div class="stat"><div class="n">${totProdA.toLocaleString()}</div><div class="l">生产壳在用总人数</div></div>
+        <div class="stat"><div class="n">${pct(totA ? (totProdA / totA) * 100 : 0)}</div><div class="l">生产占平台全部在用</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h3>生产壳版本 · 当前使用量占比</h3>
+          <div class="donut-wrap">
+            ${donutSVG(segments)}
+            <div class="legend">
+              ${segments
+                .map(
+                  (s, i) =>
+                    `<div><span class="sw" style="background:${COLORS[i % COLORS.length]}"></span>
+                      <strong>${s.label}</strong>
+                      <span class="hint">${s.value.toLocaleString()} 人 · ${pct((s.value / sum) * 100)}</span>
+                    </div>`,
+                )
+                .join("")}
+            </div>
+          </div>
+          <p class="hint" style="margin-top:0.75rem">环形图分母 = 本平台全部<strong>生产</strong>壳在用人数（不含测试包）。</p>
+        </div>
+        <div class="card">
+          <h3>条形占比</h3>
+          ${prod
+            .map((c, i) => {
+              const p = (c.activeUsers / sum) * 100;
+              return `<div class="bar-row">
+                <div>${c.label}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${COLORS[i % COLORS.length]}"></div></div>
+                <div>${pct(p)}</div>
+                <div class="hint">${c.activeUsers} 人</div>
+              </div>`;
+            })
+            .join("")}
+          <h3 style="margin-top:1rem">下载量（生产）</h3>
+          ${prod
+            .map((c, i) => {
+              const maxD = Math.max(...prod.map((x) => x.downloads), 1);
+              const p = (c.downloads / maxD) * 100;
+              return `<div class="bar-row">
+                <div>${c.label}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${COLORS[i % COLORS.length]};opacity:0.75"></div></div>
+                <div class="hint" style="grid-column:3 / span 2">${c.downloads.toLocaleString()} 次</div>
+              </div>`;
+            })
+            .join("")}
+        </div>
+      </div>
+      <div class="card">
+        <h3>生产包明细</h3>
+        ${packageTable(w, prod, totProdA)}
+        <p class="hint" style="margin-top:0.45rem">此表「占平台在用」分母改为<strong>仅生产</strong>在用总和，便于看壳版本份额。</p>
+      </div>`;
+    root.querySelectorAll("[data-sel]").forEach((b) => {
+      b.onclick = () => {
+        world.console.selectedDigest = b.dataset.sel;
+        renderAll(world);
+      };
+    });
+    root.querySelectorAll("[data-inst]").forEach((b) => {
+      b.onclick = () => {
+        world.console.selectedDigest = b.dataset.inst;
+        world = Host.install(world);
+        renderAll(world);
+      };
+    });
+    return;
+  }
+
+  if (w.view === "install-page") {
+    const c = findCand(w, w.console.selectedDigest);
+    const page = w.console.installPage;
+    root.innerHTML = `
+      <div class="grid2">
+        <div class="card">
+          <h3>安装页（给开发/测试扫码）</h3>
+          ${
+            c
+              ? `<div class="kv">
+                  <div class="k">类型</div><div class="v">${c.kind}</div>
+                  <div class="k">版本</div><div class="v">${c.label}</div>
+                  <div class="k">digest</div><div class="v">${c.digest}</div>
+                  <div class="k">下载</div><div class="v">${c.downloads}</div>
+                  <div class="k">在用</div><div class="v">${c.activeUsers}（${pct(shareOf(c, totA))}）</div>
+                  <div class="k">URL</div><div class="v">${page?.url || "点选中生成"}</div>
+                </div>`
+              : `<p class="hint">请先在全量列表选中包</p>`
+          }
+          <div class="row-actions">
+            <button class="primary" id="gen-page">生成/刷新安装页</button>
+            <button id="dl">下载 +1</button>
+            <button class="primary" id="ins">安装并计入在用</button>
+          </div>
+        </div>
+        <div class="card" style="display:flex;gap:1rem;align-items:flex-start">
+          <div class="qr"><strong>${c?.label || "—"}</strong><br/>${c?.digest || ""}</div>
+          <p class="hint">测试包与生产包均可装；生产装机仍走同一 Agent，统计进生产占比。</p>
+        </div>
+      </div>`;
+    bind("gen-page", () => ((world = Host.makePage(world)), renderAll(world)));
+    bind("dl", () => ((world = Host.downloadOnly(world)), renderAll(world)));
+    bind("ins", () => ((world = Host.install(world)), renderAll(world)));
+    return;
+  }
+
+  if (w.view === "audit") {
+    root.innerHTML = `
+      <div class="card">
+        <h3>装机 / 下载审计</h3>
+        <table>
+          <thead><tr><th>time</th><th>op</th><th>digest</th><th>serial</th></tr></thead>
+          <tbody>
+            ${
+              w.audit
+                .map((a) => `<tr><td>${a.ts.slice(11, 19)}</td><td>${a.op}</td><td class="mono">${a.digest}</td><td>${a.serial}</td></tr>`)
+                .join("") || `<tr><td colspan="4">空 — 在装测面安装或下载</td></tr>`
+            }
+          </tbody>
+        </table>
+        <div class="timeline" style="margin-top:0.75rem">
+          ${w.timeline.slice(0, 20).map((e) => `<div class="e"><b>${e.ts}</b> ${e.msg}</div>`).join("")}
+        </div>
+      </div>`;
+    return;
+  }
+
+  // pipeline
+  root.innerHTML = `
+    <div class="grid2">
+      <div class="card">
+        <h3>发版流水线（运维必须）</h3>
+        <p class="hint">产出测试壳 → 进入装测全量列表 → 验证后再 CP promote 进生产包列表与用量图。</p>
+        <div class="kv">
+          <div class="k">pending</div><div class="v">${w.pending ? w.pending.digest + " · " + w.pending.label : "—"}</div>
+          <div class="k">测试包数</div><div class="v">${w.cp.candidates.filter((c) => c.platform === w.platform && c.kind === "test").length}</div>
+          <div class="k">生产包数</div><div class="v">${w.cp.candidates.filter((c) => c.platform === w.platform && c.kind === "production").length}</div>
+        </div>
+        <div class="row-actions">
+          <button class="primary" id="go-portal">去装测全量列表</button>
+          <button id="go-prod">看生产用量占比</button>
+          <button class="warn" id="do-promote">将选中测试包晋级生产</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>时间线</h3>
+        <div class="timeline">${w.timeline.slice(0, 14).map((e) => `<div class="e"><b>${e.ts}</b> ${e.msg}</div>`).join("")}</div>
+      </div>
+    </div>`;
+  bind("go-portal", () => {
+    world.view = "install-portal";
+    world.persona = "devqa";
+    renderAll(world);
+  });
+  bind("go-prod", () => {
+    world.view = "prod-analytics";
+    renderAll(world);
+  });
+  bind("do-promote", () => {
+    world = Host.promote(world);
+    world.view = "prod-analytics";
+    renderAll(world);
+  });
+}
+
+function renderAll(w) {
+  world = w;
+  document.querySelectorAll("#persona button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.persona === w.persona);
+  });
+  renderNav(w);
+  renderPipe(w);
+  renderAgent(w);
+  renderView(w);
+}
+
+document.querySelectorAll("#persona button").forEach((b) => {
+  b.onclick = () => {
+    world.persona = b.dataset.persona;
+    world.view = world.persona === "ops" ? "pipeline" : "install-portal";
+    renderAll(world);
+  };
+});
+
+bind("btn-reset", () => {
+  const p = world.platform;
+  world = Host.reset();
+  world.platform = p;
+  renderAll(world);
+});
+bind("btn-seed-traffic", () => {
+  world = Host.seedTraffic(world);
+  renderAll(world);
+});
+bind("btn-install", () => {
+  world = Host.install(world);
+  renderAll(world);
+});
+bind("btn-download", () => {
+  world = Host.downloadOnly(world);
+  renderAll(world);
+});
+bind("btn-heartbeat", () => {
+  world = Host.heartbeat(world);
+  renderAll(world);
+});
+
+// default: open install portal with analytics-ready data
+world.view = "install-portal";
+world.persona = "devqa";
+Host.makePage(world, world.console.selectedDigest);
+renderAll(world);
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Local Distribution Service — 生产 / 预发 双域名 → 同一 cp-serve
+# Requires /etc/hosts (see docs/runbooks/distribution-service-local-server.md)
+#
+#   dist.tiangong.local          → 生产面（默认 lane=production）
+#   dist-staging.tiangong.local  → 测试面（默认 lane=staging）
+
+{
+	# 本地自签；真机调试可改用 mkcert 证书
+	auto_https off
+}
+
+http://dist.tiangong.local, http://dist-staging.tiangong.local {
+	reverse_proxy 127.0.0.1:4040
+}
+
+# 直连端口（无域名时）
+:4080 {
+	reverse_proxy 127.0.0.1:4040
+}

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import {
   createServer,
   type IncomingMessage,
@@ -12,8 +12,11 @@ import {
   advanceRollout,
   blockCandidateInRegistry,
   blockedUpdateIdsForRuntime,
+  findInstallableByDigest,
+  findArtifactByDigest,
   killModuleUpdates,
   listInstallableCandidates,
+  listJsUpdateCandidates,
   loadRegistry,
   pauseModule,
   pauseRollout,
@@ -22,13 +25,22 @@ import {
   startRollout,
   tickRollout,
 } from "./candidate-store.js";
+import type { CandidateMetadata } from "./types.js";
 import {
   checkCpBearerAuth,
   checkCpMutatingRole,
   resolveCpAuthToken,
   resolveCpRole,
+  resolveCpMinSoakMs,
 } from "./cp-auth.js";
+import {
+  DEPENDENCY_MANIFEST_SCHEMA_VERSION,
+  loadDependencyManifest,
+  saveDependencyManifest,
+  type DependencyManifestStore,
+} from "./dependency-store.js";
 import { runPromote } from "./promote.js";
+import { buildDeviceJsUpdateManifest } from "./device-manifest.js";
 import { pickCandidate } from "./release-shared.js";
 import { useSqliteRegistry } from "./registry-sqlite.js";
 import { usePostgresRegistry } from "./registry-postgres.js";
@@ -62,8 +74,67 @@ function sendHtml(res: ServerResponse, status: number, html: string) {
   res.end(html);
 }
 
+function withHostDownloadUrl(c: CandidateMetadata): CandidateMetadata & {
+  download_url: string;
+} {
+  return withDownloadUrl(c);
+}
+
+function withDownloadUrl(c: CandidateMetadata): CandidateMetadata & {
+  download_url: string;
+} {
+  return {
+    ...c,
+    download_url: `/v1/artifacts/${encodeURIComponent(c.digest)}`,
+  };
+}
+
+function streamArtifact(
+  res: ServerResponse,
+  filePath: string,
+  digest: string,
+): void {
+  const name = path.basename(filePath) || `${digest.slice(0, 12)}.apk`;
+  const size = statSync(filePath).size;
+  res.writeHead(200, {
+    "content-type": "application/vnd.android.package-archive",
+    "content-length": size,
+    "content-disposition": `attachment; filename="${name}"`,
+  });
+  createReadStream(filePath).pipe(res);
+}
+
 function loadConsoleHtml(): string {
   return readFileSync(path.join(STATIC_DIR, "cp-console.html"), "utf8");
+}
+
+const PORTAL_DIR = path.join(STATIC_DIR, "portal");
+
+function loadPortalHtml(name: string): string {
+  return readFileSync(path.join(PORTAL_DIR, name), "utf8");
+}
+
+function servePortalStatic(
+  res: ServerResponse,
+  rel: string,
+): boolean {
+  const safe = path.normalize(rel).replace(/^(\.\.(\/|\\|$))+/, "");
+  const file = path.join(PORTAL_DIR, safe);
+  if (!file.startsWith(PORTAL_DIR) || !existsSync(file)) {
+    return false;
+  }
+  const type = safe.endsWith(".js")
+    ? "application/javascript; charset=utf-8"
+    : "text/html; charset=utf-8";
+  res.writeHead(200, { "content-type": type });
+  res.end(readFileSync(file));
+  return true;
+}
+
+/** Map E #110 — API-only mode when Reference Console disabled. */
+function cpConsoleEnabled(): boolean {
+  const raw = process.env.RN_CP_DISABLE_CONSOLE?.trim().toLowerCase();
+  return raw !== "1" && raw !== "true" && raw !== "yes";
 }
 
 export type ControlPlaneHandle = {
@@ -115,7 +186,42 @@ export function createControlPlane(options: {
         req.method === "GET" &&
         (url.pathname === "/" || url.pathname === "/console")
       ) {
+        if (!cpConsoleEnabled()) {
+          sendJson(res, 404, {
+            error: "console_disabled",
+            hint: "RN_CP_DISABLE_CONSOLE is set; use /v1/* API only",
+          });
+          return;
+        }
         sendHtml(res, 200, loadConsoleHtml());
+        return;
+      }
+
+      if (
+        req.method === "GET" &&
+        (url.pathname === "/portal" || url.pathname.startsWith("/portal/"))
+      ) {
+        if (!cpConsoleEnabled()) {
+          sendJson(res, 404, {
+            error: "console_disabled",
+            hint: "RN_CP_DISABLE_CONSOLE is set; portal pages unavailable",
+          });
+          return;
+        }
+        const sub =
+          url.pathname === "/portal"
+            ? ""
+            : url.pathname.slice("/portal/".length);
+        if (sub === "" || sub === "host") {
+          sendHtml(res, 200, loadPortalHtml("host-distribution.html"));
+          return;
+        }
+        if (sub === "js") {
+          sendHtml(res, 200, loadPortalHtml("js-offline-publish.html"));
+          return;
+        }
+        if (servePortalStatic(res, sub)) return;
+        sendJson(res, 404, { error: "portal_not_found", path: url.pathname });
         return;
       }
 
@@ -130,6 +236,7 @@ export function createControlPlane(options: {
       }
 
       if (req.method === "GET" && url.pathname === "/v1/service") {
+        const labSoak = resolveCpMinSoakMs();
         sendJson(res, 200, {
           name: CP_SERVICE_NAME,
           api: CP_SERVICE_API,
@@ -137,6 +244,7 @@ export function createControlPlane(options: {
           storage,
           projectRoot,
           replaceable_backend: true,
+          default_min_soak_ms: labSoak ?? 60_000,
           postgres: usePostgresRegistry(),
           postgres_env: "RN_CP_DATABASE_URL",
           note: usePostgresRegistry()
@@ -152,9 +260,90 @@ export function createControlPlane(options: {
           lane === "staging" || lane === "production" ? lane : "all";
         const registry = loadRegistry(projectRoot);
         sendJson(res, 200, {
-          candidates: listInstallableCandidates(registry, laneFilter),
+          candidates: listInstallableCandidates(registry, laneFilter).map(
+            withHostDownloadUrl,
+          ),
         });
         return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1/js-updates") {
+        const lane = url.searchParams.get("lane");
+        const laneFilter =
+          lane === "staging" || lane === "production" ? lane : "all";
+        const moduleFilter = url.searchParams.get("module") || undefined;
+        const registry = loadRegistry(projectRoot);
+        sendJson(res, 200, {
+          candidates: listJsUpdateCandidates(
+            registry,
+            laneFilter,
+            moduleFilter || undefined,
+          ).map(withDownloadUrl),
+        });
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1/js-updates/check") {
+        const laneParam = url.searchParams.get("lane");
+        const lane: "staging" | "production" =
+          laneParam === "staging" ? "staging" : "production";
+        const moduleId = url.searchParams.get("module")?.trim();
+        if (!moduleId) {
+          sendJson(res, 400, { error: "module query param required" });
+          return;
+        }
+        const registry = loadRegistry(projectRoot);
+        const candidates = listJsUpdateCandidates(
+          registry,
+          lane,
+          moduleId,
+        );
+        const meta = candidates[0];
+        if (!meta) {
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+        const proto = req.headers["x-forwarded-proto"];
+        const hostHeader = req.headers.host;
+        const baseUrl =
+          hostHeader ?
+            `${proto === "https" ? "https" : "http"}://${hostHeader}`
+          : undefined;
+        const manifest = buildDeviceJsUpdateManifest(meta, { baseUrl });
+        if (!manifest) {
+          sendJson(res, 404, {
+            error: "sidecar_missing",
+            digest: meta.digest,
+            hint: "run sign after ingest-pack to write sidecar_path",
+          });
+          return;
+        }
+        sendJson(res, 200, manifest);
+        return;
+      }
+
+      {
+        const artMatch = url.pathname.match(/^\/v1\/artifacts\/([^/]+)$/);
+        if (req.method === "GET" && artMatch) {
+          const digest = decodeURIComponent(artMatch[1] ?? "");
+          const registry = loadRegistry(projectRoot);
+          const cand = findArtifactByDigest(registry, digest);
+          if (!cand?.path?.trim()) {
+            sendJson(res, 404, { error: "artifact_not_found", digest });
+            return;
+          }
+          if (!existsSync(cand.path)) {
+            sendJson(res, 404, {
+              error: "artifact_file_missing",
+              digest,
+              path: cand.path,
+            });
+            return;
+          }
+          streamArtifact(res, cand.path, cand.digest);
+          return;
+        }
       }
 
       if (req.method === "GET" && url.pathname === "/v1/registry") {
@@ -170,6 +359,38 @@ export function createControlPlane(options: {
       if (req.method === "GET" && url.pathname === "/v1/registry/production") {
         sendJson(res, 200, {
           production: loadRegistry(projectRoot).production,
+        });
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1/dependency-manifest") {
+        sendJson(res, 200, loadDependencyManifest(projectRoot));
+        return;
+      }
+
+      if (req.method === "PUT" && url.pathname === "/v1/dependency-manifest") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as Partial<DependencyManifestStore>)
+          : {};
+        const saved = saveDependencyManifest(projectRoot, {
+          schemaVersion: DEPENDENCY_MANIFEST_SCHEMA_VERSION,
+          dependencies: Array.isArray(body.dependencies)
+            ? body.dependencies
+            : [],
+          version_labels:
+            body.version_labels && typeof body.version_labels === "object"
+              ? body.version_labels
+              : {},
+          host_capability_set: body.host_capability_set,
+          require_declared: body.require_declared === true,
+        });
+        sendJson(res, 200, {
+          ok: true,
+          action: "dependency-manifest-put",
+          path: saved,
+          manifest: loadDependencyManifest(projectRoot),
         });
         return;
       }
@@ -323,7 +544,7 @@ export function createControlPlane(options: {
           update_id: body.update_id,
           gate: body.gate,
           actor: cpRole,
-          min_soak_ms: body.min_soak_ms,
+          min_soak_ms: body.min_soak_ms ?? resolveCpMinSoakMs(),
           sli_thresholds: body.sli_thresholds,
         });
         sendJson(res, 200, {
@@ -498,6 +719,10 @@ function printBanner(handle: ControlPlaneHandle, label: string): void {
   );
   console.error("  GET  /v1/service | /health");
   console.error("  GET  /  (thin CP Web console)");
+  console.error("  GET  /v1/candidates?lane=  (host APK + download_url)");
+  console.error("  GET  /v1/artifacts/:digest  (Map E host download)");
+  console.error("  GET  /v1/js-updates?lane=&module=  (Map E JS train)");
+  console.error("  GET|PUT /v1/dependency-manifest (Map E deps)");
   console.error("  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)");
   console.error("  POST /v1/rollout/tick { digest, sli?, now? } (C5 P10 auto)");
 }

@@ -72,7 +72,7 @@ try {
   const consoleHtml = await consoleRes.text();
   if (
     consoleRes.status !== 200 ||
-    !consoleHtml.includes("Control Plane") ||
+    !consoleHtml.includes('data-console="distribution-reference"') ||
     !consoleHtml.includes("/v1/registry")
   ) {
     fail(`console HTML ${consoleRes.status}`);

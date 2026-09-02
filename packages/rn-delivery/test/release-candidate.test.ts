@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { buildCandidateMetadata } from "../dist/candidate.js";
+import { buildCandidateMetadata, attachSbomSlot, supplyChainTrainForKind } from "../dist/candidate.js";
 import {
   blockCandidateInRegistry,
   listInstallableCandidates,
@@ -12,8 +12,10 @@ import {
   promoteCandidateToStaging,
   readLastCandidate,
   writeBuildResults,
+  writeLastCandidate,
 } from "../dist/candidate-store.js";
 import { evaluateDeliveryValidate } from "../dist/validate.js";
+import { pickCandidate } from "../dist/release-shared.js";
 
 const SEALED =
   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -45,6 +47,34 @@ describe("candidate store", () => {
     const loaded = readLastCandidate(root);
     assert.equal(loaded?.digest, SEALED);
     assert.ok(existsSync(path.join(root, ".rn/delivery/last-build.json")));
+  });
+
+  it("pickCandidate prefers signed last-candidate over stale last-build", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-pick-"));
+    writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "demo" }),
+    );
+    const unsigned = sampleCandidate(root);
+    writeBuildResults(root, [unsigned]);
+    const signed = {
+      ...unsigned,
+      stage: "sign" as const,
+      signature: SEALED,
+      supply_chain: attachSbomSlot(
+        { host: {}, js_update: {} },
+        supplyChainTrainForKind(unsigned.artifact_kind),
+        {
+          artifact_kind: unsigned.artifact_kind,
+          format: "stub" as const,
+          digest: unsigned.digest,
+        },
+      ),
+    };
+    writeLastCandidate(root, signed);
+    const picked = pickCandidate(root, "android");
+    assert.equal(picked.stage, "sign");
+    assert.ok(picked.supply_chain?.host?.sbom?.digest);
   });
 
   it("promotes to staging and blocks with rollback drill", () => {

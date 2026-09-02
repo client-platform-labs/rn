@@ -46,3 +46,18 @@ export {
   candidateMetadataSchema,
   deliveryStagesSchema,
 } from "./schema.js";
+
+export {
+  assertDependencyAllowsPromote,
+  assertDependencyAllowsPublish,
+  assertDependencyAllowsRuntimeComposition,
+} from "./dependency-gate.js";
+
+export {
+  DEPENDENCY_MANIFEST_SCHEMA_VERSION,
+  dependencyManifestPath,
+  emptyDependencyManifest,
+  loadDependencyManifest,
+  saveDependencyManifest,
+} from "./dependency-store.js";
+export type { DependencyManifestStore } from "./dependency-store.js";

@@ -345,6 +345,21 @@ export type {
 } from "./bundle-load-gate.js";
 
 export {
+  evaluatePromoteDependencyGate,
+  evaluatePublishDependencyGate,
+  evaluateRuntimeCompositionGate,
+  versionGte,
+} from "./dependency-manifest.js";
+export type {
+  BundleDependencyEdge,
+  BundleDependencyKind,
+  DependencyGateCheck,
+  DependencyGateResult,
+  DependencyRegistryEntry,
+  DependencyStrength,
+} from "./dependency-manifest.js";
+
+export {
   createQualitySignal,
   formatQualitySignalLine,
 } from "./observability.js";

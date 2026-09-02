@@ -16,6 +16,15 @@ export function resolveCpRole(): CpRole {
   return role === "viewer" ? "viewer" : "admin";
 }
 
+/** Optional rollout soak override for lab/AFK (ms). Unset → default 60s ladder in rn-core. */
+export function resolveCpMinSoakMs(): number | undefined {
+  const raw = process.env.RN_CP_MIN_SOAK_MS?.trim();
+  if (!raw) return undefined;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return n;
+}
+
 export type CpAuthResult =
   | { ok: true }
   | { ok: false; status: 401 | 403; error: string };

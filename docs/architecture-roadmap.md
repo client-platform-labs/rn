@@ -6,14 +6,15 @@
 |-------|-----------|
 | **Why / contracts** | [blueprint/00-entry.md](../blueprint/00-entry.md) · P1–P17 [research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) |
 | **Map A tickets** | [wayfinding-impl-2/map.md](../wayfinding-impl-2/map.md) · GitHub [#18](https://github.com/client-platform-labs/rn/issues/18) |
-| **Map B** | [wayfinding-map-b/map.md](../wayfinding-map-b/map.md) · [#23](https://github.com/client-platform-labs/rn/issues/23) · [map-b-loop.md](./agents/map-b-loop.md) |
+| **Map B** | [wayfinding-map-b/map.md](../wayfinding-map-b/map.md) · [#23](https://github.com/client-platform-labs/rn/issues/23) CLOSED · [map-b-loop.md](./agents/map-b-loop.md) |
+| **Map E** | [wayfinding-map-e/map.md](../wayfinding-map-e/map.md) · [#94](https://github.com/client-platform-labs/rn/issues/94) · 壳/离线包 + 装包台 |
 | **GF/BF unity** | [agents/gf-bf-unified-model.md](./agents/gf-bf-unified-model.md) |
 | **Promotion levels** | [agents/enterprise-promotion-gates.md](./agents/enterprise-promotion-gates.md) |
 | **Process** | [agents/architecture-governance.md](./agents/architecture-governance.md) |
 
 **Maintenance:** Update **§9 Current position** and milestone checkboxes when a GitHub issue closes or HITL signs. Do not fork a second issue tracker.
 
-**Quick read (2026-08-26):** Map A **closed** (#18) · GF/BF **L5** · Map B **B1–B5 green** ([#23](https://github.com/client-platform-labs/rn/issues/23) open) · 双 loop：`run-afk-hitl-loop.mjs`（Spine）· `run-map-b-loop.mjs`（Map B）→ 详情 **§9**。
+**Quick read (2026-09-01):** Map A–D **closed/AFK EXITED** · Map B [#23](https://github.com/client-platform-labs/rn/issues/23) **CLOSED**（Harmony → [#93](https://github.com/client-platform-labs/rn/issues/93)）· Map E [#94](https://github.com/client-platform-labs/rn/issues/94) **charting** → 详情 **§9**。
 
 ---
 
@@ -391,16 +392,17 @@ quality_signal ──→ 挡 promote（Depth M9）   # L5
 
 ## 9. 当前位置（滚动更新）
 
-**As of 2026-08-26**
+**As of 2026-09-01**
 
 ### 9.1 三层目的地
 
 | 层级 | 状态 | 说明 |
 |------|------|------|
 | **Map A** | ✅ **Closed** [#18](https://github.com/client-platform-labs/rn/issues/18) | 六切片 + Spine M0–M10；GF/BF **L5** |
-| **Map B** | 🔄 **In progress** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B6+B8–B11 ✅ · B7 BLOCKED（DevEco） |
+| **Map B** | ✅ **CLOSED** [#23](https://github.com/client-platform-labs/rn/issues/23) | B1–B6+B8–B11 ✅ · Harmony → [#93](https://github.com/client-platform-labs/rn/issues/93) |
 | **Map C** | ✅ **AFK EXITED** [#73](https://github.com/client-platform-labs/rn/issues/73) | C1–C9 ✅ · C3b → [#89](https://github.com/client-platform-labs/rn/issues/89) |
 | **Map D** | ✅ **AFK EXITED** [#80](https://github.com/client-platform-labs/rn/issues/80) | D1–D5 ✅ · GRC → [#90](https://github.com/client-platform-labs/rn/issues/90) |
+| **Map E** | 🔄 **Charting** [#94](https://github.com/client-platform-labs/rn/issues/94) | JS/离线包发布面 + 宿主装包台；research [#95](https://github.com/client-platform-labs/rn/issues/95)/[#96](https://github.com/client-platform-labs/rn/issues/96) |
 | **产品北极星** | ⬜ 远未达 | 50+ 开发者 · 全渠道投产 · Harmony 主路径 |
 
 **对外口径：** 可称「单 module **可企业推广候选**（L4–L5 thin）」；**不可**称全国投产 / 全渠道 / Map C 能力已就绪。
@@ -467,7 +469,7 @@ flowchart TB
 | B10 | P4 Hermes/NewArch/tuple drift + P6 codegen surface | ✅ #71 |
 | B11 | CP thin rollout_steps (P10 soak ladder) | ✅ #72 |
 | B6 | XCFramework **binary** CI | ✅ #92 · `xcframework.yml` macos job; local CLT → SKIP |
-| B7 | Harmony 真机 | BLOCKED → [#93](https://github.com/client-platform-labs/rn/issues/93) |
+| B7 | Harmony 真机 | shelved → [#93](https://github.com/client-platform-labs/rn/issues/93)（Map B CLOSED） |
 | B8 | CP Postgres adapter contract（opt-in） | ✅ #91 |
 
 **回归入口：** `node scripts/run-map-b-loop.mjs` → [`map-b-loop-latest.md`](./hitl/map-b-loop-latest.md)
@@ -511,10 +513,37 @@ flowchart TB
 
 合同权威：[research/01](../wayfinding-impl-2/research/01-multi-plane-industrial-remediation.md) — **实现可分期，合同不砍**。
 
+### 9.5d Map E
+
+索引：[wayfinding-map-e/map.md](../wayfinding-map-e/map.md) · map [#94](https://github.com/client-platform-labs/rn/issues/94)
+
+| ID | 内容 | 状态 |
+|----|------|------|
+| E-R1 | JS/OTA 开源栈对照（Hot Updater 等） | ✅ [#95](https://github.com/client-platform-labs/rn/issues/95) |
+| E-R2 | 宿主装包台开源栈（Fenfa 等） | ✅ [#96](https://github.com/client-platform-labs/rn/issues/96) |
+| E-G1 | 双执行面边界 grilling | ✅ [#97](https://github.com/client-platform-labs/rn/issues/97) |
+| E-G2 | Build vs Adapt Hot Updater | ✅ [#98](https://github.com/client-platform-labs/rn/issues/98) |
+| E-P1 | Prototype JS/离线包 | ✅ [#99](https://github.com/client-platform-labs/rn/issues/99) · `wayfinding-map-e/prototypes/js-offline-publish.html` |
+| E-P2 | Prototype 装包台 | ✅ [#100](https://github.com/client-platform-labs/rn/issues/100) · `wayfinding-map-e/prototypes/host-distribution.html` |
+| E-T1 | 依赖清单 + 三道门禁 | ✅ [#101](https://github.com/client-platform-labs/rn/issues/101) · `dependency-manifest` · `verify-dependency-gates.mjs` |
+| E-T2 | CP/delivery 接入依赖门禁 | ✅ [#102](https://github.com/client-platform-labs/rn/issues/102) · `verify-cp-dependency-gates.mjs` |
+| E-T3 | runtime 组合 + CP manifest API | ✅ [#103](https://github.com/client-platform-labs/rn/issues/103) · `gateBundleLoad` composition · `GET|PUT /v1/dependency-manifest` · `verify-cp-dependency-manifest-api.mjs` |
+| E-T4 | thin CP console 投影依赖 | ✅ [#104](https://github.com/client-platform-labs/rn/issues/104) · `cp-console.html` Dependencies |
+| E-T5 | 装包台薄接线 | ✅ [#105](https://github.com/client-platform-labs/rn/issues/105) · `download_url` · `/v1/artifacts/:digest` · `verify-cp-host-install-portal.mjs` |
+| E-R3 | 分层工业实践 | ✅ [#107](https://github.com/client-platform-labs/rn/issues/107) |
+| E-G3 | Distribution Service 分层·部署 | ✅ [#108](https://github.com/client-platform-labs/rn/issues/108) · 单一 Node · API-first · Compose/Helm/API-only |
+| E-T7 | OpenAPI + 表合同草案 | ✅ [#109](https://github.com/client-platform-labs/rn/issues/109) · `docs/specs/distribution-service.openapi.yaml` |
+| E-T8 | L1 Docker Compose + 镜像 | ✅ [#110](https://github.com/client-platform-labs/rn/issues/110) · `deploy/distribution-service/` · Aliyun ECS runbook |
+| E-T9 | tiangong 钢线 | ✅ [#111](https://github.com/client-platform-labs/rn/issues/111) · `verify-map-e-tiangong-steel-thread.mjs` |
+| E-T10 | 装包台/JS 发版台接 API | ✅ [#112](https://github.com/client-platform-labs/rn/issues/112) · `/portal/host` `/portal/js` |
+| E-T11 | 设备 checkUpdate + ECS | ✅ [#113](https://github.com/client-platform-labs/rn/issues/113) · `push-distribution-image-ecs.sh` · ECS verify PASS |
+| E-T12 | 本机双域名完整服务 | ✅ [#114](https://github.com/client-platform-labs/rn/issues/114) · `verify-local-distribution-chain.mjs` PASS |
+
 ### 9.7 距目标地 · 优先 backlog
 
-1. **实验台：** Harmony（B7 → [#93](https://github.com/client-platform-labs/rn/issues/93)）
-2. **Map C depth：** C3b 店侧 submit · 真 SLO/metrics 后端
-3. **产品深度：** GRC 后端 · 真 SBOM 生成 · 设备农场 · 真 Postgres 多租户 SaaS
+1. **Map E：** L1 本机+ECS 已跑通；下一刀 **L2 Helm + OSS/Postgres**，或 ECS :4040 公网安全组
+2. **实验台：** Harmony（[#93](https://github.com/client-platform-labs/rn/issues/93)）
+3. **Map C depth：** C3b · 真 SLO/metrics 后端
+4. **产品深度：** GRC · 真 SBOM · Postgres 活路径接线
 
-*上一结项：Map B B6 [#92](https://github.com/client-platform-labs/rn/issues/92) · B8 [#91](https://github.com/client-platform-labs/rn/issues/91) · Map B loop PASS（B7 BLOCKED）· Map C/D AFK EXITED。*
+*上一结项：#109 OpenAPI · #110 Compose/ECS #110。*

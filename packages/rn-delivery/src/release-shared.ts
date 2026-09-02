@@ -23,13 +23,19 @@ export function pickCandidate(
     return parsed.metadata;
   }
 
+  // Prefer last-candidate when it matches platform — sign/release update this
+  // file after ingest/build; last-build.json may still hold pre-sign compile rows.
+  const last = readLastCandidate(projectRoot);
+  if (last && (!platform || last.platform === platform)) {
+    return last;
+  }
+
   const lastBuild = readLastBuild(projectRoot);
   if (lastBuild && platform) {
     const match = lastBuild.candidates.find((c) => c.platform === platform);
     if (match) return match;
   }
 
-  const last = readLastCandidate(projectRoot);
   if (!last) {
     throw new DeliveryError(
       "no candidate metadata — run rn-delivery build or update first",
