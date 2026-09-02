@@ -5,6 +5,8 @@ import { Command, CommanderError } from "commander";
 
 import { shouldLoadPluginCommands } from "./argv.js";
 import { runConfigValidate } from "./commands/config.js";
+import { runCatalogList, runCatalogPublish, runCatalogServe } from "./commands/catalog.js";
+import { runSessionStatus } from "./commands/session.js";
 import { runDemoAdd, runDemoRemove } from "./commands/demo.js";
 import { runDevSupportAdd, runDevSupportRemove } from "./commands/dev-support.js";
 import { runDev } from "./commands/dev.js";
@@ -12,7 +14,7 @@ import { runDoctor } from "./commands/doctor.js";
 import { parseDoctorProfile } from "./brownfield-doctor.js";
 import { runHostAndroid } from "./commands/host-android.js";
 import { runInit, parseInitStarter } from "./commands/init.js";
-import { runModuleInit, runModuleLink } from "./commands/module.js";
+import { runModuleInit, runModuleLink, runModuleDev } from "./commands/module.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runPluginList } from "./commands/plugin.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
@@ -235,6 +237,126 @@ export async function run(argv = process.argv): Promise<number> {
           metroPort: opts.metroPort,
           entry: opts.entry,
           dryRun: Boolean(opts.dryRun),
+        });
+      },
+    );
+  moduleCmd
+    .command("dev")
+    .description(
+      "Business cwd: ensure Broker, register Live, start/reuse Metro (Self-Descriptor)",
+    )
+    .option("--broker-host <host>", "Dev Session Broker host", "127.0.0.1")
+    .option(
+      "--broker-port <port>",
+      "Dev Session Broker port",
+      (v) => Number.parseInt(v, 10),
+      7420,
+    )
+    .option(
+      "--catalog-base-url <url>",
+      "Optional Catalog Service base URL for membership warn",
+    )
+    .action(
+      async (opts: {
+        brokerHost?: string;
+        brokerPort?: number;
+        catalogBaseUrl?: string;
+      }) => {
+        await runModuleDev({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          brokerHost: opts.brokerHost,
+          brokerPort: opts.brokerPort,
+          catalogBaseUrl: opts.catalogBaseUrl,
+        });
+      },
+    );
+
+  const catalogCmd = program
+    .command("catalog")
+    .description(
+      "Product Module Catalog (publish SoT; shell .rn/dev-session.jsonc is draft only)",
+    );
+  catalogCmd
+    .command("publish")
+    .description("Publish draft modules from .rn/dev-session.jsonc to Catalog Service store")
+    .option("--product-app <id>", "productApp id (default: cwd basename)")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option("--embed-out <path>", "write embed snapshot JSON for Debug Host bake")
+    .action(
+      async (opts: {
+        productApp?: string;
+        catalogRoot?: string;
+        embedOut?: string;
+      }) => {
+        await runCatalogPublish({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          productApp: opts.productApp,
+          catalogRoot: opts.catalogRoot,
+          embedOut: opts.embedOut,
+        });
+      },
+    );
+  catalogCmd
+    .command("list")
+    .description("List published catalog (not draft). link alone does not appear here")
+    .option("--product-app <id>", "productApp id")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option("--base-url <url>", "P2: fetch from Catalog Service instead of local store")
+    .action(
+      async (opts: {
+        productApp?: string;
+        catalogRoot?: string;
+        baseUrl?: string;
+      }) => {
+        await runCatalogList({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          productApp: opts.productApp,
+          catalogRoot: opts.catalogRoot,
+          baseUrl: opts.baseUrl,
+        });
+      },
+    );
+  catalogCmd
+    .command("serve")
+    .description("Run local Catalog Service (GET modules / POST publish)")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option("--host <host>", "bind host", "127.0.0.1")
+    .option("--port <port>", "bind port", (v) => Number.parseInt(v, 10), 7410)
+    .action(
+      async (opts: { catalogRoot?: string; host?: string; port?: number }) => {
+        await runCatalogServe({
+          logger: loggerFromArgv(argv),
+          catalogRoot: opts.catalogRoot,
+          host: opts.host,
+          port: opts.port,
+        });
+      },
+    );
+
+  const sessionCmd = program
+    .command("session")
+    .description("Dev Session Broker (Live SoT; local debug only)");
+  sessionCmd
+    .command("status")
+    .description("List Live modules from Dev Session Broker")
+    .option("--base-url <url>", "Broker base URL (default http://127.0.0.1:7420)")
+    .option("--host <host>", "Broker host when --base-url omitted", "127.0.0.1")
+    .option(
+      "--port <port>",
+      "Broker port when --base-url omitted",
+      (v) => Number.parseInt(v, 10),
+      7420,
+    )
+    .action(
+      async (opts: { baseUrl?: string; host?: string; port?: number }) => {
+        await runSessionStatus({
+          logger: loggerFromArgv(argv),
+          baseUrl: opts.baseUrl,
+          host: opts.host,
+          port: opts.port,
         });
       },
     );

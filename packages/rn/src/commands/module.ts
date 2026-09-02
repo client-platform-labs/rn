@@ -1,5 +1,5 @@
 /**
- * `rn module init|link` — business_module workspaces (ADR-005 topology B).
+ * `rn module init|link|dev` — business_module workspaces (ADR-005 topology B).
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +12,7 @@ import {
   moduleWorkspaceRoot,
   scaffoldModuleWorkspace,
 } from "../module-workspace.js";
+import { runModuleDev as runModuleDevOrchestration } from "../module-dev/orchestrate.js";
 
 const MODULE_ID_RE = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -118,5 +119,25 @@ export async function runModuleLink(options: {
   const port = config.modules[options.moduleId]?.metroPort;
   options.logger.writeHuman(
     `Linked ${options.moduleId} → Metro :${port} (entry=${config.modules[options.moduleId]?.entry})`,
+  );
+}
+
+/** Business cwd: Broker + Live + Metro (handbook §3). */
+export async function runModuleDev(options: {
+  cwd: string;
+  logger: CliLogger;
+  brokerHost?: string;
+  brokerPort?: number;
+  catalogBaseUrl?: string;
+}): Promise<void> {
+  const result = await runModuleDevOrchestration({
+    cwd: path.resolve(options.cwd),
+    logger: options.logger,
+    brokerHost: options.brokerHost,
+    brokerPort: options.brokerPort,
+    catalogBaseUrl: options.catalogBaseUrl,
+  });
+  options.logger.writeHuman(
+    `Done: ${result.moduleId} live at ${result.metro.usbUrl} (pull ${result.hostPullUrl})`,
   );
 }

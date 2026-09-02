@@ -297,11 +297,13 @@ export {
 } from "./runtime-host.js";
 export type {
   BundlerBinding,
+  BundlerOverrideValue,
   BundlerResolver,
   HostSurfaceKind,
   OpenSurfaceFn,
   RuntimeHost,
   SurfaceHost,
+  SurfaceOpenOptions,
 } from "./runtime-host.js";
 
 export {
@@ -419,3 +421,99 @@ export type {
   RuntimeVersionFingerprintNote,
   SdkRnDriftResult,
 } from "./expo-interop.js";
+
+export {
+  CATALOG_DOCUMENT_SCHEMA_VERSION,
+  catalogModuleInPathTable,
+  validateCatalogDocument,
+} from "./catalog-types.js";
+export type {
+  CatalogDocument,
+  CatalogIssue,
+  CatalogIssueCode,
+  CatalogModuleEntry,
+  CatalogModuleIdOnlyModule,
+  CatalogPathRoutingModule,
+  CatalogValidation,
+} from "./catalog-types.js";
+
+export { resolveCatalogForHost } from "./catalog-resolve.js";
+export type { CatalogResolveResult } from "./catalog-resolve.js";
+
+export {
+  buildRoutePrefixTable,
+  findByRoutePrefix,
+  normalizeRoutePath,
+} from "./route-prefix.js";
+export type {
+  BuildRoutePrefixTableResult,
+  RoutePrefixEntry,
+  RoutePrefixHit,
+} from "./route-prefix.js";
+
+export { createShellRouter } from "./shell-router.js";
+export type {
+  BundleNavigatorRegistration,
+  CreateShellRouterDeps,
+  ShellOpenOptions,
+  ShellRouter,
+  ShellStackEntry,
+} from "./shell-router.js";
+
+export type {
+  DegradeDecision,
+  EnsureBundleReadyResult,
+} from "./degrade-types.js";
+
+export {
+  decideDegrade,
+  presentDegradeUi,
+} from "./degrade-matrix.js";
+export type {
+  DecideDegradeInput,
+  DegradeFailure,
+  DegradeUiModel,
+} from "./degrade-matrix.js";
+
+export { createBundleManager } from "./bundle-manager.js";
+export type {
+  BundleLifecycleState,
+  BundleManager,
+  BundleManagerPorts,
+  BundleUnitKind,
+  PreloadScheduleOptions,
+  RegisteredBundle,
+} from "./bundle-manager.js";
+
+export { createGlobalStateStore } from "./global-state.js";
+export type { GlobalStateAcl, GlobalStateStore } from "./global-state.js";
+
+export {
+  isLiveBindable,
+  isLiveHeartbeatStale,
+} from "./live-types.js";
+export type { LivePutBody, LiveRecord } from "./live-types.js";
+
+export {
+  buildDevSessionPanelRows,
+  resolveDevSessionPanelRow,
+} from "./dev-session-panel.js";
+export type {
+  DevSessionPanelRow,
+  DevSessionPanelRowInput,
+  DevSessionPanelState,
+} from "./dev-session-panel.js";
+
+export {
+  BROKER_LIVE_PATH,
+  DEFAULT_BROKER_PORT,
+  brokerLivePullUrl,
+  pullLiveList,
+  pushLiveProjectionStub,
+  putLiveRecord,
+} from "./broker-client.js";
+export type {
+  LiveListResponse,
+  PullLiveResult,
+  PushLiveStubResult,
+} from "./broker-client.js";
