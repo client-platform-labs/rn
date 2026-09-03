@@ -1,0 +1,6 @@
+{
+  "schema": "peel-sidecar-draft/v1",
+  "base_digest": "a75a4f0a16175f6c546ffe0ceaf0e7d478f14e320835010d9640d55e19c8b2e9",
+  "module_id_map_digest": "4e8dd5d6188e998b5d03aecdffaa5ba99fbdc318b6750009dbdadc7421770f9d",
+  "note": "Draft fields for #126 BundleManager / rn-delivery ingest alignment. module_id_map_digest is the base-map snapshot digest."
+}

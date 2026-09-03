@@ -1,0 +1,15 @@
+{
+  "kind": "peeled_business",
+  "business_module": "orders",
+  "modules": {
+    "src/modules/orders/index.js": 6,
+    "src/modules/orders/List.tsx": 7
+  },
+  "module_count": 2,
+  "full_graph_count": 6,
+  "base_module_count": 4,
+  "base_digest": "a75a4f0a16175f6c546ffe0ceaf0e7d478f14e320835010d9640d55e19c8b2e9",
+  "module_id_map_digest": "4e8dd5d6188e998b5d03aecdffaa5ba99fbdc318b6750009dbdadc7421770f9d",
+  "note": "PROTOTYPE peeled marker — business-only module ids; hermesc optional P1.",
+  "digest": "4d4de5b7c06bcd30c9065eb3ea9a22e5f149f483ffb7ab4cb64e76e005673675"
+}

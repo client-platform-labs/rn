@@ -15,6 +15,12 @@ export type ModuleBundleArtifact = {
   digest: string;
   /** Required when kind=delta — digest of the base this patch applies to. */
   base_digest?: string;
+  /**
+   * Optional (#141 peel MVP draft): digest of `base-module-id-map.json`
+   * used when packing a peeled business bundle. Consumers (#126) may require
+   * this when loading delta/peeled artifacts against a shared base.
+   */
+  module_id_map_digest?: string;
   update_id: string;
 };
 
@@ -44,6 +50,15 @@ export function validateBundleArtifact(artifact: ModuleBundleArtifact): {
     return {
       ok: false,
       reason: "base artifact must not carry base_digest",
+    };
+  }
+  if (
+    artifact.module_id_map_digest !== undefined &&
+    !artifact.module_id_map_digest.trim()
+  ) {
+    return {
+      ok: false,
+      reason: "module_id_map_digest must be non-empty when present",
     };
   }
   return { ok: true };

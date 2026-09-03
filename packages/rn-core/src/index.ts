@@ -339,6 +339,24 @@ export {
 } from "./bundle-artifact.js";
 export type { ModuleBundleArtifact, ModuleBundleKind } from "./bundle-artifact.js";
 
+export {
+  MODULE_ID_MAP_VERSION,
+  assertPeeledContract,
+  assignModuleIds,
+  basePathSetFromMap,
+  buildPeelSidecarDraft,
+  cloneModuleIdMap,
+  createEmptyModuleIdMap,
+  createPersistentModuleIdFactory,
+  digestModuleIdMap,
+  filterModulesAlreadyInBase,
+  filterModulesAlreadyInBasePaths,
+  mergeModuleIdMap,
+  normalizeModulePath,
+  peelBusinessModules,
+} from "./metro-peel.js";
+export type { ModuleIdMap, PeelSidecarDraft } from "./metro-peel.js";
+
 export { gateBundleLoad } from "./bundle-load-gate.js";
 export type {
   BundleLoadArtifact,
