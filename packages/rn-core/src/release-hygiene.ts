@@ -78,6 +78,43 @@ export function evaluateReleaseSourceHygiene(
     blocking: wrappedEntries.length > 0,
   });
 
+  // Module-first Debug panel: App.tsx must not statically import shell/debug
+  for (const entry of appEntryPaths(root)) {
+    const text = readFileSync(entry, "utf8");
+    const staticDebugImport =
+      /import\s+.*from\s+['"].*shell\/debug/.test(text) ||
+      /require\s*\(\s*['"].*shell\/debug/.test(text);
+    checks.push({
+      id: "release-no-static-dev-session-panel",
+      ok: !staticDebugImport,
+      summary: staticDebugImport
+        ? `${path.relative(root, entry)} statically imports shell/debug (must be __DEV__-gated in ShellHost only)`
+        : "App entry has no static shell/debug import",
+      blocking: staticDebugImport,
+    });
+  }
+
+  // ShellHost pattern: if file exists, DevSessionDebugPanel require must be under __DEV__
+  const shellHost = path.join(root, "shell", "ShellHost.tsx");
+  if (existsSync(shellHost)) {
+    const text = readFileSync(shellHost, "utf8");
+    const hasPanel = text.includes("DevSessionDebugPanel");
+    const gated =
+      /if\s*\(\s*__DEV__\s*\)[\s\S]*DevSessionDebugPanel/.test(text) ||
+      /__DEV__[\s\S]{0,200}require\([\s\S]*DevSessionDebugPanel/.test(text);
+    checks.push({
+      id: "release-shellhost-devsession-gated",
+      ok: !hasPanel || gated,
+      summary:
+        !hasPanel
+          ? "ShellHost has no DevSessionDebugPanel reference"
+          : gated
+            ? "ShellHost DevSessionDebugPanel is __DEV__-gated"
+            : "ShellHost references DevSessionDebugPanel without __DEV__ gate",
+      blocking: hasPanel && !gated,
+    });
+  }
+
   return checks;
 }
 
@@ -92,6 +129,8 @@ const APK_DEV_MARKERS = [
   RELEASE_DEV_SUPPORT_MODULE_DIR,
   RELEASE_DEV_SUPPORT_MARKER,
   ".rn-dev-support",
+  "DevSessionDebugPanel",
+  "Dev Session Broker",
 ];
 
 /**
