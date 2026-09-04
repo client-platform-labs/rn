@@ -42,6 +42,20 @@ rn-delivery validate       # Release must be clean of Dev/Broker/panel
 
 ---
 
+## Catalog SoT — embed drives Panel
+
+The Debug Host Dev Session **panel module list** is sourced from the **CP catalog embed** baked into the host at `tiangong-host/.rn/catalog-embed.json`. This is the **single source of truth** — the legacy in-process ModuleRegistry is deprecated (#155) and kept read-only as a one-release fallback.
+
+| Surface | Role |
+|---------|------|
+| `tiangong-host/.rn/catalog-embed.json` | SoT for Panel; published by `rn module register` |
+| Legacy `ModuleRegistry` (in-process) | Deprecated; read-only fallback when embed absent |
+| AFK contract | `node scripts/verify-panel-sot.mjs` (exit 0 = embed has ≥2 modules & shape parity) |
+
+Phones pull latest embed on Debug Host reinstall, OR via the `Pulls latest registry` action in panel.
+
+---
+
 ## Register contract (CLI ≡ API)
 
 | Surface | Shape |

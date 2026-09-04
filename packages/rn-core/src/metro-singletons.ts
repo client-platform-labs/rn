@@ -8,6 +8,15 @@
  * Business-module Metro (rn module dev) is a separate bundler process — do NOT apply here.
  */
 
+/**
+ * @deprecated use CP registry (Live via Broker); will be removed after #155 map close.
+ * The Host Metro "singleton cache" below is the legacy in-process ModuleRegistry —
+ * Panel reads from the CP catalog embed (.rn/catalog-embed.json) as SoT instead.
+ * Kept as read-only fallback for one release; migrate to Catalog embed.
+ */
+export const LEGACY_MODULE_REGISTRY_NOTICE =
+  "Legacy in-process ModuleRegistry: superseded by CP catalog embed (.rn/catalog-embed.json). See #155." as const;
+
 /** Packages that must be singletons within the Host JS process. */
 export const HOST_METRO_SINGLETON_PACKAGES = [
   "react",
