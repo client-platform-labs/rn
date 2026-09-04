@@ -22,10 +22,25 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 /** Prefer Node 24 when current major is outside rn doctor window (>=22 <25). */
+const HOME = process.env.HOME ?? "";
+const NODE24_BIN_CANDIDATES = [
+  path.join(HOME, ".nvm/versions/node/v24.19.0/bin"),
+  path.join(HOME, ".nvm/versions/node/v24.18.0/bin"),
+  "/opt/homebrew/opt/node@24/bin",
+];
+
+/** @returns {string|null} absolute path to a Node 24 bin dir, or null if none found. */
+function resolveNode24Dir() {
+  for (const dir of NODE24_BIN_CANDIDATES) {
+    if (existsSync(path.join(dir, "node"))) return dir;
+  }
+  return null;
+}
+
 function preferNode24() {
   const major = Number(process.versions.node.split(".")[0]);
   if (major >= 22 && major < 25) return;
-  const home = process.env.HOME ?? "";
+  const home = HOME;
   const candidates = [
     path.join(home, ".nvm/versions/node/v24.19.0/bin/node"),
     path.join(home, ".nvm/versions/node/v24.18.0/bin/node"),
@@ -89,11 +104,20 @@ const reportPath = path.join(outDir, `afk-hitl-loop-${stamp}.jsonl`);
 /** @typedef {"afk"|"auto"|"true"} Kind */
 /** @typedef {{ id: string, kind: Kind, title: string, deps?: string[], run?: () => { ok: boolean, detail?: string }, skipIf?: () => string | null, issue?: number }} Step */
 
+/** Prepend Node 24 dir to PATH so child processes spawned via shebang (`#!/usr/bin/env node`)
+ *  resolve `node` to the version the doctor contract expects.
+ *  Always applied when a Node 24 dir is resolvable on this machine; no-op otherwise. */
+function withNode24OnPath(env) {
+  const dir = resolveNode24Dir();
+  if (!dir) return env;
+  return { ...env, PATH: `${dir}:${env.PATH ?? ""}` };
+}
+
 function runNode(script, scriptArgs = [], opts = {}) {
   const r = spawnSync(process.execPath, [script, ...scriptArgs], {
     cwd: repoRoot,
     encoding: "utf8",
-    env: { ...process.env, ...opts.env },
+    env: withNode24OnPath({ ...process.env, ...opts.env }),
   });
   return {
     ok: r.status === 0,
@@ -106,6 +130,7 @@ function runPnpm(argv) {
   const r = spawnSync("pnpm", argv, {
     cwd: repoRoot,
     encoding: "utf8",
+    env: withNode24OnPath({ ...process.env }),
   });
   return {
     ok: r.status === 0,
