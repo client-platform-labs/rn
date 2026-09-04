@@ -5,10 +5,9 @@
     "node_modules/react-native/index.js": 1,
     "node_modules/metro-runtime/src/polyfills/require.js": 2,
     "node_modules/@react-native/js-polyfills/console.js": 3,
-    "src/modules/checkout/index.js": 4,
-    "src/modules/checkout/Cart.tsx": 5,
-    "src/modules/orders/index.js": 6,
-    "src/modules/orders/List.tsx": 7
+    "src/base/Foo.ts": 4,
+    "src/peeled/Bar.ts": 5,
+    "src/peeled/orders/Index.ts": 6
   },
-  "nextId": 8
+  "nextId": 7
 }

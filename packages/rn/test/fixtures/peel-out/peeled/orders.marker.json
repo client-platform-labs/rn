@@ -2,14 +2,13 @@
   "kind": "peeled_business",
   "business_module": "orders",
   "modules": {
-    "src/modules/orders/index.js": 6,
-    "src/modules/orders/List.tsx": 7
+    "src/peeled/orders/Index.ts": 6
   },
-  "module_count": 2,
+  "module_count": 1,
   "full_graph_count": 6,
-  "base_module_count": 4,
-  "base_digest": "a75a4f0a16175f6c546ffe0ceaf0e7d478f14e320835010d9640d55e19c8b2e9",
-  "module_id_map_digest": "4e8dd5d6188e998b5d03aecdffaa5ba99fbdc318b6750009dbdadc7421770f9d",
+  "base_module_count": 5,
+  "base_digest": "46f82a189c935f956f28308ebff4d9678744b5862d8ef71c47de48a8444bccf4",
+  "module_id_map_digest": "1a78b91ccb21a3b3b1b5b51dc56b4c6c6942eda72083e1d415a471ddf9bd3a78",
   "note": "PROTOTYPE peeled marker — business-only module ids; hermesc optional P1.",
-  "digest": "4d4de5b7c06bcd30c9065eb3ea9a22e5f149f483ffb7ab4cb64e76e005673675"
+  "digest": "ba00c6067b5f9215da66bfc12d084250efcfb3e3ac100ba133f9a08bd07fc355"
 }

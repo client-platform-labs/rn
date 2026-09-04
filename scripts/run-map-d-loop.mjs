@@ -53,6 +53,13 @@ const STEPS = [
     issue: 88,
     verify: "scripts/verify-ops-runbook.mjs",
   },
+  {
+    id: "D6",
+    kind: "afk",
+    title: "#141 Metro peel pipeline MVP (base + sidecar + monotonic map)",
+    issue: 141,
+    verify: "scripts/verify-base-peel.mjs",
+  },
 ];
 
 function printPlan() {
