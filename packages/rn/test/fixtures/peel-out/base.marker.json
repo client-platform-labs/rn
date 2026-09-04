@@ -1,0 +1,13 @@
+{
+  "kind": "base",
+  "business_module": "_base",
+  "modules": {
+    "node_modules/react/index.js": 0,
+    "node_modules/react-native/index.js": 1,
+    "node_modules/metro-runtime/src/polyfills/require.js": 2,
+    "node_modules/@react-native/js-polyfills/console.js": 3
+  },
+  "note": "PROTOTYPE marker — not hermesc output. Replace with index.hbc in host CI.",
+  "digest": "a75a4f0a16175f6c546ffe0ceaf0e7d478f14e320835010d9640d55e19c8b2e9",
+  "module_id_map_digest": "4e8dd5d6188e998b5d03aecdffaa5ba99fbdc318b6750009dbdadc7421770f9d"
+}

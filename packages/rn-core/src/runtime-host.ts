@@ -28,7 +28,18 @@ export type BundlerBinding = {
   /** Effective bundler base URL (override or derived from port). */
   bundlerUrl: string;
   entry?: string;
+  /**
+   * Override source after setBundlerOverride:
+   * - metro: default derived URL
+   * - url: explicit URL override
+   * - slot: OTA active/previous slot path
+   * - baseline: OTA baseline path
+   */
+  source?: "metro" | "url" | "slot" | "baseline";
 };
+
+/** ADR-006: url | "slot" | "baseline" (null clears). */
+export type BundlerOverrideValue = string | "slot" | "baseline";
 
 /**
  * Resolve module → Metro URL | slot | baseline.
@@ -39,7 +50,7 @@ export function createBundlerResolver(
   options?: { lanHost?: string },
 ) {
   const host = options?.lanHost ?? "127.0.0.1";
-  const urlOverrides = new Map<string, string>();
+  const overrides = new Map<string, BundlerOverrideValue>();
   let focusedModuleId: string | null =
     Object.keys(config.modules)[0] ?? null;
 
@@ -66,15 +77,27 @@ export function createBundlerResolver(
       focusedModuleId = moduleId;
     },
 
+    /** @deprecated prefer setBundlerOverride — kept for existing callers */
     setBundlerUrlOverride(moduleId: string, url: string | null): void {
+      this.setBundlerOverride(moduleId, url);
+    },
+
+    /**
+     * setBundlerOverride(moduleId, url | "slot" | "baseline").
+     * Pass null to clear.
+     */
+    setBundlerOverride(
+      moduleId: string,
+      override: BundlerOverrideValue | null,
+    ): void {
       if (!config.modules[moduleId]) {
         throw new Error(`unknown business_module "${moduleId}"`);
       }
-      if (url === null) {
-        urlOverrides.delete(moduleId);
+      if (override === null) {
+        overrides.delete(moduleId);
         return;
       }
-      urlOverrides.set(moduleId, url);
+      overrides.set(moduleId, override);
     },
 
     resolve(moduleId: string): BundlerBinding {
@@ -82,12 +105,40 @@ export function createBundlerResolver(
       if (!binding) {
         throw new Error(`unknown business_module "${moduleId}"`);
       }
+      const override = overrides.get(moduleId);
+      if (override === "slot") {
+        return {
+          moduleId,
+          metroPort: binding.metroPort,
+          entry: binding.entry,
+          bundlerUrl: "rn-slot://active",
+          source: "slot",
+        };
+      }
+      if (override === "baseline") {
+        return {
+          moduleId,
+          metroPort: binding.metroPort,
+          entry: binding.entry,
+          bundlerUrl: "rn-slot://baseline",
+          source: "baseline",
+        };
+      }
+      if (typeof override === "string") {
+        return {
+          moduleId,
+          metroPort: binding.metroPort,
+          entry: binding.entry,
+          bundlerUrl: override,
+          source: "url",
+        };
+      }
       return {
         moduleId,
         metroPort: binding.metroPort,
         entry: binding.entry,
-        bundlerUrl:
-          urlOverrides.get(moduleId) ?? defaultUrl(moduleId, binding.metroPort),
+        bundlerUrl: defaultUrl(moduleId, binding.metroPort),
+        source: "metro",
       };
     },
 
@@ -100,9 +151,15 @@ export function createBundlerResolver(
 
 export type BundlerResolver = ReturnType<typeof createBundlerResolver>;
 
+/** Optional path remainder / params when opening via ShellRouter. */
+export type SurfaceOpenOptions = {
+  path?: string;
+  params?: Record<string, unknown>;
+};
+
 export interface SurfaceHost {
   /** Open an RN surface for a business_module (GF: nav; BF: native push). */
-  open(moduleId: string): Promise<BundlerBinding>;
+  open(moduleId: string, opts?: SurfaceOpenOptions): Promise<BundlerBinding>;
   /** Destroy surface and force dispose (ADR-008 P0.1). */
   destroy(moduleId: string): Promise<void>;
   /** Destroy + assert probe clean (device sampling). */
@@ -126,6 +183,7 @@ export interface RuntimeHost {
 export type OpenSurfaceFn = (
   moduleId: string,
   binding: BundlerBinding,
+  opts?: SurfaceOpenOptions,
 ) => void | Promise<void>;
 
 export function createReferenceRuntimeHost(options: {
@@ -159,11 +217,14 @@ export function createReferenceRuntimeHost(options: {
   const lifecycle = createSurfaceLifecycleController({ disposeRegistry });
   const eventBus = createModuleEventBus();
 
-  const load = async (moduleId: string): Promise<BundlerBinding> => {
+  const load = async (
+    moduleId: string,
+    opts?: SurfaceOpenOptions,
+  ): Promise<BundlerBinding> => {
     const binding = bundler.resolve(moduleId);
     bundler.setFocusedModule(moduleId);
     lifecycle.notify(moduleId, "willAppear");
-    await options.openSurface(moduleId, binding);
+    await options.openSurface(moduleId, binding, opts);
     lifecycle.notify(moduleId, "didAppear");
     return binding;
   };

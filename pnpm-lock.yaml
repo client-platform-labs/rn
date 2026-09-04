@@ -53,6 +53,12 @@ importers:
         specifier: workspace:*
         version: link:../rn-core
 
+  packages/shell-core:
+    dependencies:
+      '@client-platform/rn-core':
+        specifier: workspace:*
+        version: link:../rn-core
+
   plugins/rn-plugin-example-dev-session:
     dependencies:
       '@client-platform/rn-core':

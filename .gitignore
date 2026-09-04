@@ -18,3 +18,14 @@ build/
 docs/hitl/*.jsonl
 docs/hitl/*-latest.json
 docs/hitl/*-latest.md
+
+# Local dev scratch (not shippable; see docs/guides/module-first-joint-debug.md)
+.scratch/
+
+# Repo-root CLI dev state only — shell examples keep tracked .rn/ under examples/
+/.rn/
+
+# Editor swap files
+*.swp
+.*.swp
+

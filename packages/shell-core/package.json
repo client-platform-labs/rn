@@ -1,0 +1,24 @@
+{
+  "name": "@client-platform/shell-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Business-facing shell SDK façade (router / eventBus / globalState / dispose). Host binds once via bindShellCore.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@client-platform/rn-core": "workspace:*"
+  }
+}

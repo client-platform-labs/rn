@@ -1,0 +1,4 @@
+# Timestamped runs — keep latest.json as the canonical pointer
+*
+!latest.json
+!.gitignore

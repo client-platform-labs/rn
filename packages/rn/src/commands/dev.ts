@@ -27,6 +27,11 @@ import {
   ensureMultiMetroSessions,
   runPlatformWithMetro,
 } from "../metro-orchestrator.js";
+import {
+  ensureHostShellDevSession,
+  runHostShellMetroForeground,
+} from "../shell-dev-orchestrate.js";
+import { resolveHostShellPreferredPort } from "../shell-dev-session.js";
 import { commandExists, resolveNpx, runStreaming } from "../process.js";
 
 function resolveProjectRoot(cwd: string): string {
@@ -111,6 +116,8 @@ export async function runDev(options: {
   activeArchOnly?: boolean;
   /** Comma-separated business_module ids → parallel Metro (#17). */
   modules?: string;
+  /** Custom shell Metro port (default: smart allocate from dev-session). */
+  port?: number;
 }): Promise<void> {
   const projectRoot = resolveProjectRoot(options.cwd);
   if (!hasReactNativeScripts(projectRoot)) {
@@ -210,10 +217,11 @@ export async function runDev(options: {
     logger: options.logger,
     noMetro: options.noMetro || moduleIds.length > 0,
     after: metroAfter,
-    port: moduleIds.length > 0
-      ? listModulePorts(loadDevSessionConfig(projectRoot)!, moduleIds, projectRoot)[0]
-          ?.port
-      : undefined,
+    port:
+      moduleIds.length > 0
+        ? listModulePorts(loadDevSessionConfig(projectRoot)!, moduleIds, projectRoot)[0]
+            ?.port
+        : resolveHostShellPreferredPort(projectRoot, options.port),
   };
 
   if (options.android) {
@@ -244,11 +252,30 @@ export async function runDev(options: {
       `device gate: ok (${authorized.length} authorized)`,
     );
 
+    const host = await ensureHostShellDevSession({
+      npx,
+      projectRoot,
+      logger: options.logger,
+      port: options.port,
+      noMetro: options.noMetro,
+      detached: metroAfter === "detach",
+    });
+
+    options.logger.info("Metro ready — configuring DevTransport…");
+    const transport = setupDevTransport({
+      adbPath: android.adbPath!,
+      port: host.session.port,
+      mode: resolvedMode,
+      device,
+    });
+    logDevTransportSetup(options.logger, transport, android);
+
     const { runAndroidArgs, gradleEnv } = buildAndroidInstallArgs({
       adbPath: android.adbPath,
       device,
       authorizedCount: authorized.length,
       activeArchOnly: options.activeArchOnly,
+      metroPort: host.session.port,
     });
     if (gradleEnv.ORG_GRADLE_PROJECT_reactNativeArchitectures) {
       options.logger.writeHuman(
@@ -256,31 +283,44 @@ export async function runDev(options: {
       );
     }
 
-    await runPlatformWithMetro(metroBase, async () => {
-      options.logger.info("Metro ready — configuring DevTransport…");
-      const transport = setupDevTransport({
-        adbPath: android.adbPath!,
-        mode: resolvedMode,
-        device,
-      });
-      logDevTransportSetup(options.logger, transport, android);
-
-      options.logger.info(
-        warm
-          ? "Native build & install (warm — incremental Gradle)…"
-          : "Native build & install (cold — first build may take several minutes)…",
-      );
-      const childEnv = androidHostChildEnv(undefined, android);
-      const code = await runStreaming(npx, runAndroidArgs, {
-        cwd: projectRoot,
-        env: { ...childEnv, ...gradleEnv },
-      });
-      if (code !== 0) {
-        throw new CliError(`react-native run-android failed (exit ${code})`, EXIT_FAIL);
-      }
-      options.logger.writeHuman("dev session: install complete — reload JS from Metro (r)");
+    options.logger.info(
+      warm
+        ? "Native build & install (warm — incremental Gradle)…"
+        : "Native build & install (cold — first build may take several minutes)…",
+    );
+    const childEnv = androidHostChildEnv(undefined, android);
+    const code = await runStreaming(npx, runAndroidArgs, {
+      cwd: projectRoot,
+      env: { ...childEnv, ...gradleEnv },
     });
-    return;
+    if (code !== 0) {
+      await host.closeBroker?.();
+      throw new CliError(`react-native run-android failed (exit ${code})`, EXIT_FAIL);
+    }
+    options.logger.writeHuman("dev session: install complete — reload JS from Metro (r)");
+
+    if (!host.session.startedByUs) {
+      return;
+    }
+    switch (metroAfter) {
+      case "stop":
+        host.session.child?.kill?.("SIGTERM");
+        await host.closeBroker?.();
+        options.logger.writeHuman("Install complete — Metro stopped.");
+        return;
+      case "detach":
+        host.session.child?.unref?.();
+        options.logger.writeHuman(
+          `Install complete — Metro left running on :${host.session.port} (background).`,
+        );
+        return;
+      case "foreground":
+        options.logger.writeHuman(
+          `Install complete — Metro on :${host.session.port}. Press Ctrl+C to stop.`,
+        );
+        await runHostShellMetroForeground(host);
+        return;
+    }
   }
 
   if (options.ios) {
@@ -297,7 +337,7 @@ export async function runDev(options: {
       );
     }
 
-    await runPlatformWithMetro(metroBase, async () => {
+    await runPlatformWithMetro(metroBase, async (_session) => {
       options.logger.info("Building & installing iOS (run-ios --no-packager)…");
       options.logger.writeHuman(
         "Device tip: open Xcode once to accept licenses; use a simulator or paired device.",
@@ -314,27 +354,23 @@ export async function runDev(options: {
     return;
   }
 
-  options.logger.info("Starting Metro (upstream react-native start)…");
-  const android = probeAndroidHost();
-  if (android.adbPath) {
-    const bridge = ensureMetroBridge({ adbPath: android.adbPath });
-    if (bridge.ok) {
-      options.logger.writeHuman(bridge.message);
-    } else if (bridge.probe.devices.length > 0 || bridge.probe.unauthorizedCount > 0) {
-      options.logger.warn(bridge.message);
-    }
-  }
+  options.logger.info("Starting shell Metro (smart port + Dev Session reverse)…");
+  const host = await ensureHostShellDevSession({
+    npx,
+    projectRoot,
+    logger: options.logger,
+    port: options.port,
+    noMetro: options.noMetro,
+    detached: false,
+  });
   if (!options.logger.json) {
-    options.logger.writeHuman("Metro will stay in the foreground. Ctrl+C to stop.");
     options.logger.writeHuman(
-      "Platform attach: rn dev --android  (starts Metro + install; Metro stays up until Ctrl+C).",
+      `Shell Metro on :${host.session.port} — Broker Pull ${host.hostPullUrl}`,
+    );
+    options.logger.writeHuman("Metro stays in foreground. Ctrl+C to stop.");
+    options.logger.writeHuman(
+      "Platform attach: rn dev --android  (same smart port + reverse).",
     );
   }
-
-  const code = await runStreaming(npx, ["react-native", "start"], {
-    cwd: projectRoot,
-  });
-  if (code !== 0) {
-    throw new CliError(`react-native start failed (exit ${code})`, EXIT_FAIL);
-  }
+  await runHostShellMetroForeground(host);
 }

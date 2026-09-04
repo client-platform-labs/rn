@@ -5,6 +5,13 @@ import { Command, CommanderError } from "commander";
 
 import { shouldLoadPluginCommands } from "./argv.js";
 import { runConfigValidate } from "./commands/config.js";
+import {
+  runCatalogList,
+  runCatalogPublish,
+  runCatalogServe,
+  runModuleRegister,
+} from "./commands/catalog.js";
+import { runSessionStatus } from "./commands/session.js";
 import { runDemoAdd, runDemoRemove } from "./commands/demo.js";
 import { runDevSupportAdd, runDevSupportRemove } from "./commands/dev-support.js";
 import { runDev } from "./commands/dev.js";
@@ -12,7 +19,7 @@ import { runDoctor } from "./commands/doctor.js";
 import { parseDoctorProfile } from "./brownfield-doctor.js";
 import { runHostAndroid } from "./commands/host-android.js";
 import { runInit, parseInitStarter } from "./commands/init.js";
-import { runModuleInit, runModuleLink } from "./commands/module.js";
+import { runModuleInit, runModuleLink, runModuleDev } from "./commands/module.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runPluginList } from "./commands/plugin.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
@@ -38,9 +45,15 @@ function loggerFromArgv(argv: string[]): CliLogger {
   return createLogger(resolveRuntimeFlags(peekArgvFlags(argv)));
 }
 
+/** Platform plumbing (C8/C9) shown only with `rn --help --all`. */
+function showPlumbingHelp(argv: string[]): boolean {
+  return argv.includes("--all");
+}
+
 export async function run(argv = process.argv): Promise<number> {
   const logger = loggerFromArgv(argv);
   const program = new Command();
+  const plumbing = showPlumbingHelp(argv);
 
   program
     .name("rn")
@@ -48,6 +61,7 @@ export async function run(argv = process.argv): Promise<number> {
     .version(packageVersion())
     .option("--json", "JSON on stdout; human logs on stderr; implies non-interactive")
     .option("--non-interactive", "do not prompt; fail instead of asking")
+    .option("--all", "include platform plumbing commands in help (catalog serve, session, …)")
     .showHelpAfterError()
     .exitOverride();
 
@@ -194,31 +208,49 @@ export async function run(argv = process.argv): Promise<number> {
     .description("Business module workspaces (ADR-005 topology B — not app-hosts)");
   moduleCmd
     .command("init")
-    .description("Scaffold modules/<id> and link into .rn/dev-session.jsonc")
+    .description("Scaffold modules/<id>, link dev-session, optional catalog register")
     .argument("<moduleId>", "business_module id (e.g. checkout)")
     .option("--no-link", "scaffold only; do not write dev-session")
+    .option(
+      "--register",
+      "after scaffold+link, publish product Catalog (host-ops one-shot)",
+    )
     .option("--metro-port <port>", "Metro port for this module", (v) =>
       Number.parseInt(v, 10),
     )
+    .option("--product-app <id>", "productApp for --register")
+    .option("--catalog-root <path>", "catalog store root for --register")
     .option("--dry-run", "print plan without changes")
     .action(
       async (
         moduleId: string,
-        opts: { link?: boolean; metroPort?: number; dryRun?: boolean },
+        opts: {
+          link?: boolean;
+          register?: boolean;
+          metroPort?: number;
+          productApp?: string;
+          catalogRoot?: string;
+          dryRun?: boolean;
+        },
       ) => {
         await runModuleInit({
           cwd: process.cwd(),
           moduleId,
           logger: loggerFromArgv(argv),
           link: opts.link !== false,
+          register: Boolean(opts.register),
           metroPort: opts.metroPort,
+          productApp: opts.productApp,
+          catalogRoot: opts.catalogRoot,
           dryRun: Boolean(opts.dryRun),
         });
       },
     );
   moduleCmd
-    .command("link")
-    .description("Link an existing modules/<id> into .rn/dev-session.jsonc")
+    .command("link", { hidden: !plumbing })
+    .description(
+      "Plumbing: dev-session draft only (not visible on Host). Prefer: rn module register <id>",
+    )
     .argument("<moduleId>", "business_module id")
     .option("--metro-port <port>", "Metro port", (v) => Number.parseInt(v, 10))
     .option("--entry <path>", "Metro entry relative to project root")
@@ -235,6 +267,186 @@ export async function run(argv = process.argv): Promise<number> {
           metroPort: opts.metroPort,
           entry: opts.entry,
           dryRun: Boolean(opts.dryRun),
+        });
+      },
+    );
+  moduleCmd
+    .command("dev")
+    .description(
+      "Business cwd: ensure Broker, register Live, start/reuse Metro (Self-Descriptor)",
+    )
+    .option("--broker-host <host>", "Dev Session Broker host", "127.0.0.1")
+    .option(
+      "--broker-port <port>",
+      "Dev Session Broker port",
+      (v) => Number.parseInt(v, 10),
+      7420,
+    )
+    .option(
+      "--catalog-base-url <url>",
+      "Optional Catalog Service base URL for membership warn",
+    )
+    .action(
+      async (opts: {
+        brokerHost?: string;
+        brokerPort?: number;
+        catalogBaseUrl?: string;
+      }) => {
+        await runModuleDev({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          brokerHost: opts.brokerHost,
+          brokerPort: opts.brokerPort,
+          catalogBaseUrl: opts.catalogBaseUrl,
+        });
+      },
+    );
+  moduleCmd
+    .command("register")
+    .description(
+      "Host-ops: add module(s) to product Catalog (ensure dev-session + publish SoT)",
+    )
+    .argument(
+      "[moduleId...]",
+      "optional: shell workspace id or external id (with --from); omit to republish all",
+    )
+    .option(
+      "--from <path>",
+      "external business repo (client-platform.module.jsonc); infers id when moduleId omitted",
+    )
+    .option("--metro-port <port>", "Metro port when linking into dev-session", (v) =>
+      Number.parseInt(v, 10),
+    )
+    .option("--entry <path>", "Metro entry when linking into dev-session")
+    .option("--dry-run", "print ensure + publish plan without changes")
+    .option("--product-app <id>", "productApp id (default: host-profile / *-host strip / cwd)")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option(
+      "--embed-out <path>",
+      "embed snapshot path (default: assets/catalog-embed.json or .rn/catalog-embed.json)",
+    )
+    .option("--no-embed", "do not write embed snapshot")
+    .action(
+      async (
+        moduleIds: string[],
+        opts: {
+          from?: string;
+          metroPort?: number;
+          entry?: string;
+          dryRun?: boolean;
+          productApp?: string;
+          catalogRoot?: string;
+          embedOut?: string;
+          embed?: boolean;
+        },
+      ) => {
+        await runModuleRegister({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          moduleIds,
+          from: opts.from,
+          metroPort: opts.metroPort,
+          entry: opts.entry,
+          dryRun: Boolean(opts.dryRun),
+          productApp: opts.productApp,
+          catalogRoot: opts.catalogRoot,
+          embedOut: opts.embedOut,
+          noEmbed: opts.embed === false,
+        });
+      },
+    );
+
+  const catalogCmd = program
+    .command("catalog")
+    .description(
+      "Product Module Catalog (SoT). Prefer: rn module register · rn catalog list",
+    );
+  catalogCmd
+    .command("publish", { hidden: !plumbing })
+    .description("Pipe alias of `rn module register` (prefer register)")
+    .option("--product-app <id>", "productApp id (default: host-profile / *-host strip / cwd)")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option(
+      "--embed-out <path>",
+      "embed snapshot path (default: assets/catalog-embed.json or .rn/catalog-embed.json)",
+    )
+    .option("--no-embed", "do not write embed snapshot")
+    .action(
+      async (opts: {
+        productApp?: string;
+        catalogRoot?: string;
+        embedOut?: string;
+        embed?: boolean;
+      }) => {
+        await runCatalogPublish({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          productApp: opts.productApp,
+          catalogRoot: opts.catalogRoot,
+          embedOut: opts.embedOut,
+          noEmbed: opts.embed === false,
+        });
+      },
+    );
+  catalogCmd
+    .command("list")
+    .description("List registered catalog. Draft-only dev-session rows are not listed")
+    .option("--product-app <id>", "productApp id")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option("--base-url <url>", "P2: fetch from Catalog Service instead of local store")
+    .action(
+      async (opts: {
+        productApp?: string;
+        catalogRoot?: string;
+        baseUrl?: string;
+      }) => {
+        await runCatalogList({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          productApp: opts.productApp,
+          catalogRoot: opts.catalogRoot,
+          baseUrl: opts.baseUrl,
+        });
+      },
+    );
+  catalogCmd
+    .command("serve", { hidden: !plumbing })
+    .description("Platform: local Catalog Service (GET modules / POST publish|register)")
+    .option("--catalog-root <path>", "override catalog store root")
+    .option("--host <host>", "bind host", "127.0.0.1")
+    .option("--port <port>", "bind port", (v) => Number.parseInt(v, 10), 7410)
+    .action(
+      async (opts: { catalogRoot?: string; host?: string; port?: number }) => {
+        await runCatalogServe({
+          logger: loggerFromArgv(argv),
+          catalogRoot: opts.catalogRoot,
+          host: opts.host,
+          port: opts.port,
+        });
+      },
+    );
+
+  const sessionCmd = program
+    .command("session", { hidden: !plumbing })
+    .description("Platform: Dev Session Broker (Live SoT; local debug only)");
+  sessionCmd
+    .command("status")
+    .description("List Live modules from Dev Session Broker")
+    .option("--base-url <url>", "Broker base URL (default http://127.0.0.1:7420)")
+    .option("--host <host>", "Broker host when --base-url omitted", "127.0.0.1")
+    .option(
+      "--port <port>",
+      "Broker port when --base-url omitted",
+      (v) => Number.parseInt(v, 10),
+      7420,
+    )
+    .action(
+      async (opts: { baseUrl?: string; host?: string; port?: number }) => {
+        await runSessionStatus({
+          logger: loggerFromArgv(argv),
+          baseUrl: opts.baseUrl,
+          host: opts.host,
+          port: opts.port,
         });
       },
     );
@@ -324,6 +536,11 @@ export async function run(argv = process.argv): Promise<number> {
       "--modules <ids>",
       "Parallel Metro for business_modules (comma-separated; requires .rn/dev-session.jsonc)",
     )
+    .option(
+      "--port <port>",
+      "Shell Metro port override (default: smart allocate — see dev-session shellMetroPort)",
+      (v) => Number.parseInt(v, 10),
+    )
     .action(
       async (opts: {
         android?: boolean;
@@ -336,6 +553,7 @@ export async function run(argv = process.argv): Promise<number> {
         device?: string;
         noActiveArchOnly?: boolean;
         modules?: string;
+        port?: number;
       }) => {
         const platformFlags = [opts.android, opts.ios, opts.metroOnly].filter(Boolean);
         if (platformFlags.length > 1) {
@@ -370,6 +588,7 @@ export async function run(argv = process.argv): Promise<number> {
           device: opts.device,
           activeArchOnly: opts.noActiveArchOnly ? false : undefined,
           modules: opts.modules,
+          port: opts.port,
         });
       },
     );

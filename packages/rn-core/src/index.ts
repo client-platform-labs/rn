@@ -252,15 +252,19 @@ export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,
+  DEFAULT_SHELL_METRO_PORT,
   DEV_SESSION_PROTOCOL_MAX,
   DEV_SESSION_PROTOCOL_MIN,
   DEV_SESSION_PROTOCOL_VERSION,
   DEV_SESSION_SCHEMA_VERSION,
   defaultDualModuleDevSession,
   defaultModulePort,
+  extractPortFromMetroUrl,
+  HOST_SHELL_LIVE_MODULE_ID,
   negotiateDevSessionProtocol,
   resolveDevSessionProtocolVersion,
   resolveEnv,
+  resolveShellMetroPreferredPort,
 } from "./env.js";
 export type {
   DevSessionConfig,
@@ -297,11 +301,13 @@ export {
 } from "./runtime-host.js";
 export type {
   BundlerBinding,
+  BundlerOverrideValue,
   BundlerResolver,
   HostSurfaceKind,
   OpenSurfaceFn,
   RuntimeHost,
   SurfaceHost,
+  SurfaceOpenOptions,
 } from "./runtime-host.js";
 
 export {
@@ -336,6 +342,24 @@ export {
   validateBundleArtifact,
 } from "./bundle-artifact.js";
 export type { ModuleBundleArtifact, ModuleBundleKind } from "./bundle-artifact.js";
+
+export {
+  MODULE_ID_MAP_VERSION,
+  assertPeeledContract,
+  assignModuleIds,
+  basePathSetFromMap,
+  buildPeelSidecarDraft,
+  cloneModuleIdMap,
+  createEmptyModuleIdMap,
+  createPersistentModuleIdFactory,
+  digestModuleIdMap,
+  filterModulesAlreadyInBase,
+  filterModulesAlreadyInBasePaths,
+  mergeModuleIdMap,
+  normalizeModulePath,
+  peelBusinessModules,
+} from "./metro-peel.js";
+export type { ModuleIdMap, PeelSidecarDraft } from "./metro-peel.js";
 
 export { gateBundleLoad } from "./bundle-load-gate.js";
 export type {
@@ -419,3 +443,123 @@ export type {
   RuntimeVersionFingerprintNote,
   SdkRnDriftResult,
 } from "./expo-interop.js";
+
+export {
+  CATALOG_DOCUMENT_SCHEMA_VERSION,
+  catalogModuleInPathTable,
+  validateCatalogDocument,
+} from "./catalog-types.js";
+export type {
+  CatalogDocument,
+  CatalogIssue,
+  CatalogIssueCode,
+  CatalogModuleEntry,
+  CatalogModuleIdOnlyModule,
+  CatalogPathRoutingModule,
+  CatalogValidation,
+} from "./catalog-types.js";
+
+export { resolveCatalogForHost } from "./catalog-resolve.js";
+export type { CatalogResolveResult } from "./catalog-resolve.js";
+
+export {
+  buildRoutePrefixTable,
+  findByRoutePrefix,
+  normalizeRoutePath,
+} from "./route-prefix.js";
+export type {
+  BuildRoutePrefixTableResult,
+  RoutePrefixEntry,
+  RoutePrefixHit,
+} from "./route-prefix.js";
+
+export { createShellRouter } from "./shell-router.js";
+export type {
+  BundleNavigatorRegistration,
+  CreateShellRouterDeps,
+  ShellOpenOptions,
+  ShellRouter,
+  ShellStackEntry,
+} from "./shell-router.js";
+
+export type {
+  DegradeDecision,
+  EnsureBundleReadyResult,
+} from "./degrade-types.js";
+
+export {
+  decideDegrade,
+  presentDegradeUi,
+} from "./degrade-matrix.js";
+export type {
+  DecideDegradeInput,
+  DegradeFailure,
+  DegradeUiModel,
+} from "./degrade-matrix.js";
+
+export { createBundleManager } from "./bundle-manager.js";
+export type {
+  BundleLifecycleState,
+  BundleManager,
+  BundleManagerPorts,
+  BundleUnitKind,
+  PreloadScheduleOptions,
+  RegisteredBundle,
+} from "./bundle-manager.js";
+
+export { createGlobalStateStore } from "./global-state.js";
+export type { GlobalStateAcl, GlobalStateStore } from "./global-state.js";
+
+export {
+  isLiveBindable,
+  isLiveHeartbeatStale,
+} from "./live-types.js";
+export type { LivePutBody, LiveRecord } from "./live-types.js";
+
+export { resolveBindMetroUrl } from "./bind-transport.js";
+export type {
+  BindTransport,
+  ResolveBindMetroUrlInput,
+  ResolveBindMetroUrlResult,
+} from "./bind-transport.js";
+
+export {
+  auditHostMetroNodeModulesPaths,
+  buildHostMetroMergeConfig,
+  HOST_METRO_SINGLETON_PACKAGES,
+} from "./metro-singletons.js";
+export type {
+  HostMetroMergeConfig,
+  HostMetroResolverInput,
+} from "./metro-singletons.js";
+
+export { createExecuteLoadFromSecondary } from "./secondary-script.js";
+export type {
+  SecondaryScriptLoadResult,
+  SecondaryScriptPorts,
+  SecondaryScriptSource,
+} from "./secondary-script.js";
+
+export {
+  buildDevSessionPanelRows,
+  resolveDevSessionPanelRow,
+} from "./dev-session-panel.js";
+export type {
+  DevSessionPanelRow,
+  DevSessionPanelRowInput,
+  DevSessionPanelState,
+} from "./dev-session-panel.js";
+
+export {
+  BROKER_LIVE_PATH,
+  DEFAULT_BROKER_PORT,
+  brokerLivePullUrl,
+  pullLiveList,
+  pushLiveProjectionStub,
+  putLiveRecord,
+} from "./broker-client.js";
+export type {
+  LiveListResponse,
+  PullLiveResult,
+  PushLiveStubResult,
+} from "./broker-client.js";
