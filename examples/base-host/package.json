@@ -1,0 +1,9 @@
+{
+  "name": "@client-platform/example-base-host",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real bundleable base-host project for the Metro peel pipeline (#141 + #141b P1 real mode). NOT a runnable app — feeds `scripts/pack-base-peel.mjs --real`. The RN toolchain (react, react-native, @react-native-community/cli) is intentionally NOT installed here; the pack script invokes `node <tiangong-host>/node_modules/react-native/cli.js` so the toolchain lives in one place.",
+  "scripts": {
+    "peel:real": "node ../../scripts/pack-base-peel.mjs --config client-platform.peel.jsonc --real"
+  }
+}

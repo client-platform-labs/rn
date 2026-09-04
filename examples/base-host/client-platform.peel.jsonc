@@ -1,13 +1,25 @@
 {
-  // base-host peel config (#141) — drives pack-base-peel.mjs.
-  // Synthetic example; replace paths with the real base-host Metro graph in P1.
+  // base-host peel config (#141 + #141b P1 real-mode) — drives
+  // `scripts/pack-base-peel.mjs --config <path>`.
+  //
+  // Two flavours are supported:
+  //   - Default (no --real, no `bundle` block): synthetic fixture pipeline.
+  //     The contract shape is verified against the JSON `basePathSet` /
+  //     `peeledModules` lists. Fast for CI / Map D / metro-peel loops.
+  //   - Real mode (`--real` flag, requires the `bundle` block below):
+  //     invokes `react-native bundle` + `hermesc` inside examples/base-host/
+  //     and produces a real `index.hbc` per artefact. The marker digests
+  //     now point at the on-disk HBC, not at the JSON payload.
+  //
+  // The contract spine (`packages/rn-core/src/metro-peel.ts`) is unchanged;
+  // the new `bundle` block is configuration-only.
   "schema": "client-platform.peel/v1",
   "basePathSet": [
     "node_modules/react/index.js",
     "node_modules/react-native/index.js",
     "node_modules/metro-runtime/src/polyfills/require.js",
     "node_modules/@react-native/js-polyfills/console.js",
-    "src/base/Foo.ts"
+    "src/base/Foo.tsx"
   ],
   "peeledModules": [
     {
@@ -17,8 +29,8 @@
         "node_modules/react-native/index.js",
         "node_modules/metro-runtime/src/polyfills/require.js",
         "node_modules/@react-native/js-polyfills/console.js",
-        "src/base/Foo.ts",
-        "src/peeled/Bar.ts"
+        "src/base/Foo.tsx",
+        "src/peeled/Bar.tsx"
       ]
     },
     {
@@ -28,9 +40,34 @@
         "node_modules/react-native/index.js",
         "node_modules/metro-runtime/src/polyfills/require.js",
         "node_modules/@react-native/js-polyfills/console.js",
-        "src/base/Foo.ts",
-        "src/peeled/orders/Index.ts"
+        "src/base/Foo.tsx",
+        "src/peeled/orders/Index.tsx"
       ]
     }
-  ]
+  ],
+  // ─── real-mode (P1 #141b) ────────────────────────────────────────────
+  // Used only when pack-base-peel.mjs is invoked with `--real`. Tells the
+  // pack script where the example project lives, which RN binary to
+  // invoke, and where to write the HBCs. The `${id}` token in `peeled.*`
+  // is substituted with the per-business module id (e.g. "checkout").
+  "bundle": {
+    "root": "examples/base-host",
+    "platform": "android",
+    "dev": false,
+    "hermescBin": "${TIANGONG_HOST}/node_modules/hermes-compiler/hermesc/osx-bin/hermesc",
+    "base": {
+      "entry": "index.base.js",
+      "metroConfig": "metro.config.base.js",
+      "outBundle": "${out}/base/index.android.bundle",
+      "outAssets": "${out}/base/assets",
+      "outHbc": "${out}/base/index.hbc"
+    },
+    "peeled": {
+      "entry": "index.peeled.js",
+      "metroConfig": "metro.config.peeled.js",
+      "outBundle": "${out}/peeled/${id}/index.android.bundle",
+      "outAssets": "${out}/peeled/${id}/assets",
+      "outHbc": "${out}/peeled/${id}/index.hbc"
+    }
+  }
 }

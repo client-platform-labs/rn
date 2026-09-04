@@ -21,6 +21,8 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  examples/base-host: {}
+
   examples/brownfield-host:
     dependencies:
       '@client-platform/rn-core':
