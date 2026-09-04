@@ -337,7 +337,7 @@
       <div id="kills-pauses"></div>
     </section>
     <section>
-      <h2>灰度发布</h2>
+      <h2 data-label="Rollouts">灰度发布 <span class="en">Rollouts</span></h2>
       <p class="section-desc">进行中的阶梯灰度任务。可从预发行点击「开始灰度」，在此推进/暂停/恢复。</p>
       <div id="rollouts"></div>
     </section>
@@ -414,7 +414,7 @@
         : "";
       const startRollout =
         mod && digest
-          ? `<button type="button" data-act="rollout-start" data-module="${mod}" data-digest="${digest}" data-update="${uid}">开始灰度</button>`
+          ? `<button type="button" data-act="rollout-start" data-label="Start rollout" data-module="${mod}" data-digest="${digest}" data-update="${uid}">开始灰度</button>`
           : "";
       return `${promote}<button type="button" class="danger" data-act="block" data-digest="${digest}">封禁</button>${kill}${pause}${startRollout}`;
     }

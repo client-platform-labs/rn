@@ -14,7 +14,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const home = process.env.HOME || "";
-const shellApp = path.join(home, "code/host-android");
+// shell app project has been renamed to `tiangong-host`; fall back to the
+// historical `host-android` for back-compat on older lab machines.
+const shellApp =
+  process.env.HERMES_SHELL_APP ||
+  (existsSync(path.join(home, "code/tiangong-host")) && path.join(home, "code/tiangong-host")) ||
+  path.join(home, "code/host-android");
 const mode = process.argv.includes("--mode")
   ? process.argv[process.argv.indexOf("--mode") + 1]
   : "auto";

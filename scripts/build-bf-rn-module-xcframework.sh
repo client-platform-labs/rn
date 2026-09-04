@@ -27,7 +27,7 @@ xcodebuild archive \
   -scheme "$SCHEME" \
   -destination "generic/platform=iOS" \
   -archivePath "$IOS_ARCHIVE" \
-  SKIP_INSTALL=NO \
+    SKIP_INSTALL=NO \
   BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
   ONLY_ACTIVE_ARCH=NO
 
@@ -37,7 +37,7 @@ xcodebuild archive \
   -destination "generic/platform=iOS Simulator" \
   -archivePath "$SIM_ARCHIVE" \
   SKIP_INSTALL=NO \
-  BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+    BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
   ONLY_ACTIVE_ARCH=NO
 
 ios_fw="$(find "$IOS_ARCHIVE" -name "${SCHEME}.framework" -type d | head -1)"

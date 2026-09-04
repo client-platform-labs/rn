@@ -1,6 +1,6 @@
 # Hermes #43 close-ready
 
-at=2026-09-01T01:06:36.820Z
+at=2026-09-04T06:14:55.985Z
 
 - D0 EXITED (regression AFK PASS)
 - OTA check/fetch fixture AFK PASS
