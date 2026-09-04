@@ -1,0 +1,36 @@
+{
+  // base-host peel config (#141) — drives pack-base-peel.mjs.
+  // Synthetic example; replace paths with the real base-host Metro graph in P1.
+  "schema": "client-platform.peel/v1",
+  "basePathSet": [
+    "node_modules/react/index.js",
+    "node_modules/react-native/index.js",
+    "node_modules/metro-runtime/src/polyfills/require.js",
+    "node_modules/@react-native/js-polyfills/console.js",
+    "src/base/Foo.ts"
+  ],
+  "peeledModules": [
+    {
+      "id": "checkout",
+      "graph": [
+        "node_modules/react/index.js",
+        "node_modules/react-native/index.js",
+        "node_modules/metro-runtime/src/polyfills/require.js",
+        "node_modules/@react-native/js-polyfills/console.js",
+        "src/base/Foo.ts",
+        "src/peeled/Bar.ts"
+      ]
+    },
+    {
+      "id": "orders",
+      "graph": [
+        "node_modules/react/index.js",
+        "node_modules/react-native/index.js",
+        "node_modules/metro-runtime/src/polyfills/require.js",
+        "node_modules/@react-native/js-polyfills/console.js",
+        "src/base/Foo.ts",
+        "src/peeled/orders/Index.ts"
+      ]
+    }
+  ]
+}

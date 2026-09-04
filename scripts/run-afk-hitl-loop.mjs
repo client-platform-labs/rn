@@ -451,6 +451,21 @@ const STEPS = [
       ]),
   },
   {
+    id: "Peel",
+    kind: "afk",
+    title: "#141 Metro peel pipeline MVP (when project has .rn/peel.jsonc)",
+    issue: 141,
+    skipIf: () => {
+      const cfg = path.join(projectRoot, ".rn/peel.jsonc");
+      return existsSync(cfg) ? null : `no ${path.relative(repoRoot, cfg)} in project`;
+    },
+    run: () =>
+      runNode(
+        path.join(repoRoot, "scripts/verify-base-peel.mjs"),
+        ["--config", path.join(projectRoot, ".rn/peel.jsonc")],
+      ),
+  },
+  {
     id: "A-expo",
     kind: "afk",
     title: "#16 Expo interop doctor + migrate dry-run",
