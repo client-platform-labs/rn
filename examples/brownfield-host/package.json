@@ -11,7 +11,8 @@
     }
   },
   "scripts": {
-    "demo": "node --experimental-strip-types ./src/demo.ts"
+    "demo": "node --experimental-strip-types ./src/demo.ts",
+    "demo:script-manager": "node --experimental-strip-types ./src/script-manager-host.ts"
   },
   "dependencies": {
     "@client-platform/rn-core": "workspace:*"
