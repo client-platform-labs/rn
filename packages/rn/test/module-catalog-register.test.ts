@@ -14,7 +14,9 @@ import { after, describe, it } from "node:test";
 import {
   ensureModuleInDevSession,
   resolveRegisterModuleIds,
+  runModuleApply,
   runModuleRegisterFlow,
+  runModuleRegisterFromIntake,
 } from "../dist/module-catalog-register.js";
 import { createLogger } from "../dist/logger.js";
 import { CatalogStore } from "../dist/catalog/store.js";
@@ -137,5 +139,72 @@ describe("runModuleRegisterFlow", () => {
     assert.equal(doc!.modules.length, 1);
     assert.equal(doc!.modules[0]?.business_module, "desk");
     assert.ok(existsSync(path.join(shell, ".rn/dev-session.jsonc")));
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
+ * CP intake path (#172): business `apply` + host-ops `register --file`.
+ * No business git repo required on the shell machine.
+ * ──────────────────────────────────────────────────────────────────────
+ */
+function deskRepo(): string {
+  const ext = mkdtempSync(path.join(tmpdir(), "rn-desk-intake-"));
+  fixtures.push(ext);
+  writeFileSync(
+    path.join(ext, "client-platform.module.jsonc"),
+    `{\n  "schemaVersion": 1,\n  "business_module": "desk",\n  "productApp": "tiangong",\n  "preferredMetroPort": 8091\n}\n`,
+  );
+  return ext;
+}
+
+describe("CP intake (#172)", () => {
+  it("apply snapshots descriptor into .rn/intake/<id>-<hash>.json", () => {
+    const shell = shellRoot();
+    const ext = deskRepo();
+    const logger = createLogger({ json: false, verbose: false });
+    const { intakePath, artifact } = runModuleApply({
+      cwd: shell,
+      logger,
+      fromRoot: ext,
+    });
+    assert.ok(intakePath.endsWith(`desk-${artifact.descriptorDigest}.json`));
+    assert.equal(artifact.moduleId, "desk");
+    assert.equal(artifact.productApp, "tiangong");
+    const body = JSON.parse(readFileSync(intakePath, "utf8"));
+    assert.equal(body.kind, "module-intake");
+    assert.equal(body.descriptor.preferredMetroPort, 8091);
+  });
+
+  it("register --file publishes catalog without business repo on shell machine", async () => {
+    const shell = shellRoot();
+    const ext = deskRepo();
+    const catalogRoot = mkdtempSync(path.join(tmpdir(), "rn-cat-intake-"));
+    fixtures.push(catalogRoot);
+    const logger = createLogger({ json: false, verbose: false });
+    const { intakePath } = runModuleApply({
+      cwd: shell,
+      logger,
+      fromRoot: ext,
+    });
+    await runModuleRegisterFromIntake({
+      cwd: shell,
+      logger,
+      intakePath,
+      catalogRoot,
+      noEmbed: true,
+    });
+    const store = new CatalogStore(catalogRoot);
+    const doc = store.read("tiangong");
+    assert.ok(doc);
+    assert.equal(doc!.modules.length, 1);
+    assert.equal(doc!.modules[0]?.business_module, "desk");
+    // dev-session tagged with the intake digest
+    const session = JSON.parse(
+      readFileSync(path.join(shell, ".rn/dev-session.jsonc"), "utf8")
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("//"))
+        .join("\n"),
+    );
+    assert.ok(session.lastIntakeDigest, "dev-session should carry lastIntakeDigest");
   });
 });

@@ -22,9 +22,16 @@ Thin ops path. Deep-read → [handbook-platform.md](./handbook-platform.md). Rel
 cd /path/to/tiangong-host
 rn doctor
 
+# Debug Host lifecycle (#160) — replaces manual ./gradlew installDebug
+rn host status              # adb / device / installed versionCode / adb reverse
+rn host install             # build + adb install; skip when versionCode matches
+rn host install --skip-build --force   # CI / re-flash
+rn host uninstall           # symmetric adb uninstall
+
 # C4 — register after CP intake / ticket (see module-environment-sync.md)
-rn module register <id>
-rn catalog list
+rn module register <id>          # CP lane (preferred)
+rn module register <id> --file .rn/intake/<id>-<hash>.json   # cross-team intake
+rn catalog list                   # reconcile visible module
 # Phones must Pull registry: P2 catalogBaseUrl OR new Debug Host APK
 
 # C7a — pack / hygiene (subset; full promote in release booklet)
@@ -39,7 +46,7 @@ rn-delivery validate       # Release must be clean of Dev/Broker/panel
 
 | Surface | Shape |
 |---------|--------|
-| CLI | `rn module register <id>` · `POST …/modules/register` · lab: `--file` (`rn --help --all`) |
+| CLI | `rn module register <id>` · `POST …/modules/register` · `rn module apply` (intake) · `register --file` (intake) |
 | HTTP | `POST /v1/products/:productApp/modules/register` `{ "modules": [...] }` |
 | Query | `GET /v1/products/:productApp/modules` · `rn catalog list` |
 

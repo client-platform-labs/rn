@@ -57,6 +57,12 @@ export interface DevSessionConfig {
   /** Preferred shell Metro port (auto-bumped when occupied). Override via `rn dev --port`. */
   shellMetroPort?: number;
   modules: Readonly<Record<string, ModuleDevBinding>>;
+  /**
+   * Last CP intake digest applied to this dev-session. Set by
+   * `rn module register --file <intake>` (#172); lets phones prove freshness
+   * and host-ops skip re-publishing identical intakes.
+   */
+  lastIntakeDigest?: string;
 }
 
 export type DevSessionProtocolNegotiateResult =

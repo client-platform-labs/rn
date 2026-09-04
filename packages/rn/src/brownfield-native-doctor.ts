@@ -73,15 +73,61 @@ function parseAbiFilters(text: string): string[] {
   return filters;
 }
 
+/**
+ * Count distinct React-Native Gradle link surfaces.
+ *
+ * Recognizes the RN 0.67+ canonical autolinking layout as **one** link,
+ * even when `build.gradle` (root classpath) + `app/build.gradle`
+ * (apply plugin) + `settings.gradle` (id("com.facebook.react.settings"))
+ * each mention react-native. The duplicate-link warning is reserved for
+ * cases where the canonical trio is missing or an extra `com.facebook.react`
+ * apply is layered on top.
+ */
 function countReactNativeGradleRefs(androidRoot: string, gradleFiles: string[]): number {
+  const root = readText(path.join(androidRoot, "build.gradle.kts"))
+    ?? readText(path.join(androidRoot, "build.gradle"))
+    ?? "";
+  const app = readText(path.join(androidRoot, "app", "build.gradle.kts"))
+    ?? readText(path.join(androidRoot, "app", "build.gradle"))
+    ?? "";
+  const settings = readText(path.join(androidRoot, "settings.gradle.kts"))
+    ?? readText(path.join(androidRoot, "settings.gradle"))
+    ?? "";
+
+  // RN 0.67+ canonical trio → single link. Any deviation falls back to the
+  // legacy per-file count so we still catch real duplicates.
+  const canonicalRoot =
+    /com\.facebook\.react:react-native-gradle-plugin/.test(root);
+  const canonicalApp = /apply\s+plugin:\s+["']com\.facebook\.react["']/.test(
+    app,
+  );
+  const canonicalSettings =
+    /id\(\s*["']com\.facebook\.react(?:\.settings)?["']\s*\)/.test(settings);
+  if (canonicalRoot && canonicalApp && canonicalSettings) {
+    // Canonical RN 0.67+ autolinking counts as 1. Any additional
+    // `apply plugin: "com.facebook.react"` outside the canonical trio
+    // is a real duplicate link.
+    let extras = 0;
+    for (const file of gradleFiles) {
+      const text = readText(file);
+      if (!text) continue;
+      if (file === path.join(androidRoot, "build.gradle")
+        || file === path.join(androidRoot, "build.gradle.kts")
+        || file === path.join(androidRoot, "app", "build.gradle")
+        || file === path.join(androidRoot, "app", "build.gradle.kts")) {
+        continue;
+      }
+      if (/apply\s+plugin:\s+["']com\.facebook\.react["']/.test(text)) extras += 1;
+    }
+    return 1 + extras;
+  }
+
   let hits = 0;
   for (const file of gradleFiles) {
     const text = readText(file);
     if (!text) continue;
     if (/com\.facebook\.react|react-native/.test(text)) hits += 1;
   }
-  const settings = readText(path.join(androidRoot, "settings.gradle.kts"))
-    ?? readText(path.join(androidRoot, "settings.gradle"));
   if (settings && /react-native|ReactAndroid/.test(settings)) hits += 1;
   return hits;
 }

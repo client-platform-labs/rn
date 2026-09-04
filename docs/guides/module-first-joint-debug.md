@@ -101,8 +101,11 @@ rn catalog list
 # 平台 lab：rn catalog serve --port 7410（rn --help --all）
 # Debug Host 面板：ShellHost 仅在 __DEV__ 挂载 shell/debug/DevSessionDebugPanel
 
-# 重装 Debug APK（不与 desk/fixture_second 抢 Metro 端口）
-cd android && ./gradlew installDebug
+# 重装 Debug APK（自动 versionCode skip-on-match；强制用 --force）
+rn host status
+rn host install            # 等价 ./gradlew installDebug + adb install
+rn host install --force    # 强装
+rn host uninstall          # 对称卸包
 
 # 壳 Metro + Broker + adb reverse（全自动端口，勿手填 8081/8090）
 rn dev

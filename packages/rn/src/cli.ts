@@ -11,6 +11,10 @@ import {
   runCatalogServe,
   runModuleRegister,
 } from "./commands/catalog.js";
+import {
+  runModuleApply,
+  runModuleRegisterFromIntake,
+} from "./module-catalog-register.js";
 import { runSessionStatus } from "./commands/session.js";
 import { runDemoAdd, runDemoRemove } from "./commands/demo.js";
 import { runDevSupportAdd, runDevSupportRemove } from "./commands/dev-support.js";
@@ -18,6 +22,13 @@ import { runDev } from "./commands/dev.js";
 import { runDoctor } from "./commands/doctor.js";
 import { parseDoctorProfile } from "./brownfield-doctor.js";
 import { runHostAndroid } from "./commands/host-android.js";
+import {
+  formatHostStatus,
+  parseHostInstallArgs,
+  runHostInstall,
+  runHostStatus,
+  runHostUninstall,
+} from "./host-lifecycle.js";
 import { runInit, parseInitStarter } from "./commands/init.js";
 import { runModuleInit, runModuleLink, runModuleDev } from "./commands/module.js";
 import { runMigrate } from "./commands/migrate.js";
@@ -119,6 +130,86 @@ export async function run(argv = process.argv): Promise<number> {
         yes: Boolean(opts.yes),
       });
     });
+
+  hostCmd
+    .command("install")
+    .description(
+      "Build + adb install the Debug Host APK to the connected device (skip when versionCode matches)",
+    )
+    .option("--host <path>", "host repo root (default: cwd)")
+    .option("--apk <path>", "override Debug APK path")
+    .option("--skip-build", "skip ./gradlew :app:assembleDebug")
+    .option("--force", "install even when on-device versionCode matches")
+    .option("--yes", "non-interactive (no prompt)")
+    .action(
+      async (opts: {
+        host?: string;
+        apk?: string;
+        skipBuild?: boolean;
+        force?: boolean;
+        yes?: boolean;
+      }) => {
+        const parsed = parseHostInstallArgs([
+          ...(opts.host ? ["--host", opts.host] : []),
+          ...(opts.apk ? ["--apk", opts.apk] : []),
+          ...(opts.skipBuild ? ["--skip-build"] : []),
+          ...(opts.force ? ["--force"] : []),
+          ...(opts.yes ? ["--yes"] : []),
+        ]);
+        const result = await runHostInstall({
+          logger: loggerFromArgv(argv),
+          hostRoot: parsed.hostRoot,
+          apkPath: parsed.apkPath,
+          skipBuild: parsed.skipBuild,
+          force: parsed.force,
+          nonInteractive: parsed.nonInteractive,
+        });
+        if (argv.includes("--json")) {
+          process.stdout.write(`${JSON.stringify(result)}\n`);
+        }
+      },
+    );
+
+  hostCmd
+    .command("uninstall")
+    .description("adb uninstall the host package from the connected device")
+    .option("--host <path>", "host repo root (default: cwd)")
+    .option("--apk <path>", "override APK to read packageName from")
+    .option("--yes", "non-interactive (no prompt)")
+    .action(
+      async (opts: { host?: string; apk?: string; yes?: boolean }) => {
+        const result = await runHostUninstall({
+          logger: loggerFromArgv(argv),
+          hostRoot: opts.host ?? process.cwd(),
+          apkPath: opts.apk,
+          nonInteractive: Boolean(opts.yes),
+        });
+        if (argv.includes("--json")) {
+          process.stdout.write(`${JSON.stringify(result)}\n`);
+        }
+      },
+    );
+
+  hostCmd
+    .command("status")
+    .description("Report adb device + on-device host version + APK + adb reverse list")
+    .option("--host <path>", "host repo root (default: cwd)")
+    .option("--apk <path>", "override Debug APK path")
+    .option("--json", "emit machine-readable JSON")
+    .action(
+      async (opts: { host?: string; apk?: string; json?: boolean }) => {
+        const report = await runHostStatus({
+          logger: loggerFromArgv(argv),
+          hostRoot: opts.host ?? process.cwd(),
+          apkPath: opts.apk,
+        });
+        if (opts.json || argv.includes("--json")) {
+          process.stdout.write(`${JSON.stringify(report)}\n`);
+        } else {
+          process.stdout.write(`${formatHostStatus(report)}\n`);
+        }
+      },
+    );
 
   const selfCmd = program
     .command("self")
@@ -302,6 +393,41 @@ export async function run(argv = process.argv): Promise<number> {
       },
     );
   moduleCmd
+    .command("apply")
+    .description(
+      "Business: snapshot client-platform.module.jsonc into a CP intake artifact (.rn/intake/<id>-<hash>.json)",
+    )
+    .option(
+      "--from <path>",
+      "business repo root (default: cwd)",
+    )
+    .option(
+      "--intake-dir <path>",
+      "override intake output dir (default: .rn/intake)",
+    )
+    .action(
+      async (opts: { from?: string; intakeDir?: string }) => {
+        const result = runModuleApply({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          fromRoot: opts.from,
+          intakeDir: opts.intakeDir,
+        });
+        if (argv.includes("--json")) {
+          process.stdout.write(
+            `${JSON.stringify({
+              intakePath: result.intakePath,
+              moduleId: result.artifact.moduleId,
+              descriptorDigest: result.artifact.descriptorDigest,
+              productApp: result.artifact.productApp,
+              producedAt: result.artifact.producedAt,
+            })}\n`,
+          );
+        }
+      },
+    );
+
+  moduleCmd
     .command("register")
     .description(
       "Host-ops: add module(s) to product Catalog (ensure dev-session + publish SoT)",
@@ -313,6 +439,10 @@ export async function run(argv = process.argv): Promise<number> {
     .option(
       "--from <path>",
       "external business repo (client-platform.module.jsonc); infers id when moduleId omitted",
+    )
+    .option(
+      "--file <path>",
+      "CP intake artifact (`.rn/intake/<id>-<hash>.json`) — preferred cross-team path",
     )
     .option("--metro-port <port>", "Metro port when linking into dev-session", (v) =>
       Number.parseInt(v, 10),
@@ -331,6 +461,7 @@ export async function run(argv = process.argv): Promise<number> {
         moduleIds: string[],
         opts: {
           from?: string;
+          file?: string;
           metroPort?: number;
           entry?: string;
           dryRun?: boolean;
@@ -340,9 +471,29 @@ export async function run(argv = process.argv): Promise<number> {
           embed?: boolean;
         },
       ) => {
+        const logger = loggerFromArgv(argv);
+        if (opts.file) {
+          if (moduleIds.length > 0 || opts.from) {
+            throw new CliError(
+              "--file is exclusive with [moduleId...] and --from",
+              EXIT_USAGE,
+            );
+          }
+          await runModuleRegisterFromIntake({
+            cwd: process.cwd(),
+            logger,
+            intakePath: opts.file,
+            productApp: opts.productApp,
+            catalogRoot: opts.catalogRoot,
+            embedOut: opts.embedOut,
+            noEmbed: opts.embed === false,
+            dryRun: Boolean(opts.dryRun),
+          });
+          return;
+        }
         await runModuleRegister({
           cwd: process.cwd(),
-          logger: loggerFromArgv(argv),
+          logger,
           moduleIds,
           from: opts.from,
           metroPort: opts.metroPort,

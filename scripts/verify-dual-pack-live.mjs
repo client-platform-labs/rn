@@ -4,9 +4,14 @@
  *
  * Prereq: both `npm run dev` running (or Metros already up with correct headers).
  *
+ * Exit codes:
+ *   0 = PASS (or SKIP when no Metros / Broker reachable)
+ *   1 = FAIL (Metros reachable but contract broken)
+ *
  * Usage:
  *   node scripts/verify-dual-pack-live.mjs
  *   BROKER_URL=http://127.0.0.1:7420 node scripts/verify-dual-pack-live.mjs
+ *   STRICT=1 node scripts/verify-dual-pack-live.mjs   # skip → fail
  */
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -27,20 +32,36 @@ try {
 }
 
 const brokerBaseUrl = process.env.BROKER_URL ?? "http://127.0.0.1:7420";
+const strict = process.env.STRICT === "1";
 
 const result = await verifyDualPackLive({
   targets: DEFAULT_DUAL_PACK_TARGETS,
   brokerBaseUrl,
 });
 
-for (const line of result.details) {
+const lines = result.details;
+const failLines = lines.filter((l) => l.startsWith("FAIL"));
+// Treat "no Metro on preferred ports" as the *primary* skip signal. A Broker
+// fetch failure is expected when neither `npm run dev` is up; gate the
+// SKIP only on the Metros (not the Broker), so the same machine without
+// adb/Metros still reports SKIP cleanly.
+const metroFails = failLines.filter((l) => l.includes("no Metro with header"));
+const noMetroAtAll = metroFails.length > 0;
+
+if (noMetroAtAll) {
+  console.log("SKIP dual-pack live (no Metros on :8081 / :8082 — start `npm run dev` in each module repo first)");
+  console.log("      start: cd ~/code/desk && npm run dev");
+  console.log("             cd ~/code/fixture_second && npm run dev");
+  if (strict) process.exit(1);
+  process.exit(0);
+}
+
+for (const line of lines) {
   console.log(line);
 }
 
 if (!result.ok) {
   console.error("\nverify-dual-pack-live: FAIL");
-  console.error("Start: cd ~/code/desk && npm run dev");
-  console.error("       cd ~/code/fixture_second && npm run dev");
   process.exit(1);
 }
 

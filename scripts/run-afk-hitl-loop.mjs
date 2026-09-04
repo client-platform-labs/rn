@@ -278,10 +278,28 @@ const STEPS = [
     kind: "afk",
     title: "#5 BF RCT host static",
     issue: 5,
-    skipIf: () =>
-      existsSync(path.join(projectRoot, "android"))
-        ? null
-        : "no android/ in project",
+    skipIf: () => {
+      if (!existsSync(path.join(projectRoot, "android"))) {
+        return "no android/ in project";
+      }
+      const profilePath = path.join(projectRoot, ".rn/host-profile.jsonc");
+      if (!existsSync(profilePath)) {
+        return "no .rn/host-profile.jsonc (BF Fence)";
+      }
+      const raw = readFileSync(profilePath, "utf8")
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("//"))
+        .join("\n");
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.profile !== "brownfield") {
+          return `host-profile is ${parsed.profile ?? "unset"} (not brownfield)`;
+        }
+      } catch {
+        return "host-profile.jsonc not parseable";
+      }
+      return null;
+    },
     run: () =>
       runNode(path.join(repoRoot, "scripts/verify-bf-rct-host.mjs"), [
         projectRoot,
