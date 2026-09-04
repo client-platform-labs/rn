@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "jsx": "react-native",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strict": false,
+    "types": ["node"]
+  },
+  "include": ["index.base.js", "index.peeled.js", "src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "android", "ios", "dist"]
+}
