@@ -16,7 +16,7 @@
  *   ANDROID_HOME / PATH — adb for AUTO-HITL
  *   AFK_HITL_SKIP_BUILD=1 — pass --skip-build/--skip-install to device bundlerUrl
  */
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, appendFileSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -253,10 +253,21 @@ const STEPS = [
     kind: "afk",
     title: "M3b brownfield profile",
     issue: 22,
-    skipIf: () =>
-      existsSync(path.join(projectRoot, ".rn/host-profile.jsonc"))
-        ? null
-        : "no .rn/host-profile.jsonc",
+    skipIf: () => {
+      const profilePath = path.join(projectRoot, ".rn/host-profile.jsonc");
+      if (!existsSync(profilePath)) return "no .rn/host-profile.jsonc";
+      const raw = readFileSync(profilePath, "utf8")
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("//"))
+        .join("\n");
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.profile !== "brownfield") return `host-profile is ${parsed.profile ?? "unset"} (not brownfield)`;
+      } catch {
+        return "host-profile.jsonc not parseable";
+      }
+      return null;
+    },
     run: () =>
       runNode(path.join(repoRoot, "scripts/verify-m3b-brownfield.mjs"), [
         projectRoot,
