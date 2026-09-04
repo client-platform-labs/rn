@@ -50,6 +50,25 @@ rn dev                  # from shell root if orchestration expects it; else plat
 
 Ask the host team for: **which cwd to run `rn dev` from**, and your **metro port** (e.g. `main→8081`, `support→8082`).
 
+### Bind resolver — `resolveBindMetroUrl`
+
+The Dev Session panel **Bind** button calls `resolveBindMetroUrl` (in `packages/rn-core/src/bind-transport.ts`) with a `transport` discriminator. The resolver splits `usbUrl` and `lanUrl` — the two paths are **mutually exclusive** per Bind attempt.
+
+| Caller picks | Required input | Returned URL | When |
+|--------------|----------------|--------------|------|
+| `transport: "usb"` | `usbUrl` (e.g. `http://127.0.0.1:<port>` after `adb reverse`) | `usbUrl` | adb device attached |
+| `transport: "wifi"` | `lanUrl` (e.g. `http://192.168.x.x:<port>`) | `lanUrl` | no adb device, phone on same LAN |
+
+Hard guards (return `{ ok: false, reason }`):
+
+- `usb` with empty `usbUrl` → `usbUrl_required`
+- `wifi` with empty `lanUrl` → `lanUrl_required_for_wifi`
+- `wifi` with `lanUrl` pointing at `127.0.0.1` / `localhost` → `lanUrl_must_not_be_loopback` (Wi‑Fi must not silently fall back to USB)
+
+The 3-preset UX selector (`auto / usb / wifi`) lives in `packages/rn/src/dev-transport-ux.ts` (`pickDevTransport`). It wraps `resolveBindMetroUrl` with adb probing + lanIp discovery, and throws `DevTransportUnavailable` with stable `code` (`no_device` / `no_wifi_ip` / `usb_precondition_failed` / `wifi_precondition_failed` / `auto_no_path`).
+
+See `docs/guides/roles/handbook-business.md` §"Dev 联调 Bind" for the preset → adb req → URL table.
+
 ### If you are onboarding a new module (cross-team)
 
 **Default (zero-shell-repo):** maintain `client-platform.module.jsonc` in your business repo and open an MR/ticket. Host-ops runs `rn module register <id>` on CP — you do **not** run register from the business machine.

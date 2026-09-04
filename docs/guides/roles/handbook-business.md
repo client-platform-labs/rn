@@ -35,6 +35,10 @@ npm run dev              # ≡ rn module dev (keeps Broker alive until Ctrl+C)
 On phone (Debug Host already installed): Dev Session panel → module **LIVE** → **Bind**.  
 If **LOCKED / not in Catalog**: host-ops must `register` on CP and ensure phone **Pulls latest registry** (P2 or new Debug Host) — see [module-environment-sync.md](../module-environment-sync.md) §4.
 
+> **Panel = CP catalog read; ModuleRegistry = legacy cache (read-only).**
+> The Dev Session panel module list is the **CP catalog embed** (`.rn/catalog-embed.json` on the host).
+> The legacy in-process ModuleRegistry is deprecated — kept read-only for one release (#155).
+
 Do **not** manually point Dev Menu bundler at desk `index` (causes `hermesgfapp has not been registered`).
 
 ---
@@ -52,6 +56,20 @@ Do **not** manually point Dev Menu bundler at desk `index` (causes `hermesgfapp 
 1. Panel not live → restart `npm run dev`; check USB/`adb devices`
 2. Panel LOCKED / not in Catalog → host-ops must **register** the module
 3. Deeper → [handbook-platform.md](./handbook-platform.md) § Broker / Catalog
+
+---
+
+## Dev 联调 Bind — preset UX
+
+The Dev Session panel **Bind** UX uses a 3-preset selector (auto / usb / wifi). Pick at panel open time:
+
+| Preset | adb device | URL resolver | Failure code |
+|--------|------------|--------------|--------------|
+| `auto` (default) | preferred | USB if device present, else Wi‑Fi | `no_device` if neither |
+| `usb` | required | `resolveBindMetroUrl("usb", { adbSerial })` → `http://127.0.0.1:<port>` (adb reverse) | `no_device` |
+| `wifi` | forbidden | `resolveBindMetroUrl("wifi", { lanIp })` → `http://<lanIp>:<port>` | `no_wifi_ip` |
+
+Wi‑Fi must not silently fall back to `127.0.0.1` / `usbUrl`. See `packages/rn/src/dev-transport-ux.ts`.
 
 ---
 
