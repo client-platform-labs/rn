@@ -539,6 +539,16 @@ export type {
   SecondaryScriptPorts,
   SecondaryScriptSource,
 } from "./secondary-script.js";
+export {
+  createDefaultAdapter,
+  createNativeEvaluateAdapter,
+  createRePackAdapter,
+  ScriptManagerAdapterUnavailable,
+} from "./secondary-script.js";
+export type {
+  NativeEvaluateHooks,
+  NativeEvaluateSource,
+} from "./secondary-script.js";
 
 export {
   buildDevSessionPanelRows,
