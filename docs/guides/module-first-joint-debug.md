@@ -1,9 +1,10 @@
 # Module-First 开发联调手册（工业交付版）
 
 **Status:** Wayfinder 票 06 交付物 · 验收标准与操作 SOP（非「大纲草稿」）  
-**Audience:** 业务包工程师（desk/mine…）· 壳工程师 · 平台工程师  
-**Normative:** ADR-002/004/005/006/007/008 · [Catalog×Live×Broker](../research/catalog-live-scenarios.md) · [生产–消费闭环](../research/catalog-live-closed-loops.md) · 票 01/02/05  
-**Product:** `tiangong`（`productApp`）· 默认 module 示例 `desk`  
+**Daily roles (thin):** [handbook-business](./roles/handbook-business.md) · [handbook-host-ops](./roles/handbook-host-ops.md) · [handbook-release](./roles/handbook-release.md) · deep-read [handbook-platform](./roles/handbook-platform.md)  
+**Audience:** 业务包工程师（desk/mine…）· 壳/宿主运维 · 发布运维 · 平台工程师  
+**Normative:** ADR-002/004/005/006/007/008 · map [#143](https://github.com/client-platform-labs/rn/issues/143) role×capability  
+**Product:** `tiangong`（`productApp`，见壳 `.rn/host-profile.jsonc`）· 默认 module 示例 `desk`  
 **Bar:** 工业可交付定义；手册 §11 + 闭环剧本 D1–D8 整包勾选；禁止薄切片关项；Catalog/Live 必须可生产、可消费、可过期、可对账。
 
 ---
@@ -12,35 +13,36 @@
 
 | 角色 | 本地仓库 | 负责 | 禁止 |
 |------|----------|------|------|
-| **业务包工程师** | 仅业务仓（如 `desk`） | `npm run dev`、业务 UI/逻辑、断言脚本、发 js-update（经流水线） | clone 壳仓做日常联调；硬编码 CDN `loadBundle`；跨包 `import` 他包源码 |
-| **壳工程师** | `tiangong-host` | Debug/Release Host、Catalog 源稿、`catalog publish`、装包台分发、原生能力 | 把业务源码堆回壳仓；Release 留 DevSupport/Broker |
-| **平台工程师** | `client-platform-labs/rn` | Catalog Service、Dev Session Broker、联调面板、`rn module *`、hygiene | 交付半套协议 |
+| **业务包工程师** | 通常仅业务仓（如 `desk`）；全栈可同时 clone 壳仓 | `npm run dev`、业务 UI/逻辑、断言脚本、发 js-update（经流水线） | 硬编码 CDN `loadBundle`；跨包 `import` 他包源码；**代替壳运维** `register` |
+| **壳/宿主运维** | `tiangong-host` | Debug/Release Host、`rn module register`、装包台分发、原生能力 | 把业务源码堆回壳仓；Release 留 DevSupport/Broker；教业务 `catalog serve` |
+| **发布/CP 运维** | delivery/CI | validate · promote/gray/rollback | 日常 Metro 联调 |
+| **平台工程师** | `client-platform-labs/rn` | Catalog Service、Dev Session Broker、联调面板、管道 CLI、hygiene | 交付半套协议 |
 
-**业务零壳仓：** 业务机删除 `tiangong-host` 后仍须能完成 §3 日常联调。
+**业务默认零壳仓：** 业务机无 `tiangong-host` 仍须能完成 §3（D1）。全栈可 clone 壳仓，但 **登记册同步** 仍走 CP / 壳 `register`，不靠同机路径。
+
+**信息同步总表：** [module-environment-sync.md](./module-environment-sync.md)（环境轨 · 产品登记册 vs Live · 新包 onboarding SOP）
 
 ---
 
 ## 1. 对象模型（必读）
 
 ```text
-Catalog Service（组织真源） ──publish──► Debug/Release Host 嵌入 + 在线刷新
-        ▲
-        │ link 源稿（仅壳仓）
-业务仓 Self-Descriptor ──► rn module dev ──► Dev Session Broker（Live+Bridge）
-                                                      │ Push / Pull / QR / 手改
-                                                      ▼
-                                            Debug Host 联调面板
-                                            BundlerResolver(module → Metro|slot|baseline)
+Control Plane — 产品登记册（组织真源，lane: dev|stage|prod）
+        ▲ register（壳运维）
+        │
+业务 Self-Descriptor ── intake（工单/MR）──┘
+        │
+        └──► npm run dev ──► Live（Broker）──Pull──► Debug Host Bind（仅 L1）
+                                      ▲
+                              登记册白名单（同次 Pull 合并展示）
 ```
 
-| 构件 | 真源位置 | 业务是否可见 |
-|------|----------|--------------|
-| Product Module Catalog | Catalog Service + Host 投影 | 经 Host 面板 / 可选 API；**不是**壳 git 文件 |
-| Module Self-Descriptor | 业务仓 `client-platform.module.jsonc` | 是 |
-| Live 端点 | Dev Session Broker | 本机；经 Bridge 投影到手机 |
-| Host Pull URL | `http://127.0.0.1:<brokerPort>/v1/live`（默认 **7420**，经 `adb reverse`） | Debug 面板 Pull；`rn-core` `pullLiveList`；Release 无 |
-| Push（可选） | Broker → Host inbox（`pushLiveProjectionStub`） | 未配 target 时为 stub；主路径仍是 Host Pull |
-| 发布槽位 | `baseline` / `active` / `previous` | Me/目录可见 update_id；Release 无 Metro |
+| 构件 | 真源 | L1 | L2/L3 |
+|------|------|----|-------|
+| **产品登记册**（Catalog） | CP | Debug Host Pull（P2 优先，embed 兜底） | Release bake + CP |
+| **开发会话登记册**（Live） | Broker | Bind 用 `usbUrl` | **不存在** |
+| Self-Descriptor | 业务仓 | 本机 Metro 起点 | 构建 js-update 输入 |
+| js-update 槽位 | CP promote | — | active/baseline/previous |
 
 **跨包打开页面：** 目标 `business_module` 必须已在 Catalog **注册/publish**（见运行时地图）；未注册 → Host 拒绝。Dev 联调绑定 Metro 同此规则。
 
@@ -91,11 +93,27 @@ rn doctor   # L0 须绿
 
 ```bash
 cd tiangong-host
-rn module link <id>          # 更新源稿（draft only）
-rn catalog publish --product-app tiangong --embed-out ./assets/catalog-embed.json
-rn catalog list --product-app tiangong
-# 可选 P2：rn catalog serve --port 7410
+# 新 module 纳入产品（CP / 工单 intake；lab 可用 register --file，见 module-environment-sync.md）
+rn module register <id>
+rn catalog list
+# 登记册下发到手机：P2 catalogBaseUrl 或 发新 Debug Host（见 module-environment-sync.md §4）
+```
+# 平台 lab：rn catalog serve --port 7410（rn --help --all）
 # Debug Host 面板：ShellHost 仅在 __DEV__ 挂载 shell/debug/DevSessionDebugPanel
+
+# 重装 Debug APK（不与 desk/fixture_second 抢 Metro 端口）
+cd android && ./gradlew installDebug
+
+# 壳 Metro + Broker + adb reverse（全自动端口，勿手填 8081/8090）
+rn dev
+# 或 npm start（≡ rn dev）
+# → 智能分配 shellMetroPort（默认 8090，被占则递增）
+# → 注册 Broker Live __host_shell__
+# → adb reverse shell + broker + dev-session 里所有业务端口
+# → 持久化 .rn/shell-metro.session.json
+
+# 自定义端口仍支持：rn dev --port 9001
+
 rn-delivery build --platform android --profile debug-host
 # 上传装包台，通知业务更新 Debug Host
 ```
@@ -118,7 +136,7 @@ npm run dev
 # ≡ rn module dev
 # → 读 Self-Descriptor
 # → （可选）Catalog 校验 desk ∈ tiangong
-# → 占端口（preferred 优先，冲突自动递增）
+# → 占端口（preferred 起点；**被占且非本 module 则递增**；仅 `X-RN-Business-Module` 匹配才复用）
 # → 拉起/复用 Dev Session Broker
 # → 注册 Live{moduleId, usbUrl, lanUrl, heartbeat}
 # → adb reverse 业务端口 + Broker 端口
@@ -129,13 +147,16 @@ npm run dev
 手机：
 
 1. 打开 **Debug Host**（非 Release）。  
-2. 打开 **联调面板**（Dev Support / 调试入口）。  
-3. 列表 = **Catalog 视图**（已注册 module）；`desk` 应显示 **live**（经 Broker）。  
-4. 点选 `desk` → `BundlerResolver` 绑 Metro → 进业务 Surface。  
-5. 改 `desk/src/**` → Fast Refresh / Reload。
+2. 打开 **联调面板**（Dev Session）。  
+3. Pull Live；`desk` 应为 **LIVE**。  
+4. 点 **Bind Metro → reload business Metro**（进程重载到 desk Metro 的 `entries/host-surface`，仍注册 `hermesgfapp`）。  
+5. 顶栏可 **Return to Host shell**。  
+6. 改 `desk/src/**` → Fast Refresh（来自 **desk Metro**，不是壳 Metro 假绑）。
 
-**手改 URL：** 面板必提供；会话内覆盖 Live 投影；不写回 Catalog。  
-**Catalog 无 desk：** 拒绝绑定 → 找壳团队 `link` + `catalog publish` + 更新 Debug Host 或等 P2 刷新。
+**禁止：** Dev Menu 把整包 bundler 指到 desk 的 `index`（未注册 `hermesgfapp` → 红屏）。  
+**Catalog 无 desk：** 拒绝绑定 → 壳侧 `rn module register`。
+
+工业架构说明：`.scratch/rn-module-first-dx/docs/industrial-metro-bind-architecture.md`（Phase-2 = Re.Pack ScriptManager 保壳不换进程）。
 
 ### 3.1 多业务包并行
 
@@ -244,14 +265,16 @@ rn-delivery promote
 
 ## 7. Catalog 变更（新业务包进产品）
 
+见 [module-environment-sync.md](./module-environment-sync.md) §4（T0–T3）。
+
 ```text
-壳: rn module link mine → rn catalog publish
-    → 打新 Debug Host（P1）且/或 P2 在线刷新
-业务 mine: 配置 Self-Descriptor → npm run dev
-手机: 面板出现 mine 后方可绑定
+业务：client-platform.module.jsonc + MR/工单
+壳：  rn module register <id>  →  CP catalogRevision++
+设备：P2 Pull 或 新 Debug Host embed  →  面板可见 <id>
+业务：npm run dev  →  Live  →  Bind
 ```
 
-**禁止**业务用 Live 广告未 publish 的 moduleId 期望 Host 打开。
+**禁止**未登记 module 仅靠 Live 期望 Host 打开（D5）。
 
 ---
 
@@ -272,7 +295,8 @@ rn-delivery promote
 | 现象 | 检查 |
 |------|------|
 | 面板无 desk | Catalog 是否含 desk；Debug Host 是否过期；P2 是否刷新 |
-| desk 显示 live 但白屏 | Metro 探活；`adb reverse`；Bundler URL；Broker 心跳 |
+| desk 显示 live 但白屏 | Metro 探活；`rn dev` / `npm run dev` 已做 adb reverse；勿手改 Dev Menu 到业务 8081 |
+| 壳红屏 Unable to load script | 先 `cd tiangong-host && rn dev`（壳 Metro + reverse）；再开 App；Bind 走面板勿改整包 bundler |
 | `rn module dev` 失败 | Node 24；Self-Descriptor；端口占用；doctor |
 | 联调正常、Release 无更新 | 是否走了 ingest/sign/release/promote；设备 lane；指纹窗 |
 | API 指错环境 | L-C Effective vs Whistle 规则 |

@@ -1,6 +1,6 @@
 /**
  * Product Module Catalog document (module-first Dev DX).
- * SoT = Catalog Service after `rn catalog publish`; shell `.rn/dev-session.jsonc` is draft only.
+ * SoT = Catalog Service after `rn module register`; shell `.rn/dev-session.jsonc` is internal draft.
  * Aligns with closed-loop §1.4 and runtime YES/PARTIAL pathRouting.
  */
 

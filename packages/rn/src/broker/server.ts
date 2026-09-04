@@ -18,7 +18,7 @@ import {
   type LiveRecord,
 } from "@client-platform/rn-core";
 
-import { stubMetroProbe, type MetroProbeFn } from "./probe.js";
+import { httpMetroProbe, type MetroProbeFn } from "./probe.js";
 
 export { DEFAULT_BROKER_PORT };
 export const DEFAULT_STALE_AFTER_MS = 15_000;
@@ -135,7 +135,7 @@ export async function startDevSessionBroker(options?: {
 }): Promise<BrokerHandle> {
   const host = options?.host ?? "127.0.0.1";
   const port = options?.port ?? 0;
-  const probe = options?.probe ?? stubMetroProbe;
+  const probe = options?.probe ?? httpMetroProbe;
   const runProbeOnPut = options?.runProbeOnPut !== false;
 
   const pullBaseRef: { url?: string } = {};

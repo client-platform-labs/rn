@@ -15,6 +15,10 @@ import {
 } from "./android-dev-bridge.js";
 import { CliError, EXIT_FAIL } from "./errors.js";
 import type { CliLogger } from "./logger.js";
+import {
+  allocateAnonymousMetroPort,
+  allocateMetroPort,
+} from "./metro-port-allocate.js";
 
 export interface MetroSession {
   port: number;
@@ -95,16 +99,35 @@ export async function ensureMetroSession(options: {
   projectRoot: string;
   logger: CliLogger;
   port?: number;
+  /** Business module id — enables identity-aware reuse (#158). */
+  moduleId?: string;
   env?: NodeJS.ProcessEnv;
   noMetro?: boolean;
   detached?: boolean;
   metroConfig?: string;
 }): Promise<MetroSession> {
-  const port = options.port ?? DEFAULT_METRO_PORT;
+  const preferredPort = options.port ?? DEFAULT_METRO_PORT;
 
-  if (isMetroRunning(port)) {
-    options.logger.writeHuman(`Metro already running on :${port}`);
+  const allocated = options.moduleId
+    ? await allocateMetroPort({
+        moduleId: options.moduleId,
+        preferredPort,
+      })
+    : await allocateAnonymousMetroPort({ preferredPort });
+
+  const port = allocated.port;
+
+  if (allocated.reused) {
+    options.logger.writeHuman(
+      `Metro already running on :${port} (${options.moduleId ?? "anonymous"} reuse)`,
+    );
     return { port, reused: true, startedByUs: false };
+  }
+
+  if (allocated.bumped) {
+    options.logger.writeHuman(
+      `Metro port :${preferredPort} occupied by another packager — using :${port}`,
+    );
   }
 
   if (options.noMetro) {
@@ -182,6 +205,7 @@ export async function ensureMultiMetroSessions(options: {
       projectRoot: options.projectRoot,
       logger: options.logger,
       port: mod.port,
+      moduleId: mod.id,
       env: options.env,
       noMetro: options.noMetro,
       detached: options.detached || options.modules.length > 1,
@@ -211,8 +235,8 @@ export async function runPlatformWithMetro(
     noMetro?: boolean;
     after: MetroAfterPlatform;
   },
-  runPlatform: () => Promise<void>,
-): Promise<void> {
+  runPlatform: (session: MetroSession) => Promise<void>,
+): Promise<MetroSession> {
   const session = await ensureMetroSession({
     npx: options.npx,
     projectRoot: options.projectRoot,
@@ -224,7 +248,7 @@ export async function runPlatformWithMetro(
   });
 
   try {
-    await runPlatform();
+    await runPlatform(session);
   } catch (err) {
     if (session.startedByUs) {
       killMetroChild(session.child);
@@ -234,26 +258,26 @@ export async function runPlatformWithMetro(
 
   if (!session.startedByUs) {
     options.logger.writeHuman("Install complete (Metro was already running).");
-    return;
+    return session;
   }
 
   switch (options.after) {
     case "stop":
       killMetroChild(session.child);
       options.logger.writeHuman("Install complete — Metro stopped.");
-      return;
+      return session;
     case "detach":
       session.child?.unref?.();
       options.logger.writeHuman(
         `Install complete — Metro left running on :${session.port} (background).`,
       );
-      return;
+      return session;
     case "foreground":
       options.logger.writeHuman(
         `Install complete — Metro on :${session.port}. Press Ctrl+C to stop.`,
       );
       await waitForChildExit(session.child);
-      return;
+      return session;
   }
 }
 

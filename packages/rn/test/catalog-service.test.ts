@@ -86,4 +86,34 @@ describe("Catalog Service HTTP P2", () => {
       await handle.close();
     }
   });
+
+  it("POST modules/register writes SoT same as publish", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "rn-catalog-reg-"));
+    fixtures.push(root);
+    const store = new CatalogStore(root);
+    const handle = await startCatalogService({ store, port: 0 });
+    try {
+      const res = await fetch(
+        `${handle.baseUrl}/v1/products/tiangong/modules/register`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            modules: [
+              {
+                business_module: "desk",
+                pathRouting: true,
+                routePrefix: "/desk",
+              },
+            ],
+          }),
+        },
+      );
+      assert.equal(res.status, 200);
+      const doc = store.read("tiangong");
+      assert.equal(doc?.modules[0]?.business_module, "desk");
+    } finally {
+      await handle.close();
+    }
+  });
 });

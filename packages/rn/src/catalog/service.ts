@@ -1,7 +1,8 @@
 /**
  * Local Catalog Service HTTP API (P2 consumer for Debug Host).
  * GET  /v1/products/:productApp/modules
- * POST /v1/products/:productApp/publish  { modules }
+ * POST /v1/products/:productApp/publish  { modules }  (pipe name)
+ * POST /v1/products/:productApp/modules/register { modules }  (product name; same SoT)
  */
 import {
   createServer,
@@ -66,13 +67,20 @@ export async function startCatalogService(options: {
         sendJson(res, 200, doc);
         return;
       }
-      if (
+      const isPublish =
         parts.length === 4 &&
         parts[0] === "v1" &&
         parts[1] === "products" &&
         parts[3] === "publish" &&
-        req.method === "POST"
-      ) {
+        req.method === "POST";
+      const isRegister =
+        parts.length === 5 &&
+        parts[0] === "v1" &&
+        parts[1] === "products" &&
+        parts[3] === "modules" &&
+        parts[4] === "register" &&
+        req.method === "POST";
+      if (isPublish || isRegister) {
         const productApp = decodeURIComponent(parts[2]!);
         const raw = await readBody(req);
         let body: { modules?: CatalogModuleEntry[] };

@@ -14,6 +14,10 @@ export const DEV_SESSION_PROTOCOL_MIN = 1;
 export const DEV_SESSION_PROTOCOL_MAX = 1;
 export const DEFAULT_MAIN_MODULE_ID = "main";
 export const DEFAULT_MAIN_METRO_PORT = 8081;
+/** Shell / Host Metro preferred start (#157 / #158). Business modules use 8081+. */
+export const DEFAULT_SHELL_METRO_PORT = 8090;
+/** Broker Live id for Host shell Metro (not a business_module). */
+export const HOST_SHELL_LIVE_MODULE_ID = "__host_shell__";
 
 /** Contract dimensions (C3) — industrial L-C surface. */
 export interface EnvDimensions {
@@ -50,6 +54,8 @@ export interface DevSessionConfig {
   /** Shell-level default env profile id → profiles map. */
   activeEnvProfileId?: string;
   envProfiles?: Readonly<Record<string, EnvProfile>>;
+  /** Preferred shell Metro port (auto-bumped when occupied). Override via `rn dev --port`. */
+  shellMetroPort?: number;
   modules: Readonly<Record<string, ModuleDevBinding>>;
 }
 
@@ -233,6 +239,44 @@ export function defaultModulePort(moduleId: string, index: number): number {
     return DEFAULT_MAIN_METRO_PORT;
   }
   return DEFAULT_MAIN_METRO_PORT + index;
+}
+
+/** Parse Metro usbUrl / lanUrl → TCP port (http default 80 when omitted). */
+export function extractPortFromMetroUrl(url: string): number | null {
+  try {
+    const u = new URL(url.trim());
+    if (u.port) {
+      const p = Number.parseInt(u.port, 10);
+      return Number.isFinite(p) ? p : null;
+    }
+    if (u.protocol === "https:") return 443;
+    if (u.protocol === "http:") return 80;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Shell Metro preferred port before occupancy scan.
+ * Custom `--port` wins; then dev-session `shellMetroPort`; else max(module)+8 floor 8090.
+ */
+export function resolveShellMetroPreferredPort(
+  config?: Pick<DevSessionConfig, "shellMetroPort" | "modules"> | null,
+  explicitPort?: number,
+): number {
+  if (explicitPort != null && Number.isFinite(explicitPort) && explicitPort > 0) {
+    return explicitPort;
+  }
+  if (config?.shellMetroPort != null && config.shellMetroPort > 0) {
+    return config.shellMetroPort;
+  }
+  const modulePorts = config?.modules
+    ? Object.values(config.modules).map((m) => m.metroPort)
+    : [];
+  const maxModule =
+    modulePorts.length > 0 ? Math.max(...modulePorts) : DEFAULT_MAIN_METRO_PORT;
+  return Math.max(DEFAULT_SHELL_METRO_PORT, maxModule + 8);
 }
 
 /** Build a starter dual-module session config (sample-demo / docs). */

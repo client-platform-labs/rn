@@ -252,15 +252,19 @@ export {
   assertModulesIsolated,
   DEFAULT_MAIN_METRO_PORT,
   DEFAULT_MAIN_MODULE_ID,
+  DEFAULT_SHELL_METRO_PORT,
   DEV_SESSION_PROTOCOL_MAX,
   DEV_SESSION_PROTOCOL_MIN,
   DEV_SESSION_PROTOCOL_VERSION,
   DEV_SESSION_SCHEMA_VERSION,
   defaultDualModuleDevSession,
   defaultModulePort,
+  extractPortFromMetroUrl,
+  HOST_SHELL_LIVE_MODULE_ID,
   negotiateDevSessionProtocol,
   resolveDevSessionProtocolVersion,
   resolveEnv,
+  resolveShellMetroPreferredPort,
 } from "./env.js";
 export type {
   DevSessionConfig,
@@ -511,6 +515,30 @@ export {
   isLiveHeartbeatStale,
 } from "./live-types.js";
 export type { LivePutBody, LiveRecord } from "./live-types.js";
+
+export { resolveBindMetroUrl } from "./bind-transport.js";
+export type {
+  BindTransport,
+  ResolveBindMetroUrlInput,
+  ResolveBindMetroUrlResult,
+} from "./bind-transport.js";
+
+export {
+  auditHostMetroNodeModulesPaths,
+  buildHostMetroMergeConfig,
+  HOST_METRO_SINGLETON_PACKAGES,
+} from "./metro-singletons.js";
+export type {
+  HostMetroMergeConfig,
+  HostMetroResolverInput,
+} from "./metro-singletons.js";
+
+export { createExecuteLoadFromSecondary } from "./secondary-script.js";
+export type {
+  SecondaryScriptLoadResult,
+  SecondaryScriptPorts,
+  SecondaryScriptSource,
+} from "./secondary-script.js";
 
 export {
   buildDevSessionPanelRows,

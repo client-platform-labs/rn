@@ -50,16 +50,27 @@ rn dev                  # from shell root if orchestration expects it; else plat
 
 Ask the host team for: **which cwd to run `rn dev` from**, and your **metro port** (e.g. `main→8081`, `support→8082`).
 
-### If you are scaffolding a new module (shell repo)
+### If you are onboarding a new module (cross-team)
 
-Run on the **shell** workspace (host team):
+**Default (zero-shell-repo):** maintain `client-platform.module.jsonc` in your business repo and open an MR/ticket. Host-ops runs `rn module register <id>` on CP — you do **not** run register from the business machine.
 
 ```bash
-rn module init <business_module_id>
-rn module link <business_module_id>
+# Business machine only
+npm run dev    # or rn dev — Live advertises Metro; does not bypass Catalog
 ```
 
-You then develop inside `modules/<business_module_id>/`.
+After host-ops registers and phones Pull the registry (P2 or new Debug Host), use the Dev Session panel → **Bind**.
+
+See [module-environment-sync.md](./module-environment-sync.md) §4 (T0–T3).
+
+### Lab / full-stack (optional)
+
+If you also clone the shell repo on the same machine, host-ops may use `register --from` as a lab shortcut (`rn --help --all`). Not the production onboarding path.
+
+```bash
+# Shell machine (host-ops)
+rn module init <business_module_id> --register   # scaffold in shell modules/<id>/
+```
 
 ---
 

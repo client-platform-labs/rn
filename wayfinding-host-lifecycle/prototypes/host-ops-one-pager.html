@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOTYPE · Debug Host 三条路径（壳开发 / 装壳 / 业务 dev）</title>
+  <style>
+    :root {
+      --bg: #0a0e0c;
+      --panel: #121a16;
+      --panel2: #18221c;
+      --text: #e6ece8;
+      --muted: #7f9186;
+      --line: #243028;
+      --ok: #3d9a6a;
+      --warn: #c4a035;
+      --danger: #c45c5c;
+      --accent: #5a9e6e;
+      --a: #5a9e6e;
+      --b: #4a8fd4;
+      --c: #c4a035;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.55 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .banner {
+      background: linear-gradient(90deg, #1a2618, #141c18);
+      border-bottom: 1px solid #2f4028;
+      padding: 0.5rem 1.25rem;
+      font-size: 0.75rem;
+      color: #c8dcc0;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .banner strong { color: #fff; }
+    .banner a { color: #9ec4a8; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+    header { margin-bottom: 1.5rem; }
+    header h1 { margin: 0 0 0.35rem; font-size: 1.35rem; font-weight: 600; }
+    header .sub { color: var(--muted); font-size: 0.9rem; max-width: 52rem; }
+    h2 {
+      margin: 2rem 0 0.75rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .compare {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .compare th, .compare td {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    .compare th { background: var(--panel2); color: var(--muted); font-weight: 500; width: 7.5rem; }
+    .compare tr:last-child td, .compare tr:last-child th { border-bottom: none; }
+    .compare .path { font-weight: 600; font-size: 0.95rem; }
+    .compare .path.a { color: var(--a); }
+    .compare .path.b { color: var(--b); }
+    .compare .path.c { color: var(--c); }
+    code, .cmd {
+      font-family: ui-monospace, "IBM Plex Mono", Menlo, monospace;
+      font-size: 0.82rem;
+      background: #0e1410;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 0.12rem 0.35rem;
+    }
+    .cmd-block {
+      display: block;
+      margin: 0.35rem 0 0;
+      padding: 0.55rem 0.65rem;
+      background: #0a100c;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #b8d4c0;
+    }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; margin-top: 0.5rem; }
+    @media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem;
+      border-top: 3px solid var(--line);
+    }
+    .card.a { border-top-color: var(--a); }
+    .card.b { border-top-color: var(--b); }
+    .card.c { border-top-color: var(--c); }
+    .card h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+    .card .role { color: var(--muted); font-size: 0.78rem; margin-bottom: 0.75rem; }
+    .card ul { margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 0.82rem; }
+    .card li { margin-bottom: 0.3rem; }
+    .card .section { margin-top: 0.75rem; }
+    .card .label {
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .faq {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-top: 0.5rem;
+    }
+    .faq h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+    .faq p { margin: 0 0 0.75rem; font-size: 0.88rem; }
+    .faq ol { margin: 0; padding-left: 1.25rem; font-size: 0.86rem; }
+    .faq li { margin-bottom: 0.45rem; }
+    .pill {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      border: 1px solid var(--line);
+      margin-right: 0.25rem;
+    }
+    .pill.ok { color: var(--ok); border-color: #2f6b4a; }
+    .pill.warn { color: var(--warn); border-color: #6b5a20; }
+    .pill.no { color: var(--danger); border-color: #6b2f2f; }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+      margin: 1rem 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .flow .step {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.35rem 0.55rem;
+      color: var(--text);
+    }
+    .flow .arrow { color: #4a6050; }
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    footer a { color: #8ec4a0; }
+    .forbid { color: #e0a8a8; }
+    .ok-text { color: #8ec4a0; }
+  </style>
+</head>
+<body>
+  <div class="banner">
+    <strong>PROTOTYPE</strong>
+    <span>Map <a href="https://github.com/client-platform-labs/rn/issues/160">#160</a> · Ticket <a href="https://github.com/client-platform-labs/rn/issues/164">#164</a></span>
+    <span>锁定自 #161 Done 杠 · #162 指纹 · #163 CLI（amend：短命令）</span>
+    <span>非生产 · 实现落地前操作员心智模型</span>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <h1>Debug Host：壳开发 / 装壳 / 业务 dev</h1>
+      <p class="sub">
+        一页纸给 <strong>host-ops</strong> 与 <strong>业务工程师</strong>：何时装 APK、何时起壳 Metro、日常一条命令是什么。
+        两条 CLI 模式（A 壳开发会话 · B 壳应用生命周期）+ 业务仓第三条路径，互不混淆。
+      </p>
+    </header>
+
+    <h2>总览对比</h2>
+    <table class="compare">
+      <thead>
+        <tr>
+          <th></th>
+          <th><span class="path a">A · 壳开发会话</span><br><span style="font-weight:400;color:var(--muted)">Shell Dev Session</span></th>
+          <th><span class="path b">B · 装/卸壳</span><br><span style="font-weight:400;color:var(--muted)">Host App Lifecycle</span></th>
+          <th><span class="path c">C · 业务开发</span><br><span style="font-weight:400;color:var(--muted)">Business module dev</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>谁用</th>
+          <td>壳团队 · 改壳 JS / 面板 / Bind 钢线</td>
+          <td>host-ops · 换机 · 业务 onboarding · 发 APK</td>
+          <td>业务工程师 · 零壳仓</td>
+        </tr>
+        <tr>
+          <th>一条命令</th>
+          <td><code>cd tiangong-host && rn dev</code><br><span style="color:var(--muted);font-size:0.78rem">≡ <code>npm start</code></span></td>
+          <td><code>rn host install</code><br><span style="color:var(--muted);font-size:0.78rem">全局：<code>--project ~/code/tiangong-host</code> · 默认 <code>--platform android</code></span></td>
+          <td><code>cd desk && npm run dev</code><br><span style="color:var(--muted);font-size:0.78rem">≡ <code>rn module dev</code></span></td>
+        </tr>
+        <tr>
+          <th>前置条件</th>
+          <td>
+            <span class="pill ok">adb 已授权</span>
+            <span class="pill ok">host-profile 仓</span>
+            设备已装 Debug Host（或 CLI 自动 install）
+          </td>
+          <td>
+            <span class="pill ok">adb 已授权</span>
+            知道壳工程路径（<code>--project</code>）
+          </td>
+          <td>
+            <span class="pill ok">设备已有 Debug Host</span>
+            <span class="pill warn">壳 Metro 协调者在线</span>
+            业务仓 <code>.rn/dev-session.jsonc</code>
+          </td>
+        </tr>
+        <tr>
+          <th>默认起 Metro</th>
+          <td><span class="pill ok">是</span> 壳 Metro（~8090）+ Broker + multi-port reverse</td>
+          <td><span class="pill no">否</span> 仅装 APK；<code>--with-metro</code> 可选</td>
+          <td><span class="pill ok">是</span> 业务 Metro（desk 8081 等）</td>
+        </tr>
+        <tr>
+          <th>版本 gate</th>
+          <td><span class="pill ok">是</span> APK 一致 → skip Gradle install，只 Metro/reverse</td>
+          <td>install 时总是推 APK；<code>status</code> 只读对账</td>
+          <td>不涉及装壳</td>
+        </tr>
+        <tr>
+          <th>成功判据</th>
+          <td class="ok-text">
+            Broker <code>__host_shell__</code> Live · 壳 Metro 可拉 bundle · Dev Session 面板可开 · reverse 含业务端口
+          </td>
+          <td class="ok-text">
+            <code>adb shell pm list packages</code> 含 <code>com.hermesgfapp</code> · <code>rn host status</code> 显示 identity 一致
+          </td>
+          <td class="ok-text">
+            Broker 业务 module Live · 面板 Bind 成功 · 真机 HMR / reload
+          </td>
+        </tr>
+        <tr>
+          <th>禁止项</th>
+          <td class="forbid">
+            手跑 <code>./gradlew installDebug</code> · 手填 <code>adb reverse</code> 端口 · 在业务仓跑 <code>rn dev</code> 装壳
+          </td>
+          <td class="forbid">
+            用 <code>rn init</code> 装壳 · 用 <code>rn host android</code> 装 APK · 用 <code>rn self uninstall</code> 卸 Host
+          </td>
+          <td class="forbid">
+            为装壳 clone 壳仓 · 指望业务 Metro 替代壳 reverse 协调 · 把 dev Metro 当 release
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>多包联调（#149）— 谁需要壳仓？</h2>
+    <div class="faq" style="margin-bottom:0.75rem">
+      <p style="margin:0 0 0.6rem;font-size:0.88rem">
+        <strong>业务工程师不需要 clone / 安装壳项目。</strong> 手册硬边界：业务机删除 <code>tiangong-host</code> 后仍须能 <code>npm run dev</code> + 已装 Debug Host 联调（剧本 D1）。
+        多包时每个业务仓各自 <code>npm run dev</code>；Broker 由第一个起的 <code>rn module dev</code> 拉起或复用。
+      </p>
+      <table class="compare" style="margin:0;border:none;border-radius:0;background:transparent;font-size:0.82rem">
+        <thead>
+          <tr><th style="width:8rem">角色</th><th>需要壳仓？</th><th>典型命令</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>业务工程师</th>
+            <td class="ok-text"><strong>否</strong> — 零壳仓</td>
+            <td><code>cd desk && npm run dev</code>（多包则各开终端）</td>
+          </tr>
+          <tr>
+            <th>host-ops</th>
+            <td>是（壳团队职责）</td>
+            <td>装 Debug Host · <code>rn module register</code> · 可选 <code>rn dev</code> 作共享基础设施</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin:0 0 0.5rem">Lab 钢线（壳团队在场时推荐，非业务前置）：</p>
+    <div class="flow">
+      <span class="step">① host-ops（可选）：<code>cd tiangong-host && rn dev</code></span>
+      <span class="arrow">→</span>
+      <span class="step">② 业务 A：<code>cd desk && npm run dev</code></span>
+      <span class="arrow">→</span>
+      <span class="step">③ 业务 B：<code>cd fixture_second && npm run dev</code></span>
+      <span class="arrow">→</span>
+      <span class="step">④ 面板 Bind · USB / Wi‑Fi 验收</span>
+    </div>
+    <p style="font-size:0.82rem;color:var(--muted);margin:0">
+      ① 是 <strong>host-ops 共享基础设施</strong>（壳 Metro + Broker + 全端口 reverse + 冷启回壳），不是业务开发的前置条件。
+      无 ① 时：②③ 仍可 Bind + 业务 HMR；但冷开 App / Return to shell 可能红屏，需 host-ops 补起壳 Metro 或重装带内嵌 shell 的 Debug Host。
+    </p>
+
+    <h2>分路径详情</h2>
+    <div class="cards">
+      <article class="card a">
+        <h3>A · 壳开发会话</h3>
+        <div class="role">模式 A · <code>rn dev</code> · host-profile 仓内</div>
+        <div class="section">
+          <div class="label">一条命令（日常）</div>
+          <code class="cmd-block">cd ~/code/tiangong-host && rn dev</code>
+        </div>
+        <div class="section">
+          <div class="label">变体</div>
+          <ul>
+            <li>冷启 / 首装 / native 变更：<code>rn dev --android</code></li>
+            <li>非 cwd：<code>rn dev --project &lt;hostRoot&gt;</code></li>
+            <li>强制重装：<code>rn dev --force-install</code></li>
+            <li>自定义端口：<code>rn dev --port …</code>（保留）</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="label">Warm skip-install（#162）</div>
+          <ul>
+            <li>比对 <code>apkSha256</code> + <code>nativeDriftHash</code></li>
+            <li>会话：<code>.rn/host-install.session.json</code></li>
+            <li><strong>不</strong>单独用 <code>versionCode</code>（tiangong-host 长期为 1）</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="label">壳 Metro 做什么</div>
+          <ul>
+            <li>壳 JS 热更（<code>shell/**</code>、Dev Session 面板）</li>
+            <li>Broker + <code>__host_shell__</code> Live + multi-port reverse</li>
+            <li>未 Bind 时冷启回壳 bundle</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card b">
+        <h3>B · 装 / 卸 / 查壳</h3>
+        <div class="role">模式 B · <code>rn host install|uninstall|status</code> · 默认无 Metro</div>
+        <div class="section">
+          <div class="label">一条命令（装壳）</div>
+          <code class="cmd-block">rn host install --project ~/code/tiangong-host</code>
+        </div>
+        <div class="section">
+          <div class="label">对称命令</div>
+          <ul>
+            <li>卸载：<code>rn host uninstall</code></li>
+            <li>清数据：<code>rn host uninstall --clear-data</code></li>
+            <li>对账：<code>rn host status</code></li>
+            <li>装完顺带 Metro：<code>rn host install --with-metro</code></li>
+            <li>iOS（planned）：<code>rn host install --platform ios</code>（darwin only · 见 #165）</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="label">何时用 B 而不起 Metro</div>
+          <ul>
+            <li>给业务发 APK、换机、验收嵌入 baseline</li>
+            <li>设备后续只跑业务 Metro + 面板 Bind</li>
+            <li>前提：接受首次打开前由 host-ops 另起 <code>rn dev</code>，或 APK 内嵌 shell 可冷启</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="label">与装包台并存（#94）</div>
+          <ul>
+            <li>本地 debug：<code>rn host install</code></li>
+            <li>企业分发：<code>rn-delivery</code> / CP 门户（不合并进 <code>rn init</code>）</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card c">
+        <h3>C · 业务开发</h3>
+        <div class="role"><code>rn module dev</code> · 业务仓 · 不装壳</div>
+        <div class="section">
+          <div class="label">一条命令</div>
+          <code class="cmd-block">cd ~/code/desk && npm run dev</code>
+        </div>
+        <div class="section">
+          <div class="label">前置（host-ops 一次性）</div>
+          <ul>
+            <li>设备已装 Debug Host（路径 B 或 A 的 install 阶段）</li>
+            <li>壳侧 reverse 协调者在线（通常路径 A 的 <code>rn dev</code>）</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="label">成功判据</div>
+          <ul>
+            <li>Broker 显示业务 module <span class="pill ok">Live</span></li>
+            <li>Dev Session 面板 Bind 到目标 module</li>
+            <li>改业务 JS → reload / HMR 生效</li>
+          </ul>
+        </div>
+        <div class="section">
+          <div class="label">业务工程师不需要</div>
+          <ul>
+            <li>clone tiangong-host</li>
+            <li>Gradle / <code>adb install</code></li>
+            <li>手配 <code>adb reverse</code></li>
+          </ul>
+        </div>
+      </article>
+    </div>
+
+    <h2>FAQ</h2>
+    <div class="faq">
+      <h3>「起 Metro 是为了开发调试壳吗？」</h3>
+      <p><strong>不完全是。</strong>壳 Metro（路径 A）有三项职责，按优先级：</p>
+      <ol>
+        <li><strong>壳 JS 热更</strong> — 改 <code>tiangong-host/shell/**</code>、Dev Session 面板时必须。</li>
+        <li><strong>Dev Session 基础设施</strong> — Broker、<code>__host_shell__</code> Live、multi-port <code>adb reverse</code>。业务 <code>npm run dev</code> 依赖 reverse 面；即使业务工程师不启壳 Metro，host-ops 侧通常仍要有一个协调者（路径 A 承担）。</li>
+        <li><strong>冷启回壳</strong> — 未 Bind / Return to shell 时，Debug 构建从壳 packager 拉 <code>index</code>（不是 desk 的 <code>index</code>）。</li>
+      </ol>
+      <p>
+        <span class="pill warn">只装不启 Metro</span> 用路径 B：发 APK、换机、onboarding。
+        <span class="pill ok">必须壳 Metro</span> 用路径 A：改壳 JS、联调面板、验证 Bind、native 变更后重装一条龙。
+      </p>
+    </div>
+
+    <div class="faq" style="margin-top:0.75rem">
+      <h3>命令命名速查（#163 amend）</h3>
+      <table class="compare" style="margin:0;border:none;border-radius:0;background:transparent">
+        <tbody>
+          <tr><th style="width:10rem"><code>rn init</code></th><td>脚手架 <strong>新建</strong> RN 工程 — 永不装 tiangong-host</td></tr>
+          <tr><th><code>rn host android</code></th><td>本机 JDK / SDK / adb 工具链（改<strong>机器</strong>）— 永不装 APK 到手机</td></tr>
+          <tr><th><code>rn host install</code></th><td>装 Debug Host 到<strong>设备</strong>（模式 B）— 与 <code>host android</code> 目标不同，故可短命令</td></tr>
+          <tr><th><code>rn host uninstall</code></th><td>从设备卸 Debug Host</td></tr>
+          <tr><th><code>rn host status</code></th><td>设备 vs 工作区 install identity 对账</td></tr>
+          <tr><th><code>rn self uninstall</code></th><td>卸 <strong>rn CLI</strong> 本身 — 不是卸 Debug Host</td></tr>
+          <tr><th><code>rn dev</code></th><td>壳仓 Shell Dev Session（模式 A）</td></tr>
+          <tr><th><code>rn module dev</code></th><td>业务仓 Metro + Live（路径 C）</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:0.75rem 0 0;font-size:0.82rem;color:var(--muted)">
+        拒绝 <code>rn app install</code>（「app」歧义）与 <code>rn install</code>（与 npm 习惯冲突）。
+        曾用 <code>rn host app install</code> 仅为避名；amend 后以「机器 toolchain vs 设备 lifecycle」分层，不再需要 <code>app</code> 中间层。
+      </p>
+    </div>
+
+    <div class="faq" style="margin-top:0.75rem">
+      <h3>平台范围：Android 先行 · iOS 对称（#165）</h3>
+      <p>本页 lab 钢线与 #149 Bind 证据以 <strong>Android</strong> 为准（adb · gradlew · reverse）。iOS Debug Host <strong>不放弃</strong>，对称面单独 research，不挡 Android v1 实现。</p>
+      <table class="compare" style="margin:0.75rem 0 0;border:none;border-radius:0;background:transparent">
+        <thead>
+          <tr>
+            <th style="width:7rem">维度</th>
+            <th>Android（v1 · 当前）</th>
+            <th>iOS（v1.1 · planned）</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>装壳</th>
+            <td><code>rn host install</code> → <code>adb install -r</code></td>
+            <td><code>rn host install --platform ios</code> → devicectl / ios-deploy / Xcode（#165 选型）</td>
+          </tr>
+          <tr>
+            <th>指纹</th>
+            <td><code>apkSha256</code> + <code>nativeDriftHash</code></td>
+            <td><code>.app</code> digest + native drift（#162 对称扩展）</td>
+          </tr>
+          <tr>
+            <th>Dev transport</th>
+            <td><code>adb reverse</code> multi-port</td>
+            <td>USB 网络 / Metro LAN（无 reverse 等价物）</td>
+          </tr>
+          <tr>
+            <th>壳 dev</th>
+            <td><code>rn dev --android</code></td>
+            <td><code>rn dev --ios</code>（darwin + Xcode）</td>
+          </tr>
+          <tr>
+            <th>构建轨</th>
+            <td><code>gradlew installDebug</code></td>
+            <td><code>rn-delivery build --platform ios --profile debug-host</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer>
+      GitHub:
+      <a href="https://github.com/client-platform-labs/rn/issues/160">#160 map</a> ·
+      <a href="https://github.com/client-platform-labs/rn/issues/161">#161 Done 杠</a> ·
+      <a href="https://github.com/client-platform-labs/rn/issues/162">#162 指纹</a> ·
+      <a href="https://github.com/client-platform-labs/rn/issues/163">#163 CLI</a> ·
+      <a href="https://github.com/client-platform-labs/rn/issues/164">#164 prototype</a> ·
+      <a href="https://github.com/client-platform-labs/rn/issues/165">#165 iOS</a>
+      — 实现 task（<code>host-install</code> + <code>rn dev</code> gate）待开。
+    </footer>
+  </div>
+</body>
+</html>

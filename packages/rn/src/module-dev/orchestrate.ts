@@ -5,8 +5,17 @@
 import { networkInterfaces } from "node:os";
 
 import type { LivePutBody, LiveRecord } from "@client-platform/rn-core";
+import {
+  extractPortFromMetroUrl,
+  HOST_SHELL_LIVE_MODULE_ID,
+  pullLiveList,
+  resolveShellMetroPreferredPort,
+} from "@client-platform/rn-core";
 
-import { ensureAdbReversePorts } from "../broker/reverse.js";
+import {
+  collectDevSessionReversePorts,
+} from "../shell-dev-session.js";
+import { ensureDevSessionReverse } from "../dev-session-reverse.js";
 import {
   DEFAULT_BROKER_PORT,
   fetchLiveStatus,
@@ -208,13 +217,29 @@ export async function orchestrateModuleDev(options: {
   const reverse =
     options.ports.reversePorts ??
     (async (input) => {
-      const r = ensureAdbReversePorts({
-        ports: [input.metroPort, input.brokerPort],
+      const list = await pullLiveList({ baseUrl: input.brokerBaseUrl });
+      const liveRecords = list.ok ? list.live : [];
+      const shellLive = liveRecords.find(
+        (r) => r.moduleId === HOST_SHELL_LIVE_MODULE_ID,
+      );
+      const shellPort =
+        (shellLive && extractPortFromMetroUrl(shellLive.usbUrl)) ||
+        resolveShellMetroPreferredPort(null);
+      const ports = collectDevSessionReversePorts({
+        shellPort,
+        brokerPort: input.brokerPort,
+        liveRecords: [
+          ...liveRecords,
+          { usbUrl: `http://127.0.0.1:${input.metroPort}` },
+        ],
+      });
+      const r = ensureDevSessionReverse({
+        ports,
         brokerBaseUrl: input.brokerBaseUrl,
       });
       return {
         ok: r.ok,
-        messages: r.results.map((x) => `${x.ok ? "ok" : "fail"}:${x.message}`),
+        messages: r.messages,
         hostPullUrl: r.hostPullUrl,
       };
     });
@@ -279,32 +304,24 @@ export async function runModuleDev(options: {
     const { ensureMetroSession } = await import("../metro-orchestrator.js");
     const { commandExists } = await import("../process.js");
     const npx = commandExists("npx") ? "npx" : "npx";
-    try {
-      const session = await ensureMetroSession({
-        npx,
-        projectRoot: cwd,
-        logger: options.logger,
-        port: preferredPort,
-        detached: true,
-      });
-      return {
-        port: session.port,
-        reused: session.reused,
-        usbUrl: `http://127.0.0.1:${session.port}`,
-      };
-    } catch (err) {
+    const session = await ensureMetroSession({
+      npx,
+      projectRoot: cwd,
+      logger: options.logger,
+      port: preferredPort,
+      moduleId,
+      detached: true,
+    });
+    if (session.port !== preferredPort) {
       options.logger.writeHuman(
-        `warn: Metro ensure failed for ${moduleId} — registering Live with preferred port anyway`,
+        `Metro for ${moduleId}: preferred :${preferredPort} → actual :${session.port}`,
       );
-      options.logger.writeHuman(
-        `  ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return {
-        port: preferredPort,
-        reused: false,
-        usbUrl: `http://127.0.0.1:${preferredPort}`,
-      };
     }
+    return {
+      port: session.port,
+      reused: session.reused,
+      usbUrl: `http://127.0.0.1:${session.port}`,
+    };
   };
 
   const checkCatalog: ModuleDevPorts["checkCatalogMembership"] = async ({

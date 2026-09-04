@@ -1,6 +1,6 @@
 /**
- * Map shell .rn/dev-session.jsonc draft → CatalogModuleEntry[].
- * link alone does not publish; this is only used by `rn catalog publish`.
+ * Map shell `.rn/dev-session.jsonc` → CatalogModuleEntry[].
+ * Used internally by `rn module register` (host-ops); not a separate publish step.
  */
 import type { CatalogModuleEntry, DevSessionConfig } from "@client-platform/rn-core";
 
@@ -10,9 +10,7 @@ export function modulesFromDevSession(
   return Object.entries(config.modules).map(([business_module, binding]) => {
     const entry: CatalogModuleEntry = {
       business_module,
-      preferredMetroPort: binding.metroPort,
-      entry: binding.entry,
-      // Draft default: participate in path table with /{id} unless later enriched
+      // Catalog = product governance only; no preferredMetroPort / Metro entry (see module-environment-sync.md)
       pathRouting: true,
       routePrefix: `/${business_module}`,
     };

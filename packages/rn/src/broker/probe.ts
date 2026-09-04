@@ -1,6 +1,6 @@
 /**
- * Metro /status probe stub for Dev Session Broker (#124).
- * Real HTTP probe lands with full Phase B; stub is injectable for tests.
+ * Metro /status probe for Dev Session Broker (#124).
+ * Default production wiring: httpMetroProbe. stubMetroProbe injectable for tests.
  */
 export type MetroProbeResult = { ok: boolean; detail?: string };
 

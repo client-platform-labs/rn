@@ -24,7 +24,7 @@ rn doctor
 |------|------|
 | **GF 新壳**（工业默认 topology B） | `rn init [--demo]` → 生成壳 + `modules/main` + `.rn/*` |
 | **GF 快捷**（单树 onboarding） | `rn init --starter inline-main` |
-| **加业务 module** | `rn module init <id>` · `rn module link <id>` |
+| **加业务 module** | 工单/MR → `rn module register <id>`（CP）· 脚手架 `rn module init <id> --register` · lab: `register --from`（`--help --all`） |
 | **BF 已有原生仓** | 拷贝合同文件（见下）+ 实现 `SurfaceHostAdapter` · 参考 [examples/brownfield-host](../../examples/brownfield-host/README.md) |
 
 ### 壳仓必备机读文件

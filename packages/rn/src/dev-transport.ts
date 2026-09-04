@@ -193,9 +193,14 @@ export function buildAndroidInstallArgs(input: {
   device: AdbDevice;
   authorizedCount: number;
   activeArchOnly?: boolean;
+  /** Allocated shell Metro port — forwarded to run-android --port. */
+  metroPort?: number;
 }): { runAndroidArgs: string[]; gradleEnv: Record<string, string> } {
   const runAndroidArgs = ["react-native", "run-android", "--no-packager"];
   runAndroidArgs.push("--deviceId", input.device.serial);
+  if (input.metroPort != null && input.metroPort > 0) {
+    runAndroidArgs.push("--port", String(input.metroPort));
+  }
 
   const useActiveArch =
     input.activeArchOnly !== false && input.authorizedCount === 1;
