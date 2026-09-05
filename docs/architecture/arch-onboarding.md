@@ -92,6 +92,9 @@ bash scripts/e2e/run-all.sh
 - 9 个 chain 全跑过（`0 FAIL`）
 - 报告在 `/tmp/e2e-out/report-YYYYMMDD-HHMMSS.md`
 
+> `run-all.sh` 现在会自动跑 `seed-registry.sh`（幂等灌壳 + 离线包到 staging），
+> 无需手动预灌数据。seed 只写 staging lane，不碰 production。
+
 **如果 FAIL** → 看 `/tmp/e2e-out/chain-XX-name.log` 末尾 ✗ 行
 **如果 SKIP** → 看 §6 "已知 SKIP/WARN 清单"
 
@@ -194,18 +197,66 @@ jq '.kills' ~/code/tiangong-host/.rn/delivery/registry.json
 
 ## 6. 已知 SKIP / WARN 清单 (2026-09-05)
 
-这些**不是真问题**，是平台薄弱的真实位置。跑测时遇到不要慌：
+这些**不是真问题**，是平台薄弱的真实位置。跑测时遇到不要慌。按根因归 5 类：
 
-| Chain | Step | 现象 | 根因 | 待修 (Map) |
-|-------|------|------|------|------------|
-| 03 | 3.5 | 缺 signature / sbom | thin CP 用 stub 模式，APK digest 直接当 sig | Map B P1 (签名/SBOM 真接) |
-| 06 | 6.8-6.9 | 无/错 token → 200 | thin CP Auth 未启用，Map B 计划用 Bearer | Map B P1 (CP-Auth) |
-| 08 | 8.7-8.8 | candidate 缺签名/SBOM | 同上 | Map B P1 |
-| 09 | 9.2-9.3 | 无/错 token → 200 | 同上 | Map B P1 |
-| 09 | 9.11 | global/latest 空 | Nous 业务数据未初始化（无害） | 业务侧 init 脚本 |
-| 02 | 2.7 | loadPolicy 乱码 | BOM 问题（jsonc 中文） | 文档侧 |
+### 6.1 签名 / SBOM 是 stub（Map B P1 · 最大 gap）
 
-**真问题 0 个** — 跑测 0 FAIL · 16 WARN · 125 PASS · 57s
+`sign` 阶段没真接 CA，`release` 不内联真 SBOM，APK digest 直接当 signature 占位。
+
+| Chain | Step | 现象 |
+|-------|------|------|
+| 03 | 3.5 | 缺 signature / sbom（`sig=` `sbom=` 空） |
+| 08 | 8.7-8.8 | candidate 缺签名/SBOM |
+
+**影响**：release 壳的「严格校验链」当前是形同虚设的 stub，签名真接后 Chain 03/08 这两条 WARN 会自动抹掉。
+
+### 6.2 CP Auth 未启用（Map B P1）
+
+thin CP 没配 Bearer 鉴权，`/v1/*` 全裸奔。
+
+| Chain | Step | 现象 |
+|-------|------|------|
+| 06 | 6.8-6.9 | 无 / 错 token → 200（期望 401） |
+| 09 | 9.2-9.3 | 同上 |
+
+**影响**：企业接入时无法按租户隔离，`rn-delivery` 的 `RN_CP_TOKEN` 现在是摆设（dev 值不限）。
+
+### 6.3 灰度 / 运维引擎未开通（顿在蓝图/钢线）
+
+| Chain | Step | 现象 | 根因 |
+|-------|------|------|------|
+| 04 | 4.8 | `rollout/tick` rc=404 | rollout 引擎没起 |
+| 08 | 8.2 | 无 gray lane | thin CP 只 staging/production 两档 |
+| 08 | 8.3 | 无 device-manifest | 设备切片/灰度按 lane 兜底 |
+| 08 | 8.4-8.5 | PUT lane rc=404 | 切 lane 端点未实现 |
+
+**影响**：灰度放量、设备分组、AB 实验这些「工业级」能力目前只有 registry 结构占位（`pauses/kills/rollouts` 键都在），端点还没实接。
+
+### 6.4 日志 / 门禁路径未触发（可观测性 gap）
+
+| Chain | Step | 现象 |
+|-------|------|------|
+| 06 | 6.10 | cp-serve.log 未含 sign/release/ingest 七阶段日志 |
+
+**影响**：上线门禁想靠日志断言「七阶段都走过」，但当前 CP 不把这些事件写到统一 log，门禁只能靠 registry 状态推断，不是真 log 审计。
+
+### 6.5 业务 / 数据侧未初始化（无害）
+
+| Chain | Step | 现象 |
+|-------|------|------|
+| 02 | 2.6 | 缺 `ota-business-pack/fixture_second` 路径 bundle（实际落在 `ota-build/`） |
+| 02 | 2.7 | loadPolicy 输出乱码（jsonc BOM） |
+| 09 | 9.11 | Nous `global/latest` 空（业务数据未灌） |
+
+**影响**：2.6 是 bundle 输出目录命名不一致（`ota-business-pack` vs `ota-build`），2.7 是 BOM，9.11 是 Nous 侧没跑 init 脚本——三者都不阻塞主链路。
+
+---
+
+### 真问题 0 个
+
+全跑 **9 chain 全 PASS · 0 FAIL · 48s · 0 人工干预**。上面所有 SKIP/WARN 都有明确归属（Map B P1 或业务/文档侧），不是回归缺陷。
+
+**按优先级待修**：6.1 签名/SBOM > 6.2 CP-Auth > 6.3 灰度/运维端点 > 6.4 日志门禁 > 6.5 数据/文档细节。
 
 ---
 
@@ -307,8 +358,11 @@ sed 's/\x1b\[[0-9;]*m//g' /tmp/e2e-out/chain-XX.log | grep -E "✗|✓|!"
 
 ## 10. 下一步可做的事
 
-- [ ] **Map B P1**: 真签名 + 真 SBOM (Chain 03/08 抹掉 WARN)
-- [ ] **Map B P1**: CP-Auth 真启用 Bearer (Chain 06/09 抹掉 WARN)
+- [ ] **Map B P1**: 真签名 + 真 SBOM (Chain 03/08 抹掉 WARN) — §6.1
+- [ ] **Map B P1**: CP-Auth 真启用 Bearer (Chain 06/09 抹掉 WARN) — §6.2
+- [ ] **灰度/运维引擎开通**: rollout/tick + gray lane + device-manifest (Chain 04/08 抹掉 WARN) — §6.3
+- [ ] **日志门禁**: CP 七阶段事件写统一 log，`chain-06 6.10` 转真审计 — §6.4
+- [ ] **数据/文档细节**: bundle 输出目录统一 + jsonc BOM + Nous init — §6.5
 - [ ] **iOS 链**: 装 Xcode + xcrun simctl 适配
 - [ ] **CI 集成**: 每次 PR 跑 `run-all.sh`，fail 即红
 - [ ] **Atlas 同步**: 在 `wayfinding-map-f/ATLAS.md §4` 链接到本手册
