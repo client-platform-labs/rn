@@ -190,7 +190,7 @@ flowchart TB
 | **Map C**（#73） | CP 服务化 · 七渠 · tick · 故障链 | ✅ AFK EXITED | C1–C9 · C3b → #89 |
 | **Map D**（#80） | 合规叠加 · 例外账本 · 迁移 · 薄 oncall | ✅ AFK EXITED | D1–D5 · GRC → #90 |
 | **Map E**（#94） | Distribution Service · 装包台 · JS 发布面 | 🔄 Charting | E-T1…E-T12 · L1 本机+ECS 跑通；差 L2 Helm/Postgres |
-| **Module-first** | 8 张子图（#115/126/133/143/149/160/166/175） | 🔄 Open | 多离线包 · 剥核 · 角色 · 壳生命周期 · Catalog · CLI 三维 |
+| **Module-first** | ✅ 8 张全部 CLOSED · 业务接入薄 | 🔄 代码已落 · 多业务线未证 | 多离线包 · 剥核 · 角色 · 壳生命周期 · Catalog · CLI 三维 |
 
 ### 2.5 关键节点 · 决策门（防散落）
 
@@ -207,83 +207,290 @@ flowchart TB
 
 ## 3. 9 大类工业环节产物清单
 
-每条标注：本仓路径 / 主 issue / 状态 / 下一刀。
+> **判读约定：**
+> - ✅ **工业级 L5** = 真机 + 多业务线 + 跨壳型 全部跑通，verify 脚本归档 HITL
+> - 🟡 **薄 L4 / 合同 L4 + 实现 thin** = 合同 + 关键 verify 绿，但真生产负载 / 多业务线级证据不完整
+> - 🔄 **Open / WIP** = 子图或票尚未关
+> - ⛔ **Shelved / Deferred** = 决议不做或推后到下一季度
+>
+> **不在本节列的：** 蓝图（`blueprint/`）= 合同面，本 atlas 是诊断面；运行时 = §2 已列；本节聚焦**工程产物 + 验证状态**。
 
 ### 3.1 命令行工具（rn / rn-delivery / 装包代理）
 
-| 产物 | 路径 | 状态 | 备注 |
-|------|------|------|------|
-| `rn` 本地 CLI | `packages/rn` | ✅ L5 | `init/doctor/dev/module/host` |
-| `rn-delivery` 交付 CLI | `packages/rn-delivery` | ✅ L5 | `build/sign/test/release/update` |
-| `rn-core` 合同库 | `packages/rn-core` | ✅ L5 | 类型 + 纯函数；无 Metro I/O |
-| `@client-platform/shell-core` SDK | `packages/shell-core` | 🟡 partial | bus / state / dispose（WIP #126/#137–#140） |
-| Distribution 装包代理 | `scripts/distribution-console-agent.mjs` | ✅ landed | Map E |
-| CLI 三维模型 | (#175) | ✅ | 角色 × 环境 × Porcelain/Plumbing |
-| 业务 CLI 表面 | (#143 · #175) | 🔄 Open | 心智极简 DX |
+| 产物 | 路径 | 状态 | 为什么是这个状态 / 差什么 |
+|------|------|------|--------------------------|
+| `rn` 本地 CLI | `packages/rn` | ✅ L5 | `init/doctor/dev/module/host` 全绿；ADR-006 多 Metro；M1/M3/M4 HITL |
+| `rn-delivery` 交付 CLI | `packages/rn-delivery` | ✅ L5 | 七阶段合同；HMAC sign；双 SBOM 接口（Map C C7） |
+| `rn-core` 合同库 | `packages/rn-core` | ✅ L5 | 类型 + 纯函数；无 Metro I/O；协议同构测试 |
+| `@client-platform/shell-core` SDK | `packages/shell-core` | 🟡 **合同 L5 + 业务接入 thin** | 见 §3.1.a |
+| Distribution 装包代理 | `scripts/distribution-console-agent.mjs` | ✅ Map E landed | 真机 verify PASS（#114） |
+| CLI 三维模型（角色 × 环境 × Porcelain/Plumbing） | #175 | ✅ Map CLOSED | A+D 落地；B+D 演进位留接口；4×4 角色×环境白名单入新 ADR |
+| 业务 CLI 表面（心智极简 DX） | #143 | 🟡 Map CLOSED + 角色手册 1.0 落地 | 见 §3.1.b |
+
+#### 3.1.a shell-core SDK：合同 L5 / 业务接入 thin 的原因
+
+**已达成**（#137/138/139/140 + #126 map 全部 CLOSED）：
+- `@client-platform/shell-core` 包骨架 + `eventBus` + `globalState` + `dispose` 已实现
+- `ShellRouter` + `routePrefix`（YES/PARTIAL）已实现
+- `BundleManager` 六态 + 基座→业务 ensure + 预下载三件套（Wifi / 路由前置 / 基座优先）
+- tiangong-host 真机钢线 `verify-runtime-dispatch.mjs` 跑通
+- tiangong OTA 进程重载方案在 L4 阶段证明（D0/D1/D2 EXITED）
+
+**为什么还是"业务接入 thin"**：
+- 钢线基于 tiangong-host **单一业务实例**（desk + fixture_second），**多业务线 / 跨团队真生产负载无证据**
+- 7×24 真实环境下的降级路径**未跨业务线压测**
+- shell-core API 字段已锁，但**企业内多业务接入文档**（跨包通信 ACL、globalState namespace 冲突策略）只在 tiangong 范式下有示例
+- `minShellSdk` 版本门禁已写，但**业务方跨大版本升级 RN** 时降级体验未在多业务线复测
+
+**下一刀**：
+- 把 shell-core 接入第二个真实业务实例（不是 fixture）
+- 写 `shell-core-integration-playbook.md`：跨业务 namespace ACL、错误恢复矩阵
+- 跑跨业务线 SLO 实验：错误预算超限 → 自动 Paused 真触发（依赖 §3.9 真观测后端）
+
+#### 3.1.b 业务 CLI 表面（#143）
+
+**已达成**：
+- 角色 × 能力单元矩阵（11 个 C 编号）成文
+- `rn module register` 零参 + Catalog API 共合同落地
+- 四册薄手册（host / module / ops / self）+ 平台册深读路径
+
+**为什么还薄**：
+- map #143 自承："**暂无审批运营台 UI**"——业务方申请 module 时**仍是手跑 CLI** 而非走 portal
+- v1 `apply` 走 intake 工件 + 壳方 `register`/`approve` 是**人工核对**，不是平台自动审批
+- 跨团队 `preferredMetroPort` 变更更新机制**只到合同**，未做 live overlay
+- "**分角色按手册演练 desk+tiangong-host 全闭环**" 只在单业务实例跑过，**多业务线无真证据**
+
+**下一刀**：
+- 写 `apply` 审批台原型（接 #94 装包台 / CP Web，复用同一 OpenAPI）
+- 跑"业务 A + 业务 B + 业务 C"三方接入剧本（D1–D8 已有，需多实例复跑）
 
 ### 3.2 debug 包加载多离线包策略
 
-| 产物 | 路径 / 票 | 状态 | 备注 |
-|------|-----------|------|------|
-| DevSession 合同 | `.rn/dev-session.jsonc` · ADR-001 | ✅ L5 | 多 Metro 端口表 |
+| 产物 | 路径 / 票 | 状态 | 为什么是这个状态 / 差什么 |
+|------|-----------|------|--------------------------|
+| DevSession 合同 | `.rn/dev-session.jsonc` · ADR-001 | ✅ L5 | 多 Metro 端口表；协议同构测试 |
 | `DevTransport` | `packages/rn/src/dev-transport.ts` | ✅ L5 | usb / wifi / lan |
-| Debug Host（壳不重装） | #14 · `m4` | ✅ L5 | warm reinstall SLA |
+| Debug Host（壳不重装） | #14 · `m4` HITL | ✅ L5 | warm reinstall SLA |
 | 多 Metro 并行 | ADR-006 · #17 | ✅ L5 | `--modules` 开关 |
-| 多离线包本地 Bind | #149（ScriptManager / 双 ReactHost） | 🔄 Open | 与 #115/#126 边界 |
-| Metro 智能端口分配 | #158 | 🔄 Open | 壳 × 多包防错绑 |
-| 壳×多包 Debug Host CLI | #160 | 🔄 Open | 装/卸/版本感知 |
-| 跨团队 Module Catalog | #166 | 🔄 Open | 申请 / 壳方注册 / 元数据合同 |
+| 多离线包本地 Bind | #149（ScriptManager / 双 ReactHost） | 🟡 **Map CLOSED + 进程重载占位** | 见 §3.2.a |
+| Metro 智能端口分配 | #158 | ✅ Map CLOSED · 落 `verify-*-port-table` | 防错绑（与 #149 同时落） |
+| 壳×多包 Debug Host CLI | #160 | ✅ Map CLOSED · `rn host install` 升 Porcelain | 见 §3.2.b |
+| 跨团队 Module Catalog | #166 | 🟡 **Map CLOSED + 申请台 UI 缺** | 见 §3.2.c |
+
+#### 3.2.a 多离线包本地 Bind（#149）
+
+**已达成**（map CLOSED）：
+- ScriptManager / 双 ReactHost 选型 grilling 完成（#153 选 ScriptManager，二级加载壳常驻）
+- 真·Bind + 双包证据 `verify-multi-pack-bind.mjs` 跑通
+- Fast Refresh 来自业务 Metro
+- Release 仍禁 http（验签路径必走）
+
+**为什么还薄**：
+- 双业务包证据基于 **desk + fixture_second**——fixture 是测试夹具，**非第二个真实业务**
+- "**Phase-1 进程重载 host-surface = 里程碑，不关本图**"（map 自承）——当前多包切场景**仍依赖壳进程重启**，不是常驻 ScriptManager
+- 关图条件 = "**ScriptManager / 二级加载（壳常驻）钢线闭合**"——目前这一刀**尚未真做**（#159 是 task，但实际未跑通真机常驻切包）
+
+**下一刀**：
+- 把 #159（ScriptManager 二级加载 native 深水）做出来，**真机常驻切 2 个包不重启壳**
+- 接入第二个真实业务（非 fixture），重跑双 Metro 同开证据
+
+#### 3.2.b 壳×多包 Debug Host CLI（#160）
+
+**已达成**：
+- 版本感知 skip-install 判据实现（已装且版本一致 → skip，只起 Metro + Broker + adb reverse）
+- 显式 `rn host install` / 卸载命令
+- 不再要求手跑 Gradle
+
+**为什么还薄**：
+- 仅在 Android 跑通；**iOS Debug Host 对称实现 #165 仍 OPEN**
+- 卸载有对称命令，但**真机 / 模拟器混用**、**多设备并行** 的场景未覆盖
+- `host install` 与装包台 / `rn-delivery` **并存而非统一**——业务 onboarding 时到底用哪个是规则盲区
+
+**下一刀**：
+- 落 #165 iOS Debug Host 对称（需 macOS 工具链）
+- 写"装包台 vs host install"决策矩阵
+
+#### 3.2.c 跨团队 Module Catalog（#166）
+
+**已达成**：
+- 业务方 `apply`（产出 intake 工件 v2）
+- 壳方 `register` / `approve`（消费 intake 或 Catalog API）
+- 不依赖 host-ops 本机存在业务 git 仓
+- `preferredMetroPort` 登记 vs 运行时分离 + 变更更新机制合同落地
+
+**为什么还薄**：
+- "**v1 无审批台**"——所有 apply/register 是**人工**操作
+- intake 工件 v2 schema 已定，但**跨企业防火墙 / 跨网络分区**的传输通道未做（业务方和壳方在不同公司时怎么传？）
+- "**preferredMetroPort 变更更新机制**"只到合同层面，**没做 live overlay**（运行时端口冲突时怎么办还没说清）
+
+**下一刀**：
+- 落审批台原型（最小可用，能 cover apply→approve 闭环）
+- 写跨网络分区传输通道（s3 / OSS / 企业 IM 任意一种即可）
 
 ### 3.3 release 壳加载离线包策略
 
-| 产物 | 路径 / 票 | 状态 | 备注 |
-|------|-----------|------|------|
+| 产物 | 路径 / 票 | 状态 | 为什么是这个状态 / 差什么 |
+|------|-----------|------|--------------------------|
 | `gateBundleLoad` 验签 | `packages/rn-core` | ✅ L5 | HBC + fingerprint + capability + channel |
-| A5 选择器（baseline / N / N-1） | #8 · ADR-007 | ✅ L5 thin | 按 module 独立 |
-| `@client-platform/shell-core` bus | #139 | 🟡 partial | ModuleEventBus |
-| ShellRouter + routePrefix | #137 | 🟡 partial | YES/PARTIAL |
-| BundleManager 六态 | #138 | 🟡 partial | 基座 ensure / 预下载 / 降级 |
-| Tiangong 运行时调度贯通 | #140 | 🟡 partial | HITL 证据 + 运维手册 |
-| 剥核产线（Metro id 映射 / Re.Pack MF） | #133 → #135/#136/#141 | 🔄 Open | 公共基座制品 |
-| 业务 module first 联调 | #115 → #118–#125 | 🔄 Open | Catalog / Broker / 面板 |
+| A5 选择器（baseline / N / N-1） | #8 · ADR-007 | ✅ L5 thin | 按 module 独立；`verify-a5-fallback.mjs` 跑通 |
+| `@client-platform/shell-core` bus | #139 | ✅ Map CLOSED | ModuleEventBus；见 §3.1.a |
+| ShellRouter + routePrefix | #137 | ✅ Map CLOSED | YES/PARTIAL；见 §3.1.a |
+| BundleManager 六态 | #138 | ✅ Map CLOSED | 基座 ensure / 预下载 / 降级；见 §3.1.a |
+| Tiangong 运行时调度贯通 | #140 | ✅ Map CLOSED | HITL 证据 + 运维手册；见 §3.1.a |
+| 剥核产线（Metro id 映射 / Re.Pack MF） | #133 → #135/#136/#141 | 🟡 **Map CLOSED + MVP 未挂 runtime** | 见 §3.3.a |
+| 业务 module first 联调 | #115 → #118–#125 | ✅ Map CLOSED · 手册 §11 + D1–D8 | 但**多业务线无真证据**，见 §3.3.b |
+
+#### 3.3.a 剥核产线（#133 / base-peel）
+
+**已达成**（map + #141 MVP task CLOSED）：
+- Metro 主轴剥核 MVP：CI 产出**基座 HBC + 已剥核业务 HBC + 版本化 module-id map**
+- M1 选型（`createModuleIdFactory` + base manifest + filter）已落
+- Re.Pack MF shared scope = partial（不阻 runtime，但 GF/BF 适配未做）
+
+**为什么还薄**：
+- Metro 剥核 MVP **与 runtime-dispatch 的基座→业务加载合同仅接口对齐**，**没真把 runtime 接进剥核后的基座 HBC 跑过**
+- 也就是说：剥核产线**单独跑通**，但**与 BundleManager 联调**（真用剥核产出的基座 HBC 启动 RN runtime）**未做**
+- Re.Pack = partial，**GF/BF 适配未做**
+- **跨大版本 RN 升级时**（0.86 → 0.87 → 0.88）剥核是否还稳，未复测
+
+**下一刀**：
+- 把 Metro 剥核 MVP 接到 tiangong runtime，**真用剥核基座 HBC 启动 RN**——这是工业 L4 的关图条件
+- 跑跨大版本 RN 升级回归
+
+#### 3.3.b 业务 module first 联调（#115）
+
+**已达成**（map CLOSED）：
+- 业务零壳仓（开发不依赖壳 git 仓）
+- Catalog/Live 生产–消费自洽闭环
+- Dev Session Broker、Debug Host 联调面板
+- Release 零 Dev 残留
+- 完整开发连调手册 §11 + 闭环 D1–D8
+
+**为什么还薄**：
+- "**完整开发连调手册**" 已经在仓库，但**多业务线 / 跨团队的 onboarding 真实工作量**（业务方第一天到第七天做什么）只在 tiangong 范式下有示例
+- 业务方接入 portal 仍是 CLI（apply/register/approve 无 UI）
+- L-C 后端联调（Whistle 代理互补）**合同已写但真生产对接无样本**
+
+**下一刀**：
+- 把"业务方 7 天接入剧本"做成视频 / 录屏，cover 真实企业分工
+- 跑两个真实业务（非 fixture）的端到端 D1–D8 复跑
 
 ### 3.4 壳的开发 / 调试 / 部署 / 运维 方案
 
-| 产物 | 路径 | 状态 |
-|------|------|------|
-| 壳团队 cheatsheet | `docs/guides/shell-team-cheatsheet.md` | ✅ |
-| 宿主集成指南 | `docs/guides/host-integration.md` | ✅ |
-| Debug Host 指南 | `docs/guides/debug-host.md` | ✅ |
-| oncall 运维 runbook | `docs/runbooks/cp-oncall.md` · #88 | ✅ D5 |
-| 真机钢线（参考实现） | Hermes #29 · `host-android` 仓 | ✅ L4 |
-| Shell iOS Debug Host 对称 | #165 | 🔄 Open |
+| 产物 | 路径 | 状态 | 为什么是这个状态 / 差什么 |
+|------|------|------|--------------------------|
+| 壳团队 cheatsheet | `docs/guides/shell-team-cheatsheet.md` | ✅ | 与 Map A 配套 |
+| 宿主集成指南 | `docs/guides/host-integration.md` | ✅ | GF/BF 一份 |
+| Debug Host 指南 | `docs/guides/debug-host.md` | ✅ | warm reinstall |
+| oncall 运维 runbook | `docs/runbooks/cp-oncall.md` · #88 | 🟡 **薄 AFK 清单** | 见 §3.4.a |
+| 真机钢线（参考实现） | Hermes #29 · `host-android` 仓 | ✅ L4 | 单业务实例 + 单壳型 |
+| Shell iOS Debug Host 对称 | #165 | 🔄 **OPEN** | 见 §3.4.b |
+
+#### 3.4.a oncall runbook（#88 / D5）
+
+**已达成**（map CLOSED）：
+- ops runbook AFK checklist 合同
+- 与 Map C/D 联动的标准 oncall 流程
+
+**为什么还薄**：
+- runbook 是 **AFK 清单**（即 agent 跑得动的），**真正的人眼/人手步骤**（如"打开 CP 看错误预算"截图级指引）只在 tiangong 范式有
+- **未跨企业真生产负载演练**——runbook 是否 cover 多业务线 7×24 场景未知
+- 与 SLO 后端的联动是合同（`verify-rn-slo-budget.mjs`），**但真观测后端未接**（见 §3.9）
+
+**下一刀**：
+- 把 runbook 录屏化（人眼级操作）
+- 接真观测后端后跑一次 7×24 演练
+
+#### 3.4.b Shell iOS Debug Host 对称（#165）
+
+**已达成**：research 出 iOS Debug Host 装壳/指纹/DevTransport 路径合同
+
+**为什么仍 OPEN**：
+- iOS 装壳需要 macOS + Xcode + 真机/模拟器，**环境依赖比 Android 重**
+- 当前的 Debug Host warm reinstall SLA 实测**仅 Android**
+- iOS 装壳后的 Dev Menu / DevSupport 路径**未在真机复测**
+
+**下一刀**：
+- macOS runner 跑 iOS Debug Host 全链路
+- 与 Android 一致的 warm reinstall benchmark
 
 ### 3.5 业务包 init/开发/连调/热更新/部署/灰度/发布/运维/OTA
 
-| 产物 | 路径 | 状态 |
-|------|------|------|
-| 业务 module 开发者指南 | `docs/guides/module-developer.md` | ✅ |
-| Expo 互操作口子 | #16 | 🔄 低优 |
-| JS 列车放行档（needs-native / js-standard / js-gated） | 蓝图 #13 | ✅ |
-| P11 planJsRollback（不切坏流量） | C6 · #79 | ✅ |
-| P10 rollout tick（soak + SLO 自动） | C5 · #78 | ✅ |
-| 灰度粒度（tenant / platform / channel / cohort） | 蓝图 #13 | ✅ |
-| Quality Signal Bus | A6 · #9 · `m9` | ✅ L5 thin（E2E 挡晋级 → #74） |
-| Tiangong OTA 运行时 | Hermes D1/D2 · #58/#59 | ✅ L4 |
-| tiangong-host 钢线 | E-T9 · #111 | ✅ |
+| 产物 | 路径 | 状态 | 为什么是这个状态 / 差什么 |
+|------|------|------|--------------------------|
+| 业务 module 开发者指南 | `docs/guides/module-developer.md` | ✅ | 与 Map A 配套 |
+| Expo 互操作口子 | #16 | 🔄 **低优 OPEN** | 见 §3.5.a |
+| JS 列车放行档（needs-native / js-standard / js-gated） | 蓝图 #13 | ✅ L4 | 合同 + 校验 |
+| P11 planJsRollback（不切坏流量） | C6 · #79 | ✅ Map C AFK EXITED | 同宿主公式 |
+| P10 rollout tick（soak + SLO 自动） | C5 · #78 | ✅ Map C AFK EXITED | breach pause 真触发依赖真观测 |
+| 灰度粒度（tenant / platform / channel / cohort） | 蓝图 #13 | ✅ | 合同 + UI demo |
+| Quality Signal Bus | A6 · #9 · `m9` | 🟡 **L5 thin · E2E 挡晋级未真接** | 见 §3.5.b |
+| Tiangong OTA 运行时 | Hermes D1/D2 · #58/#59 | ✅ L4 | 单业务实例 |
+| tiangong-host 钢线 | E-T9 · #111 | ✅ Map E CLOSED | 真机 verify PASS |
+
+#### 3.5.a Expo 互操作口子（#16）
+
+**已达成**：
+- expo doctor / migrate 接口预留
+- 与 Expo 的差异化定位成文（不绑 Expo runtime）
+
+**为什么仍 OPEN**：
+- map 自标 **低优**——业务方有现有 Expo 仓时如何迁移过来，**没真做迁移工具**
+- `rn expo migrate` 仅合同，**实现未做**
+- 业务方实际从 Expo 迁过来的样本为 0
+
+**下一刀**：
+- 真做 1-2 个 Expo 仓迁移样本（拿 Map D D4 dry-run 跑）
+
+#### 3.5.b Quality Signal Bus（A6 / #9 / #74 / Map C C1）
+
+**已达成**（L5 thin）：
+- `quality_signal` 合同 + M9 gate 阻断 promote 一次
+- P7 e2e_fail fail-closed promote（C1 · #74）
+
+**为什么还薄**：
+- E2E 挡 promote **C1 已实现**，但**真 E2E 信号源未接**——目前 E2E 是合同/夹具
+- **真生产环境**的 E2E（Maestro / Detox 真机）需企业自建 E2E 农场，**仓库侧没做**
+- "**E2E 永不挡 promote → submit / 生产全量**"是**设计原则**，但**真 E2E 信号缺位**时这条原则等于自动放行——风险点
+- A6 信号在 tiangong 范式下有，**多业务线无真证据**
+
+**下一刀**：
+- 落真 E2E 农场合同（不实现，只定接口）
+- 把 A6 信号接进 Map C C5 rollout tick 的 breach pause 真触发路径（依赖 §3.9）
 
 ### 3.6 壳发布平台（Distribution Service）
 
-| 产物 | 路径 | 状态 |
-|------|------|------|
-| OpenAPI 合同 | `docs/specs/distribution-service.openapi.yaml` · E-T7 #109 | ✅ |
-| 表合同（SQLite / Postgres） | `docs/specs/distribution-service-storage.md` · E-T1 / B8 #91 | ✅ |
-| Docker Compose L1 | `deploy/distribution-service/docker-compose.yml` · E-T8 #110 | ✅ |
-| ECS 部署 runbook | `docs/runbooks/distribution-service-aliyun-ecs.md` · #110 | ✅ |
-| tiangong 钢线 | E-T9 · #111 | ✅ |
-| 装包台原型 | `wayfinding-map-e/prototypes/host-distribution.html` · E-P2 #100 | ✅ |
-| 本机双域名完整服务 | E-T12 · #114 | ✅ |
-| Helm L2 | — | 🔄 下一刀 |
+| 产物 | 路径 | 状态 | 为什么是这个状态 / 差什么 |
+|------|------|------|--------------------------|
+| OpenAPI 合同 | `docs/specs/distribution-service.openapi.yaml` · E-T7 #109 | ✅ Map E CLOSED | 单一 Node 服务合同；可迁企业云 |
+| 表合同（SQLite / Postgres） | `docs/specs/distribution-service-storage.md` · E-T1 / B8 #91 | ✅ | SQLite 默认；Postgres adapter 合同（opt-in） |
+| Docker Compose L1 | `deploy/distribution-service/docker-compose.yml` · E-T8 #110 | ✅ | 单机跑通；ECS 跑通 |
+| ECS 部署 runbook | `docs/runbooks/distribution-service-aliyun-ecs.md` · #110 | ✅ | Aliyun 镜像 + push 脚本 |
+| tiangong 钢线 | E-T9 · #111 | ✅ | 真机 verify PASS |
+| 装包台原型 | `wayfinding-map-e/prototypes/host-distribution.html` · E-P2 #100 | ✅ | UI 原型；接 API 后可替 |
+| 本机双域名完整服务 | E-T12 · #114 | ✅ Map E CLOSED | `verify-local-distribution-chain.mjs` PASS |
+| Helm L2 | — | 🔄 **下一刀** | 见 §3.6.a |
+| Reference UI（v1） | `docs/arch/atlas.md`（即将） | 🟡 **薄** | 见 §3.6.b |
+
+#### 3.6.a Helm L2 / 真生产部署
+
+**为什么还薄**：
+- 当前 L1 部署是 Docker Compose，**单实例**——真生产需要 Helm chart + 多副本 + 高可用
+- L1 用 SQLite，**真生产**必须 Postgres（已有 adapter #91）但**未真接真生产 DB**
+- 公网安全组 / TLS / 限流 / 监控接入**未在 ECS 真生产 URL 上跑过**
+- 多租户隔离**合同有，实现未做**（业务方 A 看不到业务方 B 的 release_unit）
+
+**下一刀**（Map E 下一阶段）：
+- 落 Helm chart + 真生产 Postgres
+- 接云厂商监控 / 限流（Aliyun SLS / 阿里云 APIG）
+- 跑 7×24 灰度
+
+#### 3.6.b Reference UI（v1）
+
+**为什么薄**：
+- 当前 `host-distribution.html` / `js-offline-publish.html` / `cp-console.html` **都是 prototype**——可演示、不可生产
+- **真生产 portal**（多租户登录、RBAC、审计日志、报表）由企业自建
+- 仓库只承诺 **API-first + Reference UI 可换**（E-G3 决议），**不承诺 Reference UI 等于生产 UI**
 
 ### 3.7 离线包管理平台（CP / JS 列车 / 依赖）
 
@@ -528,41 +735,66 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 
 ### 5.1 已 shelved / deferred（不在本季度范围）
 
-| 项 | 票 | 类别 |
-|----|----|------|
-| HarmonyOS 真机钢线 | #93 | shelved（Map B B7 lab） |
-| 七渠店侧 submit 适配器 | #89 | deferred（Map C C3b） |
-| GRC backends + 真 CycloneDX | #90 | shelved（Map D D6） |
-| 真观测后端 / 真 SLO | — | Map C depth |
+| 项 | 票 | 类别 | 为什么 shelve / 何时回到 backlog |
+|----|----|------|---------------------------------|
+| HarmonyOS 真机钢线 | #93 (`wontfix`) | shelved | DevEco 工具链未就绪；RNOH 主线生态常落后；待产品立项 |
+| 七渠店侧 submit 适配器 | #89 (`wontfix`) | deferred | 各商店 API 文档差异大；需商务接入；非平台工程核心 |
+| GRC backends + 真 CycloneDX | #90 (`wontfix`) | shelved | GRC SaaS 选型未做；真 SBOM 生成是企业侧 |
+| 真观测后端（Metric/SLO） | — | deferred | Map C C8 P13 合同有；后端选型未做；接 Datadog / SLS / 自建待定 |
 
-### 5.2 Open 子图（module-first 时代 · 需按顺序推进）
+### 5.2 已 CLOSED 但仍"薄"——是本季度可优化主战场
 
-| 子图 | 票 | 一句话 | 优先级 |
-|------|----|--------|--------|
-| 多离线包本地 Bind | #149 → #151–#159 | ScriptManager / 双 ReactHost 选型 + 落地 | **P0**（与 #115/#126 衔接） |
-| RN module first 联调 | #115 → #118–#125 | Catalog / Broker / 面板 | P0 |
-| 运行时调度 | #126 → #127–#132 · #137–#140 | shell-core SDK / BundleManager / ShellRouter | P0 |
-| 剥核产线 | #133 → #134–#136 · #141 | Metro 公共基座 / Re.Pack MF | P1 |
-| 角色/岗位手册 | #143 → #144–#148 | 心智极简 DX | P1 |
-| 壳 Debug Host 生命周期 CLI | #160 → #161–#165 | 装/卸/版本感知 | P1 |
-| 跨团队 Module Catalog | #166 → #167–#172 | 申请 / 注册 / 元数据 | P1 |
-| CLI 三维模型 | #175 → #176–#180 | 角色 × 环境 × Porcelain/Plumbing | P2 |
+| 子图 | 票 | 仍薄在哪 | 优先级 |
+|------|----|----------|--------|
+| shell-core SDK | #126 / #137–#140 | 多业务线 / 跨团队真生产负载无证据 | **P0** |
+| 业务 CLI 表面 | #143 | 审批台 UI 缺；多业务线 onboarding 真实工作量无样本 | **P0** |
+| 多离线包本地 Bind | #149 / #159 | ScriptManager 壳常驻切包未真机跑通 | **P0** |
+| 剥核产线 | #133 / #141 | MVP 与 runtime 联调未做 | **P1** |
+| 业务 module first 联调 | #115 | 业务方 7 天接入剧本无样本 | P1 |
+| oncall runbook | #88 / D5 | 人眼级操作无；真 SLO 后端缺 | P1 |
+| 壳 iOS Debug Host | #160 / #165 | iOS 实测未做 | P1 |
+| Expo 互操作 | #16 | 迁移工具未做 | P2 |
+| Quality Signal Bus | #9 / #74 | 真 E2E 信号源未接 | P1 |
+| Distribution Helm L2 | E 下一阶段 | Helm chart / 多副本 / 高可用未做 | **P0**（产品上市阻塞） |
 
-### 5.3 Map E 下一刀
+### 5.3 真未做（不是 shelved，而是从未排进 backlog）
 
-| 阶段 | 目标 | 验收 |
-|------|------|------|
-| **L2 Helm** | Helm chart + Postgres + OSS | `verify-helm-install.mjs` |
-| **L3 API-only 镜像** | 纯 API 部署，UI 由企业 Portal 接入 | `verify-distribution-api-only.mjs` |
-| **L4 SaaS 远期** | 多租户 + 计量 | — |
+| 项 | 现状 |
+|----|------|
+| 跨网络分区传输通道（业务方 / 壳方在不同公司） | 合同有，传输通道未做（#166 收口未做） |
+| 跨大版本 RN 升级剥核回归 | 0.86 → 0.87 → 0.88 路径未复测（#133 follow-up） |
+| 业务方 7 天 onboarding 真实样本（多业务线） | 0 样本 |
+| 7×24 多业务线真生产负载演练 | 0 演练 |
+| 真生产 portal（多租户 + RBAC + 审计 + 报表） | 0；现仅 prototype |
 
-### 5.4 真正可优化点（按"已交付 / 可深化 / 缺口"三档诊断）
+### 5.4 真生产上市阻塞（按严重度排序）
 
-| 类别 | 节点 | 现状 | 建议 |
-|------|------|------|------|
-| **已工业级** | Runtime · CLI · A5 兜底 · Governance · CP 状态机 · GF/BF L5 钢线 | L5 | 仅运维加固 |
-| **可深化** | Distribution Service（L1→L2）· Quality Signal Bus（真 SLO）· 多离线包 Bind 选型 | L4 thin | 推进 Map E L2 / module-first #149 |
-| **真正缺口** | Harmony 主路径 · 七渠 submit 适配器 · GRC · 真观测后端 | shelved/deferred | 待产品立项 |
+1. **Distribution Helm L2 + 多租户**——单 Compose 跑通但真生产不可用
+2. **真观测后端**——SLO breach pause 真触发依赖它；当前是合同/夹具
+3. **多业务线真生产负载**——所有 L5 钢线基于 tiangong 单业务；多业务时 namespace 冲突、错误归因、跨包通信 ACL 未实战
+4. **iOS Debug Host 对称**——iOS 用户群未覆盖
+5. **Harmony 主路径**——shelved；如要 Harmony 上市须 #93 重新评估
+
+---
+
+## 附录 B · Map 状态速查（截至 2026-09-05 · gh 实证）
+
+| Map | 状态 | 关键 ticket | 备注 |
+|-----|------|-------------|------|
+| 蓝图 wayfinding | ✅ Closed | issues/01–23 | 五边界合同 |
+| 实施 A wayfinding-impl-2 | ✅ Closed #18 | A1–A6 + M0–M10 + #20 #21 #22 #17 | GF/BF L5 |
+| Map B wayfinding-map-b | ✅ Closed #23 | B1–B6/B8–B11 | B7 Harmony → #93 |
+| Map C wayfinding-map-c | ✅ CLOSED #73 (AFK EXITED) | C1–C9 | C3b → #89 |
+| Map D wayfinding-map-d | ✅ CLOSED #80 (AFK EXITED) | D1–D5 | GRC → #90 |
+| Map E wayfinding-map-e | ✅ **CLOSED #94** | E-R1..E-R3 · E-G1..E-G3 · E-P1/P2 · E-T1..E-T12 | L1 跑通；Helm L2 下一刀 |
+| Hermes wayfinding-hermes | ✅ Closed #29 · #43 | D0–D2 · M-H0..M-H6 | L4 业务实例 |
+| Module-first（**全部 CLOSED**） | ✅ 8 张 | #115/126/133/143/149/160/166/175 | 代码落地但**业务接入薄**，见 §3 |
+| **Atlas（本文件）** | ✅ v1.1 落地 | 无 tracker 依赖 | 本文件 |
+
+**当前 OPEN issue 仅 3 个**（均 shelved/deferred）：
+- #93 Harmony shelved
+- #89 七渠 submit 适配器 deferred
+- #90 GRC backends shelved
 
 ---
 
