@@ -60,6 +60,10 @@ if ! curl -sf "$NOUS_BASE/v1/health" >/dev/null 2>&1; then
 fi
 ok "Nous base: $NOUS_BASE"
 
+# ── Seed: 幂等灌壳 + 离线包到 staging (chain-03 依赖，链序在 05 之前) ──
+banner "Seed staging lane"
+bash "$REPO/scripts/e2e/seed-registry.sh" 2>&1 | sed 's/^/  /'
+
 # ── Chain 列表 ──
 ALL_CHAINS=(
   "01-cli:01-cli.sh"
@@ -95,7 +99,7 @@ fi
 
 TOTAL=${#RUN_LIST[@]}
 PASSED=0
-FAILS_TOTAL=0
+FAILED=0
 RESULTS=()
 START_TS=$(date +%s)
 
