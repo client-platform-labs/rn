@@ -577,6 +577,22 @@ ls deploy/distribution-service/    # Docker Compose L1
 pnpm -r test
 ```
 
+### 4.0.bis 上市前质量验收（推荐 v1 起跑）
+
+```bash
+# 跑全量 release-readiness 套件（10 阶段，~5min）
+bash scripts/release-readiness/run-all.sh
+
+# 输出报告归档
+bash scripts/release-readiness/run-all.sh --report > docs/hitl/release-readiness-$(date +%F).md
+
+# 上市前手动清单（企业侧动作）— 拿这个去 iOS/Android 商店申请
+open scripts/release-readiness/10-store-submit-checklist.md
+```
+
+**详细设计**见 [scripts/release-readiness/README.md](../../scripts/release-readiness/README.md)。
+**10 个阶段：** pre-flight / 平台合同 / Runtime / Delivery / CP / Governance / iOS / Android / Harmony / 七渠。
+
 ### 4.1 角色 R-BIZ（业务包开发者）
 
 | 链路 | 命令 | 期望结果 | 验证脚本 |
