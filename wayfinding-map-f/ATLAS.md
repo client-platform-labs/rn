@@ -166,8 +166,8 @@ flowchart TB
 |------|------|------|----------------|
 | **A. Runtime SDK** | 落地 + 三层契约 + 能力四级 | **L5** | `packages/rn-core` · `createReferenceRuntimeHost` · A5 槽位 · `gateBundleLoad` |
 | **B. Toolchain（CLI）** | 薄核心 + 三 ABI 插件 + 双宿主 | **L5** | `rn` / `rn-delivery` · CLI 三维模型 (#175) · 模块化 dev |
-| **C. Delivery** | 七阶段合同 + 候选 metadata + HMAC sign + SBOM 槽 | **L4 thin** | 缺企业 attestation / 真 CycloneDX（#90 shelved） |
-| **D. Control Plane** | Node API + Web demo + 状态机 + RBAC + SQLite/Postgres 适配 | **L4 thin**（Map C AFK EXITED） | 缺真观测后端 · C3b 店侧 submit (#89 deferred) |
+| **C. Delivery** | 七阶段合同 + 候选 metadata + HMAC sign + SBOM 槽 | **L4 thin** | 缺企业 attestation / 真 CycloneDX（#90 shelved）· **签名/SBOM 仍 stub（实测 sig/sbom 空 — Chain 03/08 WARN）** |
+| **D. Control Plane** | Node API + Web demo + 状态机 + RBAC + SQLite/Postgres 适配 | **L4 thin**（Map C AFK EXITED） | 缺真观测后端 · **Auth 未启用（实测无/错 token 仍 200 — Chain 06/09 WARN）** · C3b 店侧 submit (#89 deferred) |
 | **E. Governance** | ADR-008 P0 + fingerprint + compliance_profile + 例外账本 | **L5** | governance 脚本 + `check-architecture-governance.mjs` |
 
 ### 2.3 GF vs BF（同一 bar）
@@ -558,6 +558,10 @@ flowchart TB
 > **目的：** 你（评审/新成员）能按这份手册，在不阅读所有 map 的前提下，模拟任一角色跑通全流程。
 > **环境：** macOS 14+ / Linux · Node 24 (`engines` ≥22 <25) · pnpm 9 · Android SDK（任选其一即可走）· adb device 可选
 
+> **🔴 全套机器化自测已落地（2026-09-05）：** `bash scripts/e2e/run-all.sh` 一键跑 9 大链路端到端（壳 + 离线包全生命周期），
+> 实测 **9 chain 全 PASS · 48s · 0 人工干预**。自动 seed staging lane + 自动点 vivo 安装弹窗。
+> 完整手册见 [docs/architecture/arch-onboarding.md](../architecture/arch-onboarding.md)（含已知 SKIP/WARN 5 类根因清单）。
+
 ### 4.0 准备：克隆与安装
 
 ```bash
@@ -740,6 +744,7 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 | `rn doctor` 报 L3e fail | `node scripts/verify-*-release-hygiene.mjs` | 修污染：删 `.rn/`、清 `__DEV__` 残留 |
 | 多 Metro 端口冲突 | `lsof -i :8081,8082` | `kill` 占用的；`rn dev --modules` 自动分配 |
 | 壳装不上 | `adb devices` | 重新连 USB；`adb reverse` |
+| E2E 安装卡在「安全守护」弹窗 | vivo/部分机型需先勾选 checkbox | `safe_install` / `auto-dismiss-package-intercept.mjs` 自动处理 |
 | gateBundleLoad BLOCKED_INCOMPATIBLE | 检查 `runtime_fingerprint` 全等 + 能力子集 | `rn-delivery validate` 给的诊断 |
 | CP promote 失败 | `verify-cp-*` 系列 | 看 `*-latest.md` 第一行 fail 原因 |
 | oncall 拉不到 metric | 观测后端未接 | 走 Map C C8 P13 合同 + 真 SLO 后端 |
@@ -748,6 +753,21 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 ---
 
 ## 5. 缺口 · 下一刀
+
+### 5.0 实测缺口（2026-09-05 · 机器化 E2E 9 chain 实证）
+
+> 来源：`bash scripts/e2e/run-all.sh`（48s 全 PASS），SKIP/WARN 按根因归 5 类，详见
+> [docs/architecture/arch-onboarding.md §6](../architecture/arch-onboarding.md#6-已知-skip--warn-清单-2026-09-05)。
+
+| # | 根因 | 涉及 chain | 优先级 |
+|---|------|-----------|--------|
+| 6.1 | **签名/SBOM 是 stub**（`sign` 未真接 CA，APK digest 当 signature 占位） | 03 · 08 | 🔴 最高 |
+| 6.2 | **CP Auth 未启用**（`/v1/*` 裸奔，无/错 token 仍 200） | 06 · 09 | 🔴 高 |
+| 6.3 | **灰度/运维引擎未开通**（rollout/tick、gray lane、device-manifest、PUT lane 全 404） | 04 · 08 | 🟡 中 |
+| 6.4 | **日志门禁未触发**（CP 七阶段事件不写统一 log） | 06 | 🟡 中 |
+| 6.5 | **业务/数据侧未初始化**（bundle 目录命名、jsonc BOM、Nous 未 init） | 02 · 09 | ⚪ 低 |
+
+**结论**：距离「工业级交付」最远的两块是 **6.1 签名/SBOM**（release 壳严格校验链形同虚设）和 **6.2 CP-Auth**（企业多租户隔离无门）。两者都是 Map B P1 范围。其余 6.3–6.5 是「合同已有、实现 thin」的深化项。
 
 ### 5.1 已 shelved / deferred（不在本季度范围）
 
@@ -853,4 +873,5 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 - 增量维护点：每张新子图 close 时，把对应节点从 §5.2 移入 §3 / §2
 - 每张 map 状态变化时（CLOSED / AFK EXITED），更新 §附录 B
 - Loop 脚本新增时，更新 §4.8 验证脚本总目录
+- E2E 实测缺口变化时，更新 §5.0（机器化 9 chain 实证）与 `docs/architecture/arch-onboarding.md` §6
 - 不重决议；不复制 blueprint 合同；只盘点 + 导航 + 诊断
