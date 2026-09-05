@@ -43,8 +43,16 @@ if [[ "$NODE_MAJOR" -ge 25 ]]; then
 fi
 
 # ── gh 凭证 ────────────────────────────────────────────────────
+# CI (GitHub Actions) 靠 $GITHUB_TOKEN / $GH_TOKEN 环境变量工作，gh 预装但通常未 gh auth login。
+# 在 CI 环境有任一 token 即视为通过，不强求 gh auth status。
 if command -v gh >/dev/null 2>&1; then
-  if gh auth status >/dev/null 2>&1; then
+  if [[ "${GITHUB_ACTIONS:-}" == "true" || -n "${CI:-}" ]]; then
+    if [[ -n "${GITHUB_TOKEN:-}" || -n "${GH_TOKEN:-}" ]]; then
+      PASS+=("gh auth (CI token)")
+    else
+      FAIL+=("gh auth (CI 环境无 GITHUB_TOKEN/GH_TOKEN)")
+    fi
+  elif gh auth status >/dev/null 2>&1; then
     PASS+=("gh auth")
   else
     FAIL+=("gh auth (需 gh auth login)")

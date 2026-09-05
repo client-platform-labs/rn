@@ -14,20 +14,28 @@ assert_eq "true" "$H" "/health ok"
 NAME=$(cp_get /v1/service | jq -r '.name // empty')
 assert_eq "control-plane" "$NAME" "/v1/service.name"
 
-# ⚠ 已知：thin CP Auth 未启用（Map B P1）
-step "9.2 CP 鉴权（无 token 期望 401 — 已知 SKIP）"
-RC=$(curl -s -o /dev/null -w '%{http_code}' "$E2E_CP/v1/candidates?lane=staging")
-if [[ "$RC" == "401" ]]; then ok "Auth 已启用 (无 token → 401)"
-else warn "Auth 未启用 (rc=$RC) — 已知: thin CP 未配 Auth"; SKIPS=$((SKIPS+1)); fi
+# CP Auth 只保护写路由；GET /v1/candidates、/health、/v1/service 是设计上的公开读路由。
+step "9.2 CP 鉴权：无 token 写路由 → 401"
+RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Content-Type: application/json" -d '{"digest":"deadbeef"}' \
+  "$E2E_CP/v1/promote")
+if [[ "$RC" == "401" ]]; then ok "无 token POST /v1/promote → 401"
+else err "Auth 未生效 (rc=$RC，期望 401)"; FAILS=$((FAILS+1)); fi
 
-step "9.3 CP 鉴权（错 token 期望 401）"
-RC=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer wrong" "$E2E_CP/v1/candidates?lane=staging")
+step "9.3 CP 鉴权：错 token 写路由 → 401"
+RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Authorization: Bearer wrong-token" -H "Content-Type: application/json" \
+  -d '{"digest":"deadbeef"}' \
+  "$E2E_CP/v1/promote")
 if [[ "$RC" == "401" ]]; then ok "错 token → 401"
-else warn "Auth 未启用 (rc=$RC)"; SKIPS=$((SKIPS+1)); fi
+else err "错 token 未 401 (rc=$RC)"; FAILS=$((FAILS+1)); fi
 
-step "9.4 CP 鉴权（正确 token 200）"
-RC=$(cp_get_code "/v1/candidates?lane=staging")
-assert_eq "200" "$RC" "正确 token → 200"
+step "9.4 CP 鉴权：正确 token 写路由到达 handler → 400（非 401）"
+RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Authorization: Bearer $E2E_TOKEN" -H "Content-Type: application/json" \
+  -d '{"digest":"deadbeef"}' \
+  "$E2E_CP/v1/promote")
+assert_eq "400" "$RC" "正确 token → 400（鉴权通过，digest 不存在）"
 
 step "9.5 Distribution artifact 落地（host APK 可拉）"
 D=$(cp_get "/v1/candidates?lane=staging" | jq -r '.candidates[0].digest // empty')

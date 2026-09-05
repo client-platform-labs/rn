@@ -149,7 +149,7 @@ curl -s -H "Authorization: Bearer dev" "http://127.0.0.1:4040/v1/js-updates?modu
 **期望**：
 - registry 新增 1 条 js-update
 - stage = "promote"
-- 有 signature 字段（**已知 stub 模式**：值为空 digest — Map B P1 待修）
+- 有 signature 字段（无 `RN_DELIVERY_SIGN_KEY` 时为 **digest-seal 占位**；设置了 key 则 HMAC-sha256。真 CA 签名见 #90 backlog）
 
 ### 4.3 灰度 (staging → production)
 
@@ -199,27 +199,21 @@ jq '.kills' ~/code/tiangong-host/.rn/delivery/registry.json
 
 这些**不是真问题**，是平台薄弱的真实位置。跑测时遇到不要慌。按根因归 5 类：
 
-### 6.1 签名 / SBOM 是 stub（Map B P1 · 最大 gap）
+### 6.1 签名 / SBOM（✅ 已修 · 根因是 chain-06 漏了 sign 阶段）
 
-`sign` 阶段没真接 CA，`release` 不内联真 SBOM，APK digest 直接当 signature 占位。
+`sign` 阶段本身已实现（`RN_DELIVERY_SIGN_KEY` 可切 HMAC，无 key 时 digest-seal 占位）。**真根因**是 `chain-06` 发壳流程只做了 `ingest-host → release`，漏掉了七阶段合同里 `sign` 这一步，导致 host candidate 进 registry 时没有 `signature` 和 `supply_chain.host.sbom` slot，进而 chain 03/08 判「缺签名/SBOM」。
 
-| Chain | Step | 现象 |
-|-------|------|------|
-| 03 | 3.5 | 缺 signature / sbom（`sig=` `sbom=` 空） |
-| 08 | 8.7-8.8 | candidate 缺签名/SBOM |
+**已修**：`chain-06` 在 `ingest-host` 后补 `rn-delivery sign`。签名/SBOM slot 就位后，Chain 03/08 这两条 WARN 自动消除。真 CA / 真 CycloneDX 仍是企业侧 backlog（#90），但「release 壳校验链形同虚设」这句不再成立——sign 阶段已在链上真跑。
+   210|**说明**：`rn-delivery` 的 signature 是无 key 时的 digest-seal（不是工业 CA 签名），这是有意设计的薄实现（`Map C C7` 的替换点）。链上现在确实执行了 sign 阶段。
 
-**影响**：release 壳的「严格校验链」当前是形同虚设的 stub，签名真接后 Chain 03/08 这两条 WARN 会自动抹掉。
+### 6.2 CP Auth（✅ 已修 · 根因是测试测错了对象）
 
-### 6.2 CP Auth 未启用（Map B P1）
+CP Auth **早已实现且 `verify-cp-auth.mjs` PASS**（CI 在跑）。它只保护**写路由**（POST promote/block/kill/pause/rollout、PUT dependency-manifest）；而 `GET /v1/candidates`、`/health`、`/v1/service` 是**设计上的公开读路由**。
 
-thin CP 没配 Bearer 鉴权，`/v1/*` 全裸奔。
+**真根因**：`chain-06` 6.8-6.9 和 `chain-09` 9.2-9.3 之前拿 `GET /v1/candidates` 去断言「无 token 应 401」，这是**测错了端点**——公开读路由本来就应该 200。
 
-| Chain | Step | 现象 |
-|-------|------|------|
-| 06 | 6.8-6.9 | 无 / 错 token → 200（期望 401） |
-| 09 | 9.2-9.3 | 同上 |
-
-**影响**：企业接入时无法按租户隔离，`rn-delivery` 的 `RN_CP_TOKEN` 现在是摆设（dev 值不限）。
+**已修**：改成对 `POST /v1/promote`（受保护的写路由）断言「无 token / 错 token → 401，正确 token → 400（鉴权通过但 digest 不存在）」。9.4 从「正确 token → 200」更正为「正确 token → 400」。
+   220|**说明**：企业多租户隔离仍缺（token 是单值 `RN_CP_TOKEN`，非 per-tenant），那是真 backlog，但「Auth 未启用」不再是事实。
 
 ### 6.3 灰度 / 运维引擎未开通（顿在蓝图/钢线）
 
@@ -254,9 +248,9 @@ thin CP 没配 Bearer 鉴权，`/v1/*` 全裸奔。
 
 ### 真问题 0 个
 
-全跑 **9 chain 全 PASS · 0 FAIL · 48s · 0 人工干预**。上面所有 SKIP/WARN 都有明确归属（Map B P1 或业务/文档侧），不是回归缺陷。
+全跑 **9 chain 全 PASS · 0 FAIL · 48s · 0 人工干预**。上面所有 SKIP/WARN 都有明确归属（灰度/运维端点、日志门禁、业务/数据侧未初始化），不是回归缺陷。
 
-**按优先级待修**：6.1 签名/SBOM > 6.2 CP-Auth > 6.3 灰度/运维端点 > 6.4 日志门禁 > 6.5 数据/文档细节。
+**按优先级待修**：6.3 灰度/运维端点（rollout/tick 404、device-manifest、gray lane）> 6.4 日志门禁 > 6.5 数据/文档细节。签名/SBOM 和 CP Auth 已核实是测试脚本 bug（已修），不再是产品缺口。
 
 ---
 
@@ -358,13 +352,13 @@ sed 's/\x1b\[[0-9;]*m//g' /tmp/e2e-out/chain-XX.log | grep -E "✗|✓|!"
 
 ## 10. 下一步可做的事
 
-- [ ] **Map B P1**: 真签名 + 真 SBOM (Chain 03/08 抹掉 WARN) — §6.1
-- [ ] **Map B P1**: CP-Auth 真启用 Bearer (Chain 06/09 抹掉 WARN) — §6.2
+- [x] **签名/SBOM 链上执行**：`chain-06` 补 sign 阶段，Chain 03/08 WARN 消除（真 CA/CycloneDX 仍是 #90 企业 backlog）— §6.1
+- [x] **CP-Auth 更正测试**：chain 6/9 改为测受保护写路由，Auth 已验证在跑（企业 per-tenant 隔离是真 backlog）— §6.2
 - [ ] **灰度/运维引擎开通**: rollout/tick + gray lane + device-manifest (Chain 04/08 抹掉 WARN) — §6.3
 - [ ] **日志门禁**: CP 七阶段事件写统一 log，`chain-06 6.10` 转真审计 — §6.4
 - [ ] **数据/文档细节**: bundle 输出目录统一 + jsonc BOM + Nous init — §6.5
 - [ ] **iOS 链**: 装 Xcode + xcrun simctl 适配
-- [ ] **CI 集成**: 每次 PR 跑 `run-all.sh`，fail 即红
+- [ ] **CI 集成**: 无设备 release-readiness 阶梯进 GitHub Actions；真机门禁走自托管 runner + 设备农场
 - [ ] **Atlas 同步**: 在 `wayfinding-map-f/ATLAS.md §4` 链接到本手册
 
 ---

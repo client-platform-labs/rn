@@ -166,8 +166,8 @@ flowchart TB
 |------|------|------|----------------|
 | **A. Runtime SDK** | 落地 + 三层契约 + 能力四级 | **L5** | `packages/rn-core` · `createReferenceRuntimeHost` · A5 槽位 · `gateBundleLoad` |
 | **B. Toolchain（CLI）** | 薄核心 + 三 ABI 插件 + 双宿主 | **L5** | `rn` / `rn-delivery` · CLI 三维模型 (#175) · 模块化 dev |
-| **C. Delivery** | 七阶段合同 + 候选 metadata + HMAC sign + SBOM 槽 | **L4 thin** | 缺企业 attestation / 真 CycloneDX（#90 shelved）· **签名/SBOM 仍 stub（实测 sig/sbom 空 — Chain 03/08 WARN）** |
-| **D. Control Plane** | Node API + Web demo + 状态机 + RBAC + SQLite/Postgres 适配 | **L4 thin**（Map C AFK EXITED） | 缺真观测后端 · **Auth 未启用（实测无/错 token 仍 200 — Chain 06/09 WARN）** · C3b 店侧 submit (#89 deferred) |
+| **C. Delivery** | 七阶段合同 + 候选 metadata + HMAC sign + SBOM 槽 | **L4 thin** | 缺企业 attestation / 真 CycloneDX（#90 shelved）· sign 阶段链上已真跑（无 key 时 digest-seal） |
+| **D. Control Plane** | Node API + Web demo + 状态机 + RBAC + SQLite/Postgres 适配 | **L4 thin**（Map C AFK EXITED） | 缺真观测后端 · Auth 单值 token（per-tenant 隔离是真 backlog）· C3b 店侧 submit (#89 deferred) |
 | **E. Governance** | ADR-008 P0 + fingerprint + compliance_profile + 例外账本 | **L5** | governance 脚本 + `check-architecture-governance.mjs` |
 
 ### 2.3 GF vs BF（同一 bar）
@@ -758,16 +758,20 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 
 > 来源：`bash scripts/e2e/run-all.sh`（48s 全 PASS），SKIP/WARN 按根因归 5 类，详见
 > [docs/architecture/arch-onboarding.md §6](../architecture/arch-onboarding.md#6-已知-skip--warn-清单-2026-09-05)。
+>
+> **重要纠偏（2026-09-05 合成后复核）**：最初把 6.1「签名/SBOM stub」和 6.2「CP Auth 未启用」归为产品缺口，**实为测试脚本 bug**，已修：
+> - 6.1 实为 `chain-06` 发壳流程漏跑 `sign` 阶段（sign 本已实现，无 key 时 digest-seal 占位）；补 sign 后 signature + SBOM slot 就位，Chain 03/08 WARN 消除。
+> - 6.2 实为 `chain-06/09` 测错了端点（对设计上公开的 `GET /v1/candidates` 断言 401）；改成测受保护的 `POST /v1/promote` 后 Auth 已验证在跑。
 
-| # | 根因 | 涉及 chain | 优先级 |
-|---|------|-----------|--------|
-| 6.1 | **签名/SBOM 是 stub**（`sign` 未真接 CA，APK digest 当 signature 占位） | 03 · 08 | 🔴 最高 |
-| 6.2 | **CP Auth 未启用**（`/v1/*` 裸奔，无/错 token 仍 200） | 06 · 09 | 🔴 高 |
-| 6.3 | **灰度/运维引擎未开通**（rollout/tick、gray lane、device-manifest、PUT lane 全 404） | 04 · 08 | 🟡 中 |
-| 6.4 | **日志门禁未触发**（CP 七阶段事件不写统一 log） | 06 | 🟡 中 |
+| # | 根因 | 涉及 chain | 状态 |
+|---|------|-----------|------|
+| 6.1 | 签名/SBOM 链上未真执行（chain-06 漏 sign） | 03 · 08 | ✅ 已修（真 CA/CycloneDX 仍 #90 企业 backlog） |
+| 6.2 | CP-Auth 测试测错端点（已实现，只护写路由） | 06 · 09 | ✅ 已修（企业 per-tenant 隔离是真 backlog） |
+| 6.3 | **灰度/运维引擎未开通**（rollout/tick、gray lane、device-manifest、PUT lane 全 404） | 04 · 08 | 🟡 待做 |
+| 6.4 | **日志门禁未触发**（CP 七阶段事件不写统一 log） | 06 | 🟡 待做 |
 | 6.5 | **业务/数据侧未初始化**（bundle 目录命名、jsonc BOM、Nous 未 init） | 02 · 09 | ⚪ 低 |
 
-**结论**：距离「工业级交付」最远的两块是 **6.1 签名/SBOM**（release 壳严格校验链形同虚设）和 **6.2 CP-Auth**（企业多租户隔离无门）。两者都是 Map B P1 范围。其余 6.3–6.5 是「合同已有、实现 thin」的深化项。
+**结论**：距离「工业级交付」真正的剩余缺口是 **6.3 灰度/运维引擎开通**（rollout/tick / gray lane / device-manifest 端点 404）和 **6.4 日志门禁**。签名/SBOM 与 CP-Auth 已核实为测试 bug 并修复，不再是产品缺口；它们的**企业级深化**（真 CA、per-tenant 隔离）独立于本 E2E 链，属 #89/#90/多租户 backlog。
 
 ### 5.1 已 shelved / deferred（不在本季度范围）
 

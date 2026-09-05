@@ -64,7 +64,7 @@ SBOM_DGST=$(echo "$HOST_OBJ" | jq -r '.supply_chain.host.sbom.digest // .supply_
 if [[ -n "$SIG" && -n "$SBOM_DGST" && "$SIG" != "null" && "$SBOM_DGST" != "null" ]]; then
   ok "signature=${SIG:0:12}... sbom=${SBOM_DGST:0:12}..."
 else
-  warn "缺 signature 或 sbom (sig=$SIG sbom=$SBOM_DGST) — 已知: Map B P1 签名/SBOM stub 模式"
+  warn "缺 signature 或 sbom (sig=$SIG sbom=$SBOM_DGST) — 链上 sign 未生效，见 chain-06/seed"
   SKIPS=$((SKIPS+1))
 fi
 

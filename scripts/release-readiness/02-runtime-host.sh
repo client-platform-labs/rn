@@ -51,7 +51,7 @@ fi
 # 3. Release 洁净（防 debug 残留）
 echo "[3/4] Release 洁净 …"
 # 找任意 release-hygiene 验证脚本
-HYGIENE_SCRIPT=$(find "$REPO_ROOT/scripts" -name "verify-*-release-hygiene*" -not -name "*.json" 2>/dev/null | head -1)
+HYGIENE_SCRIPT=$(find "$REPO_ROOT/scripts" -maxdepth 1 -name "verify-*release-hygiene*.mjs" 2>/dev/null | head -1)
 if [[ -n "$HYGIENE_SCRIPT" ]]; then
   set +e
   node "$HYGIENE_SCRIPT" >/dev/null 2>&1
@@ -78,7 +78,7 @@ if [[ -f "$REPO_ROOT/scripts/verify-bf-bundler-url.mjs" ]] \
   if [[ $rc -eq 0 ]]; then
     echo "  ✓ BF 协议同构"
   else
-    echo "  ⚠ BF 协议同构（rc=$rc；详见 02 真机）"
+    echo "  ⚠ BF 协议同构 (rc=$rc; 详见 02 真机)"
   fi
 else
   echo "  ⚠ BF verify 脚本不全"

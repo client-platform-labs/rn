@@ -14,12 +14,12 @@ FAIL=0
 
 # 1. doctor 合同
 echo "[1/4] doctor L3e …"
-if command -v pnpm >/dev/null 2>&1; then
-  pnpm -F @client-platform/rn doctor --json 2>/dev/null | jq -e '.levels.L3e == "pass"' >/dev/null 2>&1 \
-    && echo "  ✓ L3e pass" \
-    || { echo "  ✗ L3e 失败（详见 rn doctor）"; FAIL=1; }
+if command -v node >/dev/null 2>&1 && [[ -f "$REPO_ROOT/packages/rn/bin/rn.mjs" ]]; then
+  node "$REPO_ROOT/packages/rn/bin/rn.mjs" doctor --json 2>/dev/null | jq -e '.ok == true' >/dev/null 2>&1 \
+    && echo "  ✓ doctor pass (ok=true)" \
+    || { echo "  ✗ doctor 失败（详见 rn doctor）"; FAIL=1; }
 else
-  echo "  ⚠ pnpm 不可用，跳过"
+  echo "  ⚠ rn CLI 入口不可用（需先 pnpm build）"
   FAIL=1
 fi
 

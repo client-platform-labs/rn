@@ -26,3 +26,19 @@ jobs:
       - run: pnpm exec rn doctor
       - run: pnpm exec rn init --dry-run
       - run: pnpm exec rn plugin list
+
+  release-readiness:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: bash scripts/release-readiness/run-all.sh --max 05

@@ -42,6 +42,11 @@ if [[ -z "$DIG" ]]; then
 fi
 ok "ingested: ${DIG:0:12}..."
 
+# 七阶段合同：compile(ingest) → sign → release（此前漏 sign，导致 host 无 signature/SBOM slot）
+SIGN_OUT=$(node "$RD" sign 2>&1)
+if grep -qE '"ok" *: *true' <<< "$SIGN_OUT"; then ok "sign OK"
+else err "sign 失败: $(echo "$SIGN_OUT" | tail -3)"; FAILS=$((FAILS+1)); fi
+
 REL=$(node "$RD" release --digest "$DIG" --kind app-host --lane staging 2>&1)
 if grep -qE "release|promote|stage" <<< "$REL"; then ok "release OK"
 else err "release 失败: $REL"; FAILS=$((FAILS+1)); fi
@@ -51,21 +56,22 @@ CAND=$(cp_get "/v1/candidates?lane=staging" | jq --arg d "$DIG" '.candidates | m
 if [[ "$CAND" -ge 1 ]]; then ok "registry 含 digest"
 else err "registry 不含 $DIG"; FAILS=$((FAILS+1)); fi
 
-# ⚠ 黑盒问题：CP 鉴权目前不生效（无 token 仍 200），这是已知 P1 修复项
-# 这里降级为 warn，不当作 FAIL
-step "6.8 Auth 端到端：无 token 期望 401 (已知: 当前 CP 鉴权未启用 — Map B P1)"
-RC=$(curl -s -o /dev/null -w '%{http_code}' "$E2E_CP/v1/candidates?lane=staging")
-if [[ "$RC" == "401" ]]; then
-  ok "Auth 已启用 (无 token → 401)"
-else
-  warn "Auth 未启用 (rc=$RC) — 已知: thin CP 未配 Auth，详 docs/architecture/arch-onboarding.md §6"
-  SKIPS=$((SKIPS+1))
-fi
+# CP Auth 只保护写路由（POST promote/block/kill/pause/rollout、PUT dependency-manifest）；
+# GET /v1/candidates、/health、/v1/service 是设计上的公开读路由。
+step "6.8 Auth 端到端：无 token 写路由 → 401"
+RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Content-Type: application/json" -d '{"digest":"deadbeef"}' \
+  "$E2E_CP/v1/promote")
+if [[ "$RC" == "401" ]]; then ok "Auth 生效 (无 token POST /v1/promote → 401)"
+else err "Auth 未生效 (rc=$RC，期望 401)"; FAILS=$((FAILS+1)); fi
 
-step "6.9 Auth 端到端：错 token 期望 401"
-RC=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer wrong" "$E2E_CP/v1/candidates?lane=staging")
+step "6.9 Auth 端到端：错 token 写路由 → 401"
+RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Authorization: Bearer wrong-token" -H "Content-Type: application/json" \
+  -d '{"digest":"deadbeef"}' \
+  "$E2E_CP/v1/promote")
 if [[ "$RC" == "401" ]]; then ok "错 token → 401"
-else warn "Auth 未启用 (rc=$RC)"; SKIPS=$((SKIPS+1)); fi
+else err "错 token 未 401 (rc=$RC)"; FAILS=$((FAILS+1)); fi
 
 step "6.10 上线门禁：七阶段日志中含 sign/release/ingest"
 LOG="$E2E_HOST/.rn/distribution-lab/logs/cp-serve.log"

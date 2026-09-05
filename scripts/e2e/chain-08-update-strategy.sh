@@ -76,8 +76,8 @@ while IFS= read -r c; do
   sb=$(echo "$c" | jq -r '.supply_chain.host.sbom.digest // .supply_chain.js_update.sbom.digest // empty')
   if [[ -z "$d" ]]; then MISS=$((MISS+1)); err "candidate 缺 digest"
   elif [[ -z "$s" || -z "$sb" ]]; then
-    # 已知：thin CP signature/sbom 是 stub（Map B P1 修）
-    warn "candidate $d 缺签名/SBOM (sig=$s sbom=$sb) — 已知 stub 模式"
+    # sign 阶段链上已真跑（chain-06/seed）；此处仍 warn 说明该 candidate 没走 sign
+    warn "candidate $d 缺签名/SBOM (sig=$s sbom=$sb) — 链上 sign 未生效"
   fi
 done <<< "$CANDIDATES"
 if [[ $N -eq 0 ]]; then warn "无 candidate"
