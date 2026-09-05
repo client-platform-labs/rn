@@ -69,16 +69,12 @@ else
 fi
 
 step "3.6 装包 + 启动（release 模式）"
-# 用 push + pm install (with timeout helper) 避免 streamed install 卡死
+# 用 safe_install (lib.sh): push + pm install + 自动点 vivo 安全守护弹窗
 if [[ -n "$DIGEST" && -f "/tmp/e2e-host-$DIGEST.apk" ]]; then
-  adb_dev push "/tmp/e2e-host-$DIGEST.apk" /data/local/tmp/e2e-host.apk 2>&1 | tail -1
-  WT="$E2E_REPO/scripts/e2e/with-timeout.mjs"
-  if INSTALL_OUT=$(node "$WT" adb -s "$E2E_DEVICE" shell pm install -r -t /data/local/tmp/e2e-host.apk --ms=90000 2>&1); then
-    if grep -q Success <<< "$INSTALL_OUT"; then ok "install Success"
-    else warn "install 输出: $INSTALL_OUT"; SKIPS=$((SKIPS+1)); fi
+  if safe_install "/tmp/e2e-host-$DIGEST.apk" com.hermesgfapp; then
+    ok "install Success (vivo popup auto-dismissed)"
   else
-    warn "install TIMEOUT/FAIL (已知 vivo Android 16 大 APK 阻塞 streamed install)"
-    warn "手动: adb -s $E2E_DEVICE install -r -t /tmp/e2e-host-$DIGEST.apk"
+    warn "install FAIL (dismiss log: $(tail -5 /tmp/e2e-dismiss.log 2>/dev/null))"
     SKIPS=$((SKIPS+1))
   fi
 fi

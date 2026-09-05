@@ -82,6 +82,32 @@ adb_reverse_set() {
   done
 }
 
+# safe_install: push + pm install + 自动点 vivo 安全守护弹窗
+# 用法: safe_install <local_apk> <pkg_name> [timeout_ms]
+#   - 自动启 lib-dismiss watcher (单次 lifecycle, 完成后退出)
+#   - 处理 vivo iQOO Neo10 Android 16: 必须勾选 checkbox 才能点继续安装
+safe_install() {
+  local apk="$1" pkg="${2:-com.hermesgfapp}" ms="${3:-90000}"
+  [[ -f "$apk" ]] || { err "safe_install: 文件不存在 $apk"; return 1; }
+  adb_dev push "$apk" /data/local/tmp/e2e-install.apk 2>&1 | tail -1
+  adb_dev shell pm uninstall "$pkg" >/dev/null 2>&1 || true
+  # 启动单次 lifecycle watcher (后台, 勾选checkbox+点继续安装后自动退出)
+  ( node "$E2E_REPO/scripts/e2e/auto-dismiss-package-intercept.mjs" --ms="$ms" >/tmp/e2e-dismiss.log 2>&1 ) &
+  local dis_pid=$!
+  sleep 0.3
+  # 用 with-timeout.mjs (macOS 友好) 替代 GNU timeout
+  local out rc
+  out=$(node "$E2E_REPO/scripts/e2e/with-timeout.mjs" adb -s "$E2E_DEVICE" shell pm install -r -t /data/local/tmp/e2e-install.apk --ms="$ms" 2>&1)
+  rc=$?
+  if [[ $rc -eq 0 ]] && grep -q Success <<< "$out"; then
+    wait $dis_pid 2>/dev/null || true
+    return 0
+  fi
+  wait $dis_pid 2>/dev/null || true
+  echo "  install output: $out" >&2
+  return 1
+}
+
 # CP API
 cp_get() { # path -> body (echoed)
   curl -sf -H "Authorization: Bearer $E2E_TOKEN" "$E2E_CP$1"

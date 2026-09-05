@@ -127,7 +127,12 @@ done
 step "5.F.2 [维护] 升级路径（re-install）—— 不真做，只验 install 命令幂等"
 APK_PATH=$(ls -t /tmp/e2e-host-*.apk 2>/dev/null | head -1)
 if [[ -n "$APK_PATH" ]]; then
-  adb_dev install -r -t "$APK_PATH" 2>&1 | grep -q Success && ok "re-install Success" || warn "re-install 异常"
+  if safe_install "$APK_PATH" com.hermesgfapp; then
+    ok "re-install Success (vivo popup auto-dismissed)"
+  else
+    warn "re-install 异常"
+    SKIPS=$((SKIPS+1))
+  fi
 else
   skip "无 host APK 缓存（chain 3 未跑过）"
 fi

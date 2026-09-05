@@ -99,6 +99,9 @@ FAILS_TOTAL=0
 RESULTS=()
 START_TS=$(date +%s)
 
+# 注: 不再启全局 watcher — 每个 chain 在 install 前自己启单次 lifecycle watcher
+# 避免多 chain 间 watcher 状态污染 / 死循环
+
 for i in "${!RUN_LIST[@]}"; do
   entry="${RUN_LIST[$i]}"
   num="${entry%%:*}"

@@ -52,7 +52,13 @@ else
   bash "$E2E_REPO/scripts/verify-map-e-tiangong-steel-thread.mjs" >/dev/null 2>&1 || true
   DIGEST=$(cp_get "/v1/candidates?lane=staging" | jq -r '.candidates[0].digest // empty')
   if [[ -n "$DIGEST" ]]; then
-    curl -sf -o /tmp/e2e-host.apk "$E2E_CP/v1/artifacts/$DIGEST" && adb_dev install -r -t /tmp/e2e-host.apk 2>&1 | grep -q Success && ok "host 安装"
+    curl -sf -o /tmp/e2e-host.apk "$E2E_CP/v1/artifacts/$DIGEST"
+    if safe_install /tmp/e2e-host.apk com.hermesgfapp; then
+      ok "host 安装 (auto-dismiss 弹窗已处理)"
+    else
+      err "host 安装失败 (dismiss log: $(tail -5 /tmp/e2e-dismiss.log 2>/dev/null))"
+      FAILS=$((FAILS+1))
+    fi
   fi
 fi
 
