@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PROTOTYPE — 真·Bind 操作员一页纸</title>
+<style>
+  :root { --bg:#f7f5f1; --ink:#1a1a1a; --muted:#5c5c5c; --accent:#0b6e4f; --bad:#9b1c1c; --ok:#0b6e4f; --panel:#fff; --line:#ddd6cb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 "IBM Plex Sans", "Source Han Sans SC", system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:1.5rem 1.5rem 0.5rem; max-width:52rem; margin:0 auto; }
+  header h1 { font-size:1.35rem; margin:0 0 0.35rem; }
+  header p { margin:0; color:var(--muted); max-width:42rem; }
+  .badge { display:inline-block; font-size:0.7rem; letter-spacing:0.04em; text-transform:uppercase; background:#e8e0d4; padding:0.15rem 0.45rem; margin-bottom:0.5rem; }
+  main { max-width:52rem; margin:0 auto; padding:1rem 1.5rem 3rem; display:grid; gap:1rem; }
+  section { background:var(--panel); border:1px solid var(--line); padding:1rem 1.1rem; }
+  section h2 { font-size:0.95rem; margin:0 0 0.75rem; }
+  .state { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 1rem; font-size:0.9rem; }
+  .state dt { color:var(--muted); } .state dd { margin:0; font-weight:600; }
+  .state dd.ok { color:var(--ok); } .state dd.bad { color:var(--bad); }
+  .row { display:flex; flex-wrap:wrap; gap:0.4rem; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:#faf8f5; padding:0.4rem 0.7rem; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.danger { border-color:var(--bad); color:var(--bad); }
+  .tabs { display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.75rem; }
+  .tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .scenario p { color:var(--muted); font-size:0.9rem; margin:0 0 0.75rem; }
+  .steps { list-style:none; padding:0; margin:0; }
+  .steps li { display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0; border-top:1px solid var(--line); }
+  .steps li.done { opacity:0.45; }
+  .steps li.current button { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .sop { font-size:0.88rem; }
+  .sop ol { margin:0.25rem 0 0.75rem; padding-left:1.2rem; }
+  .sop .forbid { color:var(--bad); }
+  .verdict { padding:0.6rem 0.75rem; background:#f0ebe3; font-size:0.9rem; }
+  footer { max-width:52rem; margin:0 auto; padding:0 1.5rem 2rem; font-size:0.8rem; color:var(--muted); }
+  table.cmp { width:100%; border-collapse:collapse; font-size:0.85rem; margin:0.5rem 0 0; }
+  table.cmp th, table.cmp td { border:1px solid var(--line); padding:0.35rem 0.5rem; text-align:left; vertical-align:top; }
+  table.cmp th { background:#f0ebe3; }
+</style>
+</head>
+<body>
+<header>
+  <div class="badge">PROTOTYPE · throwaway · #154 · rev2 Wi‑Fi</div>
+  <h1>真·Bind 操作员心智 — 一页纸</h1>
+  <p><strong>问题：</strong>工业路径是否一眼可懂？含<strong>USB（adb reverse）与 Wi‑Fi/LAN（lanUrl）双运输</strong>——Done 两条都要能真·Bind，不是只做 adb。</p>
+</header>
+<main>
+  <section>
+    <h2>当前状态</h2>
+    <dl class="state" id="statePanel"></dl>
+    <p class="verdict" id="verdict"></p>
+  </section>
+
+  <section>
+    <h2>自由操作</h2>
+    <div class="row" id="freePlay"></div>
+  </section>
+
+  <section>
+    <h2>引导场景</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="scenario" id="scenario"></div>
+  </section>
+
+  <section class="sop">
+    <h2>运输对照（Done 两条都要）</h2>
+    <table class="cmp">
+      <tr><th></th><th>USB / adb</th><th>Wi‑Fi / LAN</th></tr>
+      <tr><th>设备怎么到 Metro</th><td><code>127.0.0.1:&lt;port&gt;</code> ← <code>adb reverse</code></td><td>开发机 <strong>LAN IP</strong>:<code>&lt;port&gt;</code>（Live 的 <code>lanUrl</code>）</td></tr>
+      <tr><th>前置</th><td>USB 调试；Broker/业务端口 reverse</td><td>真机与 PC <strong>同网</strong>；Metro <code>0.0.0.0</code>；防火墙放行；面板选 wifi/lan</td></tr>
+      <tr><th>不需要</th><td>同网（可纯 USB）</td><td><code>adb reverse</code>（可无线调试）</td></tr>
+      <tr><th>Live 字段</th><td><code>usbUrl</code></td><td><code>lanUrl</code></td></tr>
+      <tr><th>自动化</th><td>Docker/CI 常用 adb</td><td>真机同网脚本；断言 Bind 用 lanUrl 可达</td></tr>
+    </table>
+    <h2 style="margin-top:1rem">操作员 SOP 草案</h2>
+    <p><strong>前置：</strong>Debug Host；Node 24；Catalog register desk + fixture_second；Host Pull Live（含 usbUrl + lanUrl）。</p>
+    <ol>
+      <li>desk + fixture_second <code>npm run dev</code>——<strong>双 Metro 同开</strong>（端口合同）</li>
+      <li><strong>选运输：</strong>
+        <ul>
+          <li><strong>USB：</strong><code>adb reverse</code> 每个业务端口 + Broker</li>
+          <li><strong>Wi‑Fi：</strong>确认 <code>lanUrl</code> 非空；设备浏览器能打开 <code>http://&lt;lan-ip&gt;:&lt;port&gt;/status</code>；DevTransport=wifi/lan</li>
+        </ul>
+      </li>
+      <li>面板 Catalog = Catalog SoT</li>
+      <li>Bind → 壳常驻 + 薄封装 ScriptManager；resolver 用<strong>当前运输</strong>对应 URL</li>
+      <li>成功判据同前：hermesgfapp；FR 来自被绑业务 Metro；可再 Bind second 且 desk 仍 live</li>
+    </ol>
+    <p class="forbid"><strong>禁止：</strong>只交付 USB、Wi‑Fi 靠人「自己改 IP」；整站指业务 index；假 banner Bind；Release http；分时单 Metro 冒充双包 Done。</p>
+    <p><strong>里程碑 A：</strong>host-surface 重载可验收，不关图。</p>
+  </section>
+</main>
+<footer>
+  Map #149 · #154 · Done=B 薄封装 SM · 双 Metro 同开 · <strong>USB+Wi‑Fi 双运输</strong> · C 双 ReactHost 出图。<br />
+  反应：心智 OK / 还要改什么。
+</footer>
+<script>
+const BindOps = (() => {
+  const initial = () => ({
+    transport: "usb", // usb | wifi
+    deskLive: false,
+    secondLive: false,
+    reverse8081: false,
+    reverse8082: false,
+    lanDesk: false,   // lanUrl published + reachable for desk
+    lanSecond: false,
+    catalogIsSoT: false,
+    shellLoaded: true,
+    executeMode: "none",
+    boundModule: null,
+    frSource: null,
+    mainComponent: "hermesgfapp",
+    lastError: null,
+    note: "冷启：壳在；运输默认 USB",
+  });
+
+  function pathOk(s, which) {
+    if (s.transport === "usb") {
+      return which === "desk" ? s.reverse8081 : s.reverse8082;
+    }
+    return which === "desk" ? s.lanDesk : s.lanSecond;
+  }
+
+  function pathHint(s) {
+    return s.transport === "usb"
+      ? "USB：需要 adb reverse 对应端口"
+      : "Wi‑Fi：需要 Live.lanUrl 可达（同网 LAN IP）";
+  }
+
+  function assertSuccess(s) {
+    if (s.lastError) return { ok: false, reason: s.lastError };
+    if (!s.shellLoaded) return { ok: false, reason: "壳未加载" };
+    if (s.mainComponent !== "hermesgfapp") return { ok: false, reason: "主组件名丢失" };
+    if (s.executeMode === "none" || !s.boundModule) return { ok: false, reason: "尚未真·Bind" };
+    if (s.frSource === "fake_inprocess" || s.frSource === "host_metro")
+      return { ok: false, reason: "FR 来源不合格" };
+    if (s.boundModule === "desk" && s.frSource !== "desk_metro")
+      return { ok: false, reason: "绑 desk 时 FR 必须来自 desk Metro" };
+    if (s.boundModule === "second" && s.frSource !== "second_metro")
+      return { ok: false, reason: "绑 second 时 FR 必须来自 second Metro" };
+    if (s.executeMode === "phase1_reload")
+      return { ok: true, reason: "里程碑 A（" + s.transport + "）— 不关图；还需 ScriptManager" };
+    return { ok: true, reason: "工业真·Bind 通过（" + s.transport + " · 壳常驻 · 业务 FR）" };
+  }
+
+  function reduce(state, action) {
+    const s = { ...state, lastError: null };
+    switch (action.type) {
+      case "RESET":
+        return initial();
+      case "TRANSPORT_USB":
+        return { ...s, transport: "usb", note: "运输=USB（usbUrl + reverse）" };
+      case "TRANSPORT_WIFI":
+        return { ...s, transport: "wifi", note: "运输=Wi‑Fi（lanUrl · 无需 reverse）" };
+      case "START_DESK":
+        return { ...s, deskLive: true, note: "desk Metro live（应同时 publish usbUrl+lanUrl）" };
+      case "START_SECOND":
+        return { ...s, secondLive: true, note: "second Metro live" };
+      case "STOP_DESK":
+        return { ...s, deskLive: false, reverse8081: false, lanDesk: false, note: "desk Metro 停" };
+      case "REVERSE_ALL":
+        return {
+          ...s,
+          reverse8081: s.deskLive,
+          reverse8082: s.secondLive,
+          note: "adb reverse 已执行（仅 USB 路径需要）",
+        };
+      case "LAN_READY":
+        return {
+          ...s,
+          lanDesk: s.deskLive,
+          lanSecond: s.secondLive,
+          note: "lanUrl 已探测可达（设备同网）",
+        };
+      case "CATALOG_SOT":
+        return { ...s, catalogIsSoT: true, note: "面板 Catalog = SoT" };
+      case "CATALOG_FAKE":
+        return { ...s, catalogIsSoT: false, note: "面板假 ModuleRegistry" };
+      case "BIND_PHASE1": {
+        if (!s.deskLive) return { ...s, lastError: "desk 未 live", note: "失败" };
+        if (!pathOk(s, "desk")) return { ...s, lastError: pathHint(s), note: "失败" };
+        return {
+          ...s,
+          executeMode: "phase1_reload",
+          boundModule: "desk",
+          frSource: "desk_metro",
+          mainComponent: "hermesgfapp",
+          note: "Phase-1 重载 host-surface（" + s.transport + "）",
+        };
+      }
+      case "BIND_SM_DESK": {
+        if (!s.catalogIsSoT) return { ...s, lastError: "Catalog 非 SoT", note: "失败" };
+        if (!s.deskLive || !pathOk(s, "desk"))
+          return { ...s, lastError: "desk 路径未就绪 — " + pathHint(s), note: "失败" };
+        return {
+          ...s,
+          executeMode: "script_manager",
+          boundModule: "desk",
+          frSource: "desk_metro",
+          mainComponent: "hermesgfapp",
+          note: "SM→desk via " + (s.transport === "usb" ? "usbUrl" : "lanUrl"),
+        };
+      }
+      case "BIND_SM_SECOND": {
+        if (!s.catalogIsSoT) return { ...s, lastError: "Catalog 非 SoT", note: "失败" };
+        if (!s.secondLive || !pathOk(s, "second"))
+          return { ...s, lastError: "second 路径未就绪 — " + pathHint(s), note: "失败" };
+        if (!s.deskLive)
+          return { ...s, lastError: "半成品：desk 已死 — 非双 Metro 同开", note: "失败" };
+        return {
+          ...s,
+          executeMode: "script_manager",
+          boundModule: "second",
+          frSource: "second_metro",
+          mainComponent: "hermesgfapp",
+          note: "SM→second via " + (s.transport === "usb" ? "usbUrl" : "lanUrl") + "；desk 仍 live",
+        };
+      }
+      case "WIFI_WITHOUT_LAN":
+        return {
+          ...s,
+          transport: "wifi",
+          deskLive: true,
+          catalogIsSoT: true,
+          lanDesk: false,
+          reverse8081: true,
+          lastError: "Wi‑Fi 运输却只有 usbUrl/reverse — lanUrl 缺失（半成品）",
+          note: "禁止：Wi‑Fi 场景偷用 127.0.0.1",
+        };
+      case "WRONG_INDEX":
+        return {
+          ...s,
+          executeMode: "none",
+          boundModule: null,
+          frSource: null,
+          mainComponent: "(unregistered)",
+          lastError: "hermesgfapp has not been registered",
+          note: "禁止路径",
+        };
+      case "FAKE_BANNER":
+        return {
+          ...s,
+          executeMode: "none",
+          boundModule: "desk",
+          frSource: "fake_inprocess",
+          lastError: "假 Bind：banner + in-process",
+          note: "半成品",
+        };
+      case "RELEASE_HTTP":
+        return { ...s, lastError: "Release 禁止 http loadScript", note: "门禁" };
+      default:
+        return s;
+    }
+  }
+
+  return { initial, reduce, assertSuccess };
+})();
+
+const ACTIONS = [
+  { type: "RESET", label: "重置冷启" },
+  { type: "TRANSPORT_USB", label: "运输 → USB" },
+  { type: "TRANSPORT_WIFI", label: "运输 → Wi‑Fi" },
+  { type: "START_DESK", label: "起 desk Metro" },
+  { type: "START_SECOND", label: "起 second Metro" },
+  { type: "STOP_DESK", label: "停 desk Metro" },
+  { type: "REVERSE_ALL", label: "adb reverse（USB）" },
+  { type: "LAN_READY", label: "lanUrl 可达（Wi‑Fi）" },
+  { type: "CATALOG_SOT", label: "面板接 Catalog SoT" },
+  { type: "CATALOG_FAKE", label: "面板假 ModuleRegistry" },
+  { type: "BIND_PHASE1", label: "Bind · Phase-1", primary: true },
+  { type: "BIND_SM_DESK", label: "Bind · SM → desk", primary: true },
+  { type: "BIND_SM_SECOND", label: "Bind · SM → second", primary: true },
+  { type: "WIFI_WITHOUT_LAN", label: "误：Wi‑Fi 无 lanUrl", danger: true },
+  { type: "WRONG_INDEX", label: "误：整站指业务 index", danger: true },
+  { type: "FAKE_BANNER", label: "误：假 banner Bind", danger: true },
+  { type: "RELEASE_HTTP", label: "误：Release http", danger: true },
+];
+
+const SCENARIOS = [
+  {
+    id: "usb-happy",
+    title: "USB · 双包 SM",
+    blurb: "adb reverse + usbUrl。工业 Done 之一。",
+    steps: ["RESET", "TRANSPORT_USB", "START_DESK", "START_SECOND", "REVERSE_ALL", "CATALOG_SOT", "BIND_SM_DESK", "BIND_SM_SECOND"],
+  },
+  {
+    id: "wifi-happy",
+    title: "Wi‑Fi · 双包 SM",
+    blurb: "同网 lanUrl，无需 reverse。工业 Done 之二——缺这条算半成品。",
+    steps: ["RESET", "TRANSPORT_WIFI", "START_DESK", "START_SECOND", "LAN_READY", "CATALOG_SOT", "BIND_SM_DESK", "BIND_SM_SECOND"],
+  },
+  {
+    id: "milestone-usb",
+    title: "里程碑 A · USB",
+    blurb: "host-surface 重载可过；不关图。",
+    steps: ["RESET", "TRANSPORT_USB", "START_DESK", "REVERSE_ALL", "BIND_PHASE1"],
+  },
+  {
+    id: "fail-wifi-lan",
+    title: "失败：Wi‑Fi 无 lanUrl",
+    blurb: "无线场景却只 reverse/127.0.0.1 → 应失败。",
+    steps: ["RESET", "WIFI_WITHOUT_LAN", "BIND_SM_DESK"],
+  },
+  {
+    id: "fail-serial",
+    title: "失败：分时单 Metro",
+    blurb: "desk 停后绑 second → 非双同开。",
+    steps: ["RESET", "TRANSPORT_USB", "START_DESK", "START_SECOND", "REVERSE_ALL", "CATALOG_SOT", "STOP_DESK", "BIND_SM_SECOND"],
+  },
+  {
+    id: "fail-fake",
+    title: "失败：假 Bind",
+    blurb: "banner/in-process 不算 Done。",
+    steps: ["RESET", "START_DESK", "FAKE_BANNER"],
+  },
+];
+
+let state = BindOps.initial();
+let activeScenario = 0;
+let stepIndex = 0;
+
+function renderState() {
+  const v = BindOps.assertSuccess(state);
+  const fields = [
+    ["运输", state.transport === "usb" ? "USB / adb" : "Wi‑Fi / LAN"],
+    ["desk / second Metro", `${state.deskLive ? "live" : "off"} / ${state.secondLive ? "live" : "off"}`],
+    ["USB reverse 8081/8082", `${state.reverse8081}/${state.reverse8082}`],
+    ["Wi‑Fi lan 可达 desk/second", `${state.lanDesk}/${state.lanSecond}`],
+    ["Catalog", state.catalogIsSoT ? "SoT" : "假/未接"],
+    ["执行模式", state.executeMode],
+    ["已绑 / FR", `${state.boundModule || "—"} / ${state.frSource || "—"}`],
+    ["主组件", state.mainComponent],
+    ["上次错误", state.lastError || "—"],
+  ];
+  const panel = document.getElementById("statePanel");
+  panel.innerHTML = "";
+  for (const [k, val] of fields) {
+    const dt = document.createElement("dt");
+    dt.textContent = k;
+    const dd = document.createElement("dd");
+    dd.textContent = String(val);
+    if (k === "上次错误" && state.lastError) dd.className = "bad";
+    if (k === "执行模式" && state.executeMode === "script_manager") dd.className = "ok";
+    panel.appendChild(dt);
+    panel.appendChild(dd);
+  }
+  const verdict = document.getElementById("verdict");
+  verdict.textContent = (v.ok ? "判据：通过 — " : "判据：未通过 — ") + v.reason + " · " + state.note;
+  verdict.style.borderLeft = v.ok ? "4px solid var(--ok)" : "4px solid var(--bad)";
+}
+
+function dispatch(type) {
+  state = BindOps.reduce(state, { type });
+  renderState();
+  renderScenario();
+}
+
+function renderFree() {
+  const row = document.getElementById("freePlay");
+  row.innerHTML = "";
+  for (const a of ACTIONS) {
+    const b = document.createElement("button");
+    b.textContent = a.label;
+    if (a.primary) b.className = "primary";
+    if (a.danger) b.className = "danger";
+    b.onclick = () => { stepIndex = 0; dispatch(a.type); };
+    row.appendChild(b);
+  }
+}
+
+function renderTabs() {
+  const tabs = document.getElementById("tabs");
+  tabs.innerHTML = "";
+  SCENARIOS.forEach((sc, i) => {
+    const b = document.createElement("button");
+    b.textContent = sc.title;
+    if (i === activeScenario) b.className = "active";
+    b.onclick = () => {
+      activeScenario = i;
+      stepIndex = 0;
+      state = BindOps.initial();
+      renderState();
+      renderTabs();
+      renderScenario();
+    };
+    tabs.appendChild(b);
+  });
+}
+
+function renderScenario() {
+  const sc = SCENARIOS[activeScenario];
+  const el = document.getElementById("scenario");
+  el.innerHTML = `<p>${sc.blurb}</p>`;
+  const ul = document.createElement("ul");
+  ul.className = "steps";
+  sc.steps.forEach((type, i) => {
+    const li = document.createElement("li");
+    if (i < stepIndex) li.className = "done";
+    if (i === stepIndex) li.className = "current";
+    const meta = ACTIONS.find((a) => a.type === type) || { label: type };
+    const b = document.createElement("button");
+    b.textContent = `${i + 1}. ${meta.label}`;
+    b.onclick = () => {
+      if (i !== stepIndex) return;
+      dispatch(type);
+      stepIndex = Math.min(stepIndex + 1, sc.steps.length);
+      renderScenario();
+    };
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+  el.appendChild(ul);
+}
+
+renderFree();
+renderTabs();
+renderState();
+renderScenario();
+</script>
+</body>
+</html>
