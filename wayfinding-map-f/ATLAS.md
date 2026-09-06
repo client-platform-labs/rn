@@ -558,9 +558,9 @@ flowchart TB
 > **目的：** 你（评审/新成员）能按这份手册，在不阅读所有 map 的前提下，模拟任一角色跑通全流程。
 > **环境：** macOS 14+ / Linux · Node 24 (`engines` ≥22 <25) · pnpm 9 · Android SDK（任选其一即可走）· adb device 可选
 
-> **🔴 全套机器化自测已落地（2026-09-05）：** `bash scripts/e2e/run-all.sh` 一键跑 9 大链路端到端（壳 + 离线包全生命周期），
-> 实测 **9 chain 全 PASS · 48s · 0 人工干预**。自动 seed staging lane + 自动点 vivo 安装弹窗。
-> 完整手册见 [docs/architecture/arch-onboarding.md](../architecture/arch-onboarding.md)（含已知 SKIP/WARN 5 类根因清单）。
+> **🔴 全套机器化自测已落地（2026-09-06）：** `bash scripts/e2e/run-all.sh` 一键跑 **10** 大链路端到端（壳 + 离线包全生命周期 + iOS simulator），
+> 含自动 seed staging lane、vivo 安装弹窗自动点、灰度设备切片、结构化审计日志。
+> 完整手册见 [docs/architecture/arch-onboarding.md](../architecture/arch-onboarding.md)（含已知 SKIP/WARN 根因清单 §6）。
 
 ### 4.0 准备：克隆与安装
 
@@ -767,9 +767,9 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 | 6.2 | CP-Auth 测试测错端点（已实现，只护写路由） | 06 · 09 | ✅ 已修（per-tenant 仍是 backlog） |
 | 6.3 | 灰度设备切片（gray lane + device-manifest + PUT/GET lane） | 04 · 08 | ✅ 已修（`verify-cp-device-lane` PASS） |
 | 6.4 | 七阶段结构化审计日志（`cp-audit.log`） | 06 | ✅ 已修 |
-| 6.5 | 业务/数据侧未初始化（bundle 目录、jsonc BOM、Nous 未 init） | 02 · 09 | ⚪ 低 |
+| 6.5 | 业务/数据侧细节（ota-business-pack 旧路径、BOM、Nous 缺 symbol） | 02 · 09 | ✅ 已修（测试路径/参数） |
 
-**结论**：E2E 层 6.1–6.4 已闭环。剩余「工业级」差距转向企业深化——真 CA、per-tenant、真观测后端、多业务线负载、iOS Simulator Runtime 装齐后跑绿 chain-10（代码已就位）。
+**结论**：E2E 层 6.1–6.5 已闭环。剩余「工业级」差距转向企业深化——真 CA、per-tenant、真观测后端、多业务线负载、真机门禁自托管 runner 落地。
 
 ### 5.1 已 shelved / deferred（不在本季度范围）
 

@@ -75,24 +75,29 @@ else
   warn "Metro 8082 未跑"
 fi
 
-step "2.6 业务包多 bundle 物理存在"
-for bundle in \
-  "$E2E_HOST/.rn/ota-build/desk/index.bundle" \
-  "$E2E_HOST/.rn/ota-business-pack/fixture_second/index.bundle" \
-  "$E2E_HOST/.rn/ota-build/fixture_second/index.bundle" \
-  "$E2E_HOST/.rn/ota-build/index.bundle"; do
+step "2.6 业务包多 bundle 物理存在（规范路径 .rn/ota-build/<module>/index.bundle）"
+# 约定唯一输出目录：ota-build/<business_module>/（不再认 ota-business-pack 旧名）
+FOUND=0
+for mod in desk fixture_second; do
+  bundle="$E2E_HOST/.rn/ota-build/$mod/index.bundle"
   if [[ -f "$bundle" ]]; then
-    ok "bundle: $bundle ($(wc -c < "$bundle") bytes)"
+    ok "bundle $mod: $(wc -c < "$bundle") bytes"
+    FOUND=$((FOUND+1))
   else
-    warn "缺 bundle: $bundle"
-    SKIPS=$((SKIPS+1))
+    warn "缺 bundle: ota-build/$mod/index.bundle（先跑 chain-05 / seed）"
   fi
 done
+if [[ $FOUND -lt 1 ]]; then
+  err "ota-build 下无任何业务 bundle"; FAILS=$((FAILS+1))
+elif [[ $FOUND -lt 2 ]]; then
+  SKIPS=$((SKIPS+1))
+fi
 
 step "2.7 Debug 模式 load policy（应 permissive，允许加载本地 dev bundle）"
 if [[ -f "$E2E_HOST/.rn/catalog-embed.json" ]]; then
+  # jget.mjs 已剥 BOM / 注释；loadPolicy 未声明 = debug 默许
   POLICY=$($JGET "$E2E_HOST/.rn/catalog-embed.json" .loadPolicy)
-  if [[ -z "$POLICY" || "$POLICY" == "null" || "$POLICY" == "permissive" || "$POLICY" == "dev" ]]; then
+  if [[ -z "$POLICY" || "$POLICY" == "null" || "$POLICY" == "undefined" || "$POLICY" == "permissive" || "$POLICY" == "dev" ]]; then
     ok "loadPolicy=${POLICY:-未声明}（debug 模式允许）"
   else
     warn "loadPolicy=$POLICY（生产策略，debug 应绕开）"

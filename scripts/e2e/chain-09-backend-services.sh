@@ -91,10 +91,13 @@ MODS=$(node $E2E_REPO/scripts/e2e/jget.mjs "$E2E_HOST/.rn/catalog-embed.json" .m
 NOUS_PATS=$(curl -sf "$E2E_NOUS/openapi.json" 2>/dev/null | jq -r '.paths | keys[]' 2>/dev/null | grep -cE "^/v1" || echo 0)
 ok "catalog modules=$MODS, nous /v1/* paths=$NOUS_PATS"
 
-step "9.11 Nous 数据查询（真业务接口）"
-out=$(curl -sf "$E2E_NOUS/v1/global/latest" 2>/dev/null | head -c 200 || true)
-if [[ -n "$out" ]]; then ok "/v1/global/latest 有数据: ${out:0:80}..."
-else warn "global/latest 空（业务未初始化）"; fi
+step "9.11 Nous 数据查询（真业务接口；/v1/global/latest 必填 symbol）"
+out=$(curl -sf "$E2E_NOUS/v1/global/latest?symbol=VIX" 2>/dev/null | head -c 200 || true)
+if echo "$out" | jq -e '.trade_date and .close' >/dev/null 2>&1; then
+  ok "/v1/global/latest?symbol=VIX 有数据: $out"
+else
+  warn "global/latest?symbol=VIX 空或异常（Nous DB 未灌全球指数）: ${out:0:80}"
+fi
 
 step "9.11b data-service 后端健康（独立 Python 真后端）"
 D=$(curl -sf "$E2E_DATA_SERVICE/v1/health" 2>/dev/null)

@@ -238,23 +238,23 @@ CP Auth **早已实现且 `verify-cp-auth.mjs` PASS**（CI 在跑）。它只保
 
 所有写路由（promote/block/kill/pause/resume/rollout\*/dependency-manifest PUT/device-lane PUT）在鉴权失败与成功时都落审计。`verify-cp-device-lane.mjs` 覆盖 denied + ok。
 
-### 6.5 业务 / 数据侧未初始化（无害）
+### 6.5 业务 / 数据侧细节（✅ 已修 · 根因多为测试测错路径/参数）
 
-| Chain | Step | 现象 |
-|-------|------|------|
-| 02 | 2.6 | 缺 `ota-business-pack/fixture_second` 路径 bundle（实际落在 `ota-build/`） |
-| 02 | 2.7 | loadPolicy 输出乱码（jsonc BOM） |
-| 09 | 9.11 | Nous `global/latest` 空（业务数据未灌） |
+| Chain | Step | 曾报现象 | 真根因 / 修法 |
+|-------|------|---------|---------------|
+| 02 | 2.6 | 缺 `ota-business-pack/...` | 规范路径是 `.rn/ota-build/<module>/`；chain 改只认规范路径 |
+| 02 | 2.7 | loadPolicy「乱码」 | 已用 `jget.mjs` 剥 BOM；未声明 = debug 默许 |
+| 09 | 9.11 | `global/latest` 空 | 端点**必填** `?symbol=`；改测 `/v1/global/latest?symbol=VIX` |
 
-**影响**：2.6 是 bundle 输出目录命名不一致（`ota-business-pack` vs `ota-build`），2.7 是 BOM，9.11 是 Nous 侧没跑 init 脚本——三者都不阻塞主链路。
+**说明**：三者都不阻塞主链路；现已从 WARN 收敛为真断言。
 
 ---
 
 ### 真问题 0 个
 
-全跑 **10 chain（含 iOS，无 runtime 时 chain-10 SKIP）· 0 FAIL · 0 人工干预**。6.1–6.4 已闭环；剩余 6.5 是数据/文档细节。
+全跑 **10 chain · 0 FAIL · 0 人工干预**（iOS 需 Simulator Runtime；data-service / Nous 需本地起）。6.1–6.5 已闭环。
 
-**按优先级待修**：6.5 数据/文档细节 > 企业深化（真 CA / per-tenant / 真观测）。签名/SBOM、CP Auth、灰度切片、审计日志不再是产品缺口。
+**剩余差距**转向企业深化：真 CA / per-tenant / 真观测 / 真机门禁落地（方案已写）。
 
 ---
 
@@ -362,9 +362,10 @@ sed 's/\x1b\[[0-9;]*m//g' /tmp/e2e-out/chain-XX.log | grep -E "✗|✓|!"
 - [x] **data-service 跨服务**: chain-09 接真 Python 后端（健康 + 业务探针 + SSE）
 - [x] **Helm L2 契约**: `deploy/distribution-service/helm/` + 生产 runbook（per-tenant 仍是演进契约）
 - [x] **CI 集成（无设备）**: release-readiness 01–05 已进 GitHub Actions；真机门禁方案见 `docs/architecture/device-gate-plan.md`（自托管 runner 未落地）
-- [ ] **数据/文档细节**: bundle 输出目录统一 + jsonc BOM + Nous init — §6.5
+- [x] **§6.5 测试细节**: ota-build 规范路径 + jget BOM + Nous `global/latest?symbol=`
+- [x] **Atlas §4 链接本手册**: ATLAS §4 已链到本手册
 - [ ] **真机门禁落地**: 自托管 runner + 设备农场（方案已写）
-- [ ] **Atlas §4 链接本手册**: 若尚未互链则补一行
+- [ ] **企业深化**: 真 CA / per-tenant / 真观测后端 / 多业务线负载
 
 ---
 
