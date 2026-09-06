@@ -56,6 +56,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up PATH (self-hosted macOS)
+        run: |
+          set -euo pipefail
+          # launchd runners get a minimal PATH — add homebrew + platform-tools + nvm node
+          echo "/opt/homebrew/bin"  >> "$GITHUB_PATH"
+          echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/share/android-commandlinetools/platform-tools" >> "$GITHUB_PATH"
+          NVM_NODE="$(ls -d "$HOME"/.nvm/versions/node/v* 2>/dev/null | sort -V | tail -1 || true)"
+          if [[ -n "$NVM_NODE" ]]; then echo "$NVM_NODE/bin" >> "$GITHUB_PATH"; fi
+          echo "ANDROID_HOME=/opt/homebrew/share/android-commandlinetools" >> "$GITHUB_ENV"
+          echo "--- tool versions ---"
+          node -v
+          (pnpm -v || corepack enable)
+          adb version | head -1
+          git --version
+
+      - name: Install deps & build (rn-delivery dist/)
+        run: |
+          set -euo pipefail
+          corepack enable 2>/dev/null || true
+          pnpm install --frozen-lockfile
+          pnpm build
+          test -f packages/rn-delivery/dist/cli.js && echo "dist/cli.js present"
+
       - name: Preflight — adb device
         run: |
           set -euo pipefail
