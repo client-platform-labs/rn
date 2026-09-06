@@ -364,8 +364,12 @@ sed 's/\x1b\[[0-9;]*m//g' /tmp/e2e-out/chain-XX.log | grep -E "✗|✓|!"
 - [x] **CI 集成（无设备）**: release-readiness 01–05 已进 GitHub Actions；真机门禁方案见 `docs/architecture/device-gate-plan.md`（自托管 runner 未落地）
 - [x] **§6.5 测试细节**: ota-build 规范路径 + jget BOM + Nous `global/latest?symbol=`
 - [x] **Atlas §4 链接本手册**: ATLAS §4 已链到本手册
-- [ ] **真机门禁落地**: 自托管 runner + 设备农场（方案已写）
-- [ ] **企业深化**: 真 CA / per-tenant / 真观测后端 / 多业务线负载
+- [x] **真机门禁 workflow**: `.github/workflows/device-gate.yml`（需注册 self-hosted `device` runner）
+- [x] **per-tenant 薄鉴权**: `RN_CP_TENANTS` + `X-RN-Tenant`（`verify-cp-enterprise`）
+- [x] **PEM 签名路径**: `RN_DELIVERY_SIGN_KEY_PEM` / `_FILE`（Ed25519/RSA；真 CA/HSM 仍是替换点）
+- [x] **薄观测**: `GET /v1/metrics` + `POST /v1/sli`（可接 Prometheus / tick）
+- [ ] **真机门禁 runner 注册**: 在 adb 主机装 self-hosted runner 并挂真机
+- [ ] **企业深化替换点**: 工业 CA/HSM · 真 CycloneDX · 外部观测后端 · 多业务线负载
 
 ---
 

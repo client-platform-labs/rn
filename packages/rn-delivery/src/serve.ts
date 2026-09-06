@@ -34,7 +34,7 @@ import type { CandidateMetadata } from "./types.js";
 import {
   checkCpBearerAuth,
   checkCpMutatingRole,
-  resolveCpAuthToken,
+  resolveCpAuthConfig,
   resolveCpRole,
   resolveCpMinSoakMs,
 } from "./cp-auth.js";
@@ -50,7 +50,11 @@ import { pickCandidate } from "./release-shared.js";
 import { useSqliteRegistry } from "./registry-sqlite.js";
 import { usePostgresRegistry } from "./registry-postgres.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
-import { KillPauseError, RolloutError } from "@client-platform/rn-core";
+import {
+  KillPauseError,
+  RolloutError,
+  type SliSnapshot,
+} from "@client-platform/rn-core";
 
 const STATIC_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -60,6 +64,44 @@ const STATIC_DIR = path.join(
 const CP_SERVICE_NAME = "control-plane";
 const CP_SERVICE_API = 1;
 
+/** Thin in-process observability (replaceable by Prometheus / OTel later). */
+type CpMetrics = {
+  http_ok: number;
+  http_denied: number;
+  http_error: number;
+  sli_posts: number;
+  last_sli: Record<string, SliSnapshot>;
+};
+
+const metrics: CpMetrics = {
+  http_ok: 0,
+  http_denied: 0,
+  http_error: 0,
+  sli_posts: 0,
+  last_sli: {},
+};
+
+function renderPrometheusMetrics(): string {
+  const lines = [
+    "# HELP cp_http_ok_total CP write routes that succeeded",
+    "# TYPE cp_http_ok_total counter",
+    `cp_http_ok_total ${metrics.http_ok}`,
+    "# HELP cp_http_denied_total CP auth denials",
+    "# TYPE cp_http_denied_total counter",
+    `cp_http_denied_total ${metrics.http_denied}`,
+    "# HELP cp_http_error_total CP write route errors",
+    "# TYPE cp_http_error_total counter",
+    `cp_http_error_total ${metrics.http_error}`,
+    "# HELP cp_sli_posts_total SLI snapshots posted",
+    "# TYPE cp_sli_posts_total counter",
+    `cp_sli_posts_total ${metrics.sli_posts}`,
+    "# HELP cp_sli_digests Number of digests with a last SLI snapshot",
+    "# TYPE cp_sli_digests gauge",
+    `cp_sli_digests ${Object.keys(metrics.last_sli).length}`,
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
 /** C6.4 — structured audit log for every CP write route. One JSON line per event. */
 export type CpAuditEntry = {
   ts: string;
@@ -68,6 +110,7 @@ export type CpAuditEntry = {
   actor: string;
   outcome: "ok" | "denied" | "error";
   detail?: string;
+  tenant?: string;
 };
 
 function auditLogDir(projectRoot: string): string {
@@ -84,6 +127,10 @@ export function appendAudit(
   entry: Omit<CpAuditEntry, "ts">,
 ): void {
   try {
+    if (entry.outcome === "ok") metrics.http_ok += 1;
+    else if (entry.outcome === "denied") {
+      /* counted at denial site to avoid double-count when both auth+role deny */
+    } else if (entry.outcome === "error") metrics.http_error += 1;
     const dir = auditLogDir(projectRoot);
     mkdirSync(dir, { recursive: true });
     const line: CpAuditEntry = { ...entry, ts: new Date().toISOString() };
@@ -200,33 +247,48 @@ export function createControlPlane(options: {
   const host = options.host ?? "127.0.0.1";
   const serviceMode = options.serviceMode ?? "cli-serve";
   const storage: "file" | "sqlite" = useSqliteRegistry() ? "sqlite" : "file";
-  const cpAuthToken = resolveCpAuthToken();
+  const cpAuthConfig = resolveCpAuthConfig();
   const cpRole = resolveCpRole();
+  /** Last authenticated tenant for the current request (set by requireCpAuth). */
+  let requestTenant = "default";
 
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
+    requestTenant = "default";
     try {
       const requireCpAuth = () => {
-        const auth = checkCpBearerAuth(req.headers.authorization, cpAuthToken);
+        const tenantHeader = req.headers["x-rn-tenant"];
+        const tenant =
+          typeof tenantHeader === "string" ? tenantHeader : undefined;
+        const auth = checkCpBearerAuth(
+          req.headers.authorization,
+          cpAuthConfig,
+          tenant,
+        );
         if (!auth.ok) {
+          metrics.http_denied += 1;
           appendAudit(projectRoot, {
             method: req.method ?? "UNKNOWN",
             path: url.pathname,
             actor: "anonymous",
             outcome: "denied",
             detail: auth.error,
+            tenant,
           });
           sendJson(res, auth.status, { error: auth.error });
           return false;
         }
+        requestTenant = auth.tenant;
         const role = checkCpMutatingRole(cpRole);
         if (!role.ok) {
+          metrics.http_denied += 1;
           appendAudit(projectRoot, {
             method: req.method ?? "UNKNOWN",
             path: url.pathname,
-            actor: cpRole,
+            actor: `${cpRole}@${requestTenant}`,
             outcome: "denied",
             detail: role.error,
+            tenant: requestTenant,
           });
           sendJson(res, role.status, { error: role.error });
           return false;
@@ -287,8 +349,73 @@ export function createControlPlane(options: {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/v1/metrics") {
+        res.writeHead(200, {
+          "content-type": "text/plain; version=0.0.4; charset=utf-8",
+        });
+        res.end(renderPrometheusMetrics());
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/sli") {
+        if (!requireCpAuth()) return;
+        const raw = await readBody(req);
+        const body = raw
+          ? (JSON.parse(raw) as {
+              digest?: string;
+              sli?: SliSnapshot;
+              tick?: boolean;
+              human_full_approved?: boolean;
+            })
+          : {};
+        if (!body.digest?.trim()) {
+          throw new DeliveryError("POST /v1/sli: digest required", EXIT_FAIL);
+        }
+        if (!body.sli || typeof body.sli !== "object") {
+          throw new DeliveryError("POST /v1/sli: sli object required", EXIT_FAIL);
+        }
+        const digest = body.digest.trim();
+        metrics.last_sli[digest] = body.sli;
+        metrics.sli_posts += 1;
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: `${cpRole}@${requestTenant}`,
+          outcome: "ok",
+          detail: `digest=${digest} tick=${body.tick === true}`,
+          tenant: requestTenant,
+        });
+        if (body.tick === true) {
+          const { registry, result } = tickRollout(projectRoot, digest, {
+            sli: body.sli,
+            human_full_approved: body.human_full_approved === true,
+          });
+          sendJson(res, 200, {
+            ok: true,
+            action: "sli_post_tick",
+            digest,
+            sli: body.sli,
+            tick: result.action,
+            detail: result.detail,
+            rollout: result.state,
+            registry,
+          });
+          return;
+        }
+        sendJson(res, 200, {
+          ok: true,
+          action: "sli_post",
+          digest,
+          sli: body.sli,
+        });
+        return;
+      }
+
       if (req.method === "GET" && url.pathname === "/v1/service") {
         const labSoak = resolveCpMinSoakMs();
+        const tenants = cpAuthConfig.tenants
+          ? Object.keys(cpAuthConfig.tenants)
+          : undefined;
         sendJson(res, 200, {
           name: CP_SERVICE_NAME,
           api: CP_SERVICE_API,
@@ -299,6 +426,13 @@ export function createControlPlane(options: {
           default_min_soak_ms: labSoak ?? 60_000,
           postgres: usePostgresRegistry(),
           postgres_env: "RN_CP_DATABASE_URL",
+          auth: {
+            single_token: Boolean(cpAuthConfig.token),
+            tenants: tenants ?? null,
+            tenant_header: "X-RN-Tenant",
+          },
+          metrics: "/v1/metrics",
+          sli: "POST /v1/sli",
           note: usePostgresRegistry()
             ? "thin CP — Postgres adapter contract (B8); default storage remains file/sqlite"
             : "thin CP — Postgres adapter contract = Map B B8 (opt-in via RN_CP_DATABASE_URL)",
@@ -918,6 +1052,9 @@ function printBanner(handle: ControlPlaneHandle, label: string): void {
   console.error("  GET  /v1/devices | GET|PUT /v1/devices/:serial/lane (C6.3 grey slice)");
   console.error("  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)");
   console.error("  POST /v1/rollout/tick { digest, sli?, now? } (C5 P10 auto)");
+  console.error("  GET  /v1/metrics  (Prometheus text — thin observability)");
+  console.error("  POST /v1/sli { digest, sli, tick? }  (SLI ingest → optional tick)");
+  console.error("  auth: RN_CP_TOKEN | RN_CP_TENANTS + X-RN-Tenant");
   console.error("  audit -> .rn/distribution-lab/logs/cp-audit.log (C6.4)");
 }
 

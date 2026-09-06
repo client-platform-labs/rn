@@ -1,9 +1,21 @@
 # 全量真机门禁（Pre-merge Device Gate）方案
 
-> 状态：方案（仅设计，不含实现）
-> 定位：把现有 9-chain 真机 E2E 从「本地手动跑」升级为「PR 合并前的硬门禁」
+> 状态：**已落地 workflow**（`.github/workflows/device-gate.yml`）· 需在 adb 主机注册 `self-hosted` runner（labels: `device`）后才会真正跑
+> 定位：把现有 10-chain 真机 E2E 从「本地手动跑」升级为「可调度门禁」
 > 约束：遵循「如无必要，勿增实体」——复用 `scripts/e2e/*` 现有基础设施，不新造工具
 
+### 注册 runner（一次性）
+
+```bash
+# GitHub → Settings → Actions → Runners → New self-hosted runner
+# 在 adb 主机上：
+./config.sh --url https://github.com/client-platform-labs/rn --token <TOK> --labels device,device-idle
+./run.sh
+# 常驻后台 + 预热：bash scripts/setup-local-distribution-server.sh
+# 可选 repo variables：TIANGONG_HOST / TIANGONG_DESK / TIANGONG_SECOND / CP_BASE
+```
+
+触发：`workflow_dispatch` · nightly cron · PR 打 `device-gate` label。
 ---
 
 ## 1. 目标与边界

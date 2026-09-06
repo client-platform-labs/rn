@@ -807,12 +807,13 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 
 ### 5.4 真生产上市阻塞（按严重度排序）
 
-1. **真观测后端**——SLO breach pause 真触发依赖它；当前是合同/夹具
-2. **多租户 per-tenant 鉴权**——Helm chart + 生产 runbook 已就位；鉴权仍是单值 `RN_CP_TOKEN`（演进契约见 `docs/runbooks/distribution-service-production.md`）
-3. **多业务线真生产负载**——所有 L5 钢线基于 tiangong 单业务；多业务时 namespace 冲突、错误归因、跨包通信 ACL 未实战
-4. **iOS Debug Host 对称真证据**——代码链已就位；本机装 iOS Simulator Runtime 后 chain-10 可出证据
+1. **多业务线真生产负载**——所有 L5 钢线基于 tiangong 单业务；多业务时 namespace 冲突、错误归因、跨包通信 ACL 未实战
+2. **真观测后端深化**——已有薄 `/v1/metrics` + `/v1/sli`（Prometheus text / SLI→tick）；接 Datadog/SLS/自建仍是替换点
+3. **真 CA / CycloneDX**——已有 PEM Ed25519/RSA 签名路径（`RN_DELIVERY_SIGN_KEY_PEM`）；工业 CA/HSM + 真 CycloneDX 仍是 #90
+4. **真机门禁 runner 注册**——workflow 已落（`device-gate.yml`）；需在 adb 主机注册 `self-hosted`/`device` runner 才真正跑
 5. **Harmony 主路径**——shelved；如要 Harmony 上市须 #93 重新评估
 
+> 已下沉（不再阻塞）：per-tenant 鉴权薄实现（`RN_CP_TENANTS` + `X-RN-Tenant`）；iOS chain-10 已有真证据。
 ---
 
 ## 附录 B · Map 状态速查（截至 2026-09-05 · gh 实证）

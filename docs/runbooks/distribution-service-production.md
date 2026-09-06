@@ -68,11 +68,19 @@ helm install distribution-service deploy/distribution-service/helm \
 
 | 阶段 | 鉴权 / 隔离 | 存储 | 说明 |
 |------|------------|------|------|
-| **当前（L1）** | 单值 Bearer `RN_CP_TOKEN` 保护写路由 | file (`registry.json`) 或 `sqlite` | 单机 demo / 私有化单租户 |
-| **演进（L2）** | per-tenant（`tenant_id` + `product_app`） | Postgres（`RN_CP_DATABASE_URL`） | 见 `registry-postgres.ts` 的 DDL 与 `CpRegistryTenantKey` |
+| **L1 单租户** | `RN_CP_TOKEN` | file / sqlite | 私有化单租户 |
+| **L1.5 多 token** | `RN_CP_TENANTS='{"acme":"…"}'` + `X-RN-Tenant` | file / sqlite | **已落地**（`verify-cp-enterprise`） |
+| **L2 存储隔离** | 同上 + Postgres row scope | `RN_CP_DATABASE_URL` | 契约就位；行按 `(tenant_id, product_app)` |
 
-- 单值 token **不是** per-tenant 隔离——这是已知 backlog（`arch-onboarding §6`）。演进点明确：`RN_CP_DATABASE_URL` 一设，`/v1/service` 报 `postgres=true`，registry 行按 `(tenant_id, product_app)` 作用域切分。
-- token 形态演进（单值 → per-tenant JWT / API-key 表）是独立 backlog，不在本 runbook 落地代码。
+```bash
+# Multi-tenant thin auth
+export RN_CP_TENANTS='{"acme":"tok-acme","beta":"tok-beta"}'
+curl -X POST "$CP/v1/promote" \
+  -H "Authorization: Bearer tok-acme" \
+  -H "X-RN-Tenant: acme" \
+  -H "Content-Type: application/json" \
+  -d '{"digest":"..."}'
+```
 
 ## 4. 灰度 + 审计落地
 
@@ -95,25 +103,36 @@ curl "$CP/v1/devices/$SERIAL/lane"   # → {"serial":..., "lane":"gray"}
 ### 4.2 七阶段审计日志（C6.4）
 
 - 所有 CP **写路由**落结构化审计行：`<projectRoot>/.rn/distribution-lab/logs/cp-audit.log`。
-- 每行 JSON：`{ ts, method, path, actor, outcome, detail }`，`outcome ∈ {ok, denied, error}`。
+- 每行 JSON：`{ ts, method, path, actor, outcome, detail, tenant? }`，`outcome ∈ {ok, denied, error}`。
 - 鉴权失败（401/403）也落 `denied` 条目——企业合规审计可据此追查。
 
 ```bash
-tail -5 .rn/distribution-lab/logs/cp-audit.log | jq -c '{ts,method,path,actor,outcome}'
+tail -5 .rn/distribution-lab/logs/cp-audit.log | jq -c '{ts,method,path,actor,outcome,tenant}'
+```
+
+### 4.3 薄观测（可替换）
+
+```bash
+curl -s "$CP/v1/metrics"          # Prometheus text
+curl -X POST "$CP/v1/sli" \
+  -H "Authorization: Bearer $RN_CP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"digest":"...","sli":{"crash_rate":0.01},"tick":true}'
 ```
 
 ## 5. 上市前高质量交付产物核对
 
 | 产物 | 位置 | 状态 |
 |------|------|------|
-| 真签名（工业 CA） | `rn-delivery sign`（当前 digest-seal 占位） | 🟡 真 CA 是 backlog |
-| SBOM（CycloneDX） | `rn-delivery sign` 写入 SBOM slot（stub） | 🟡 真 SBOM 是 backlog |
-| 审计日志 | `cp-audit.log` | ✅ 已落地 |
-| 灰度设备切片 | `/v1/devices/:serial/lane` + `gray` lane | ✅ 已落地 |
-| 鉴权 | `RN_CP_TOKEN`（单值，写路由） | ✅ L1 现状 |
-| 多租户 | `RN_CP_DATABASE_URL` → Postgres | 🟡 契约就位，真后端 L2 |
-| 健康检查 | distribution + data-service Docker healthcheck / K8s probe | ✅ 已落地 |
-| Helm chart | `deploy/distribution-service/helm/` | ✅ 已落地 |
+| 签名 | `RN_DELIVERY_SIGN_KEY_PEM`（Ed25519/RSA） / HMAC / digest-stub | ✅ 路径就位；工业 CA/HSM 仍是替换点 |
+| SBOM（CycloneDX） | `rn-delivery sign` stub slot | 🟡 真 CycloneDX = #90 |
+| 审计日志 | `cp-audit.log` | ✅ |
+| 灰度设备切片 | `/v1/devices/:serial/lane` + `gray` | ✅ |
+| 鉴权 | `RN_CP_TOKEN` 或 `RN_CP_TENANTS` | ✅ |
+| 观测 | `/v1/metrics` + `/v1/sli` | ✅ 薄；外部后端是替换点 |
+| Postgres 存储 | `RN_CP_DATABASE_URL` | 🟡 契约就位 |
+| Helm chart | `deploy/distribution-service/helm/` | ✅ |
+| 真机门禁 | `.github/workflows/device-gate.yml` | ✅ workflow；需注册 runner |
 
 ## 6. 相关文档
 

@@ -1,0 +1,109 @@
+# Device Gate — self-hosted runner + physical Android device
+# Plan: docs/architecture/device-gate-plan.md
+#
+# L0 (device-less) lives in ci.yml → release-readiness.
+# This workflow is L1/L2 and ONLY runs when a runner labelled `device` is online.
+#
+# Register runner (once, on the adb host):
+#   Settings → Actions → Runners → New self-hosted runner
+#   ./config.sh --url <repo> --token <tok> --labels device,device-idle
+#   ./run.sh
+#
+# Prerequisites on the runner host (always hot):
+#   - adb + ANDROID_HOME, device connected
+#   - ~/code/tiangong-host, desk, fixture_second
+#   - CP :4040 + (optional) Nous :8000 / data-service :8001
+#   - bash scripts/setup-local-distribution-server.sh
+
+name: Device Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "L2 full | L2 fast (03+05) | L1 backend-only"
+        type: choice
+        options: [l2-full, l2-fast, l1]
+        default: l2-fast
+  schedule:
+    # Nightly 00:00 CST ≈ 16:00 UTC
+    - cron: "0 16 * * *"
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: device-pool
+  cancel-in-progress: false
+
+jobs:
+  device-e2e:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'device-gate'))
+    runs-on: [self-hosted, device]
+    timeout-minutes: 30
+    env:
+      CP_BASE: ${{ vars.CP_BASE || 'http://127.0.0.1:4040' }}
+      NOUS_BASE: ${{ vars.NOUS_BASE || 'http://127.0.0.1:8000' }}
+      DATA_SERVICE_BASE: ${{ vars.DATA_SERVICE_BASE || 'http://127.0.0.1:8001' }}
+      RN_CP_TOKEN: ${{ secrets.RN_CP_TOKEN || 'dev' }}
+      # Optional absolute paths on the runner host (set as repo Actions variables):
+      # TIANGONG_HOST / TIANGONG_DESK / TIANGONG_SECOND
+      TIANGONG_HOST: ${{ vars.TIANGONG_HOST }}
+      TIANGONG_DESK: ${{ vars.TIANGONG_DESK }}
+      TIANGONG_SECOND: ${{ vars.TIANGONG_SECOND }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight — adb device
+        run: |
+          set -euo pipefail
+          adb start-server
+          SERIAL=$(adb devices | awk 'NR==2 && $2=="device"{print $1}')
+          if [[ -z "$SERIAL" ]]; then
+            echo "::error::No adb device — mark job as environment issue, not platform bug"
+            exit 2
+          fi
+          echo "ANDROID_SERIAL=$SERIAL" >> "$GITHUB_ENV"
+          adb -s "$SERIAL" get-state
+
+      - name: Preflight — CP health
+        run: |
+          set -euo pipefail
+          if ! curl -sf "$CP_BASE/health" >/dev/null; then
+            echo "::error::CP $CP_BASE down — start setup-local-distribution-server.sh on the runner host"
+            exit 2
+          fi
+          curl -sf "$CP_BASE/v1/service" | head -c 200
+
+      - name: Resolve chain set
+        id: chains
+        run: |
+          MODE="${{ github.event.inputs.mode || 'l2-fast' }}"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then MODE=l2-full; fi
+          case "$MODE" in
+            l1)      echo "args=1 3" >> "$GITHUB_OUTPUT" ;;
+            l2-fast) echo "args=3 5" >> "$GITHUB_OUTPUT" ;;
+            l2-full) echo "args=" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "args=3 5" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Seed + run E2E
+        run: |
+          set -o pipefail
+          export E2E_CP="$CP_BASE" E2E_TOKEN="$RN_CP_TOKEN" E2E_NOUS="$NOUS_BASE"
+          export E2E_DATA_SERVICE="$DATA_SERVICE_BASE"
+          ARGS="${{ steps.chains.outputs.args }}"
+          # shellcheck disable=SC2086
+          bash scripts/e2e/run-all.sh $ARGS
+
+      - name: Upload E2E logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-out-${{ github.run_id }}
+          path: /tmp/e2e-out/
+          if-no-files-found: ignore
+          retention-days: 14
