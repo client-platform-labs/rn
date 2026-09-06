@@ -73,10 +73,21 @@ jobs:
           git --version
 
       - name: Install deps & build (rn-delivery dist/)
+        timeout-minutes: 12
+        env:
+          COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+          COREPACK_ENABLE_AUTO_PIN: "0"
+          npm_config_fetch_timeout: "60000"
+          npm_config_fetch_retries: "3"
         run: |
           set -euo pipefail
+          # Force pnpm content store onto LOCAL SSD. The host default store
+          # (~/Library/pnpm/store) symlinks to an external volume that may
+          # sleep/hang; a stalled mkdir there otherwise freezes install.
+          export npm_config_store_dir="$HOME/.pnpm-store-ci"
+          mkdir -p "$npm_config_store_dir"
           corepack enable 2>/dev/null || true
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile --reporter=append-only
           pnpm build
           test -f packages/rn-delivery/dist/cli.js && echo "dist/cli.js present"
 
