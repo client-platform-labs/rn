@@ -1,6 +1,6 @@
 # 全量真机门禁（Pre-merge Device Gate）方案
 
-> 状态：**已落地 workflow**（`.github/workflows/device-gate.yml`）· 需在 adb 主机注册 `self-hosted` runner（labels: `device`）后才会真正跑
+> 状态：**已落地并真机验证全绿**（`.github/workflows/device-gate.yml`，self-hosted runner `macos-arm64-device`，chain 03+05 PASS · vivo 弹窗自动勾选 · 真签名 · 灰度 promote）
 > 定位：把现有 10-chain 真机 E2E 从「本地手动跑」升级为「可调度门禁」
 > 约束：遵循「如无必要，勿增实体」——复用 `scripts/e2e/*` 现有基础设施，不新造工具
 
@@ -8,14 +8,32 @@
 
 ```bash
 # GitHub → Settings → Actions → Runners → New self-hosted runner
-# 在 adb 主机上：
-./config.sh --url https://github.com/client-platform-labs/rn --token <TOK> --labels device,device-idle
-./run.sh
-# 常驻后台 + 预热：bash scripts/setup-local-distribution-server.sh
+# 在 adb 主机上（macOS arm64 例；runner tar 若被墙可用 ghproxy 镜像）：
+#   token: gh api -X POST repos/<org>/<repo>/actions/runners/registration-token -q .token
+./config.sh --unattended --url https://github.com/<org>/<repo> --token <TOK> \
+  --name macos-arm64-device --labels self-hosted,macOS,ARM64,device
+./svc.sh install && ./svc.sh start   # launchd 常驻
+# 预热后台：bash scripts/setup-local-distribution-server.sh
 # 可选 repo variables：TIANGONG_HOST / TIANGONG_DESK / TIANGONG_SECOND / CP_BASE
 ```
 
-触发：`workflow_dispatch` · nightly cron · PR 打 `device-gate` label。
+触发：`workflow_dispatch`（l2-full / l2-fast / l1）· nightly cron（l2-full）· PR 打 `device-gate` label。
+
+### self-hosted macOS 主机的三个必处理坑（实测）
+
+1. **网络代理**：runner 控制通道走 `api.github.com`（通常通），但 `actions/checkout` 的 `git fetch` 走 `github.com` 数据通道、pnpm 走 registry——国内网络常被重置（`Empty reply from server`）或 DNS 挂起。在 `~/actions-runner/.env` 写代理（对所有 step 含 checkout 生效）：
+   ```
+   http_proxy=http://127.0.0.1:7897
+   https_proxy=http://127.0.0.1:7897
+   no_proxy=127.0.0.1,localhost,::1   # 本地 CP/Nous/data-service 旁路
+   NODE_USE_ENV_PROXY=1                # Node 24 全局 fetch 才读代理 env
+   ```
+2. **node 版本**：workflow 按 `.nvmrc` 主版本选 nvm node（非「最高已装版本」），避免 node/corepack 版本错配；PATH 在 "Set up PATH" 步骤注入 homebrew + platform-tools + nvm。
+3. **外置缓存卷挂死**：若主机把 `~/Library/pnpm/store`（及 Homebrew/pip/playwright 缓存）软链到外置卷，卷休眠/I/O 挂起会让 pnpm `open()/mkdir` 在内核**永久阻塞**（0% CPU、无 socket，install 卡在 "Scope" 后）。门禁固定本地 SSD store（`$HOME/.pnpm-store-ci`）；外置卷已挂死时强制卸载让悬空软链快速失败，并重指：
+   ```bash
+   diskutil unmount force /Volumes/DB
+   mkdir -p "$HOME/.pnpm-store-ci" && ln -sfn "$HOME/.pnpm-store-ci" ~/Library/pnpm/store
+   ```
 ---
 
 ## 1. 目标与边界
