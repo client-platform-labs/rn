@@ -1,0 +1,43 @@
+{
+  "hostRoot": "/Users/xuwei/code/tiangong-host",
+  "ok": true,
+  "generatedAt": "2026-09-03T00:17:45.268Z",
+  "checks": [
+    {
+      "id": "release-dev-support-dir",
+      "ok": true,
+      "summary": "no dev-support module directory",
+      "blocking": false
+    },
+    {
+      "id": "release-dev-support-state",
+      "ok": true,
+      "summary": "dev-support not enabled",
+      "blocking": false
+    },
+    {
+      "id": "release-app-entry-clean",
+      "ok": true,
+      "summary": "App entry has no DevSupportRoot wrapper",
+      "blocking": false
+    },
+    {
+      "id": "release-no-static-dev-session-panel",
+      "ok": true,
+      "summary": "App entry has no static shell/debug import",
+      "blocking": false
+    },
+    {
+      "id": "release-no-static-dev-session-panel",
+      "ok": true,
+      "summary": "App entry has no static shell/debug import",
+      "blocking": false
+    },
+    {
+      "id": "release-shellhost-devsession-gated",
+      "ok": true,
+      "summary": "ShellHost DevSessionDebugPanel is __DEV__-gated",
+      "blocking": false
+    }
+  ]
+}

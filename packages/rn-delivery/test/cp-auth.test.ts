@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { checkCpBearerAuth, checkCpMutatingRole, resolveCpMinSoakMs, resolveCpRole } from "../dist/cp-auth.js";
+import {
+  checkCpBearerAuth,
+  checkCpMutatingRole,
+  resolveCpMinSoakMs,
+  resolveCpRole,
+  resolveCpTenants,
+} from "../dist/cp-auth.js";
 
 describe("checkCpBearerAuth", () => {
   it("allows all when token unset", () => {
-    assert.deepEqual(checkCpBearerAuth(undefined, undefined), { ok: true });
-    assert.deepEqual(checkCpBearerAuth("Bearer x", undefined), { ok: true });
+    assert.equal(checkCpBearerAuth(undefined, undefined).ok, true);
+    assert.equal(checkCpBearerAuth("Bearer x", undefined).ok, true);
   });
 
   it("rejects missing header when token required", () => {
@@ -20,10 +26,25 @@ describe("checkCpBearerAuth", () => {
     assert.equal(result.ok, false);
   });
 
-  it("accepts matching bearer token", () => {
-    assert.deepEqual(checkCpBearerAuth("Bearer secret", "secret"), {
-      ok: true,
-    });
+  it("accepts matching bearer token (single-token → tenant default)", () => {
+    const result = checkCpBearerAuth("Bearer secret", "secret");
+    assert.equal(result.ok, true);
+    if (result.ok) assert.equal(result.tenant, "default");
+  });
+
+  it("multi-tenant requires X-RN-Tenant", () => {
+    const cfg = { tenants: { acme: "tok-a" } };
+    const missing = checkCpBearerAuth("Bearer tok-a", cfg);
+    assert.equal(missing.ok, false);
+    const ok = checkCpBearerAuth("Bearer tok-a", cfg, "acme");
+    assert.equal(ok.ok, true);
+    if (ok.ok) assert.equal(ok.tenant, "acme");
+  });
+
+  it("multi-tenant rejects unknown tenant / wrong token", () => {
+    const cfg = { tenants: { acme: "tok-a", beta: "tok-b" } };
+    assert.equal(checkCpBearerAuth("Bearer tok-a", cfg, "nope").ok, false);
+    assert.equal(checkCpBearerAuth("Bearer tok-a", cfg, "beta").ok, false);
   });
 });
 
@@ -35,7 +56,7 @@ describe("checkCpMutatingRole", () => {
   });
 
   it("admin allows mutate", () => {
-    assert.deepEqual(checkCpMutatingRole("admin"), { ok: true });
+    assert.equal(checkCpMutatingRole("admin").ok, true);
   });
 });
 
@@ -45,6 +66,19 @@ describe("resolveCpRole", () => {
     delete process.env.RN_CP_ROLE;
     assert.equal(resolveCpRole(), "admin");
     if (prev) process.env.RN_CP_ROLE = prev;
+  });
+});
+
+describe("resolveCpTenants", () => {
+  it("parses JSON map", () => {
+    const prev = process.env.RN_CP_TENANTS;
+    process.env.RN_CP_TENANTS = '{"acme":"a","beta":"b"}';
+    try {
+      assert.deepEqual(resolveCpTenants(), { acme: "a", beta: "b" });
+    } finally {
+      if (prev === undefined) delete process.env.RN_CP_TENANTS;
+      else process.env.RN_CP_TENANTS = prev;
+    }
   });
 });
 

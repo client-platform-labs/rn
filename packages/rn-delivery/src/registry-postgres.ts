@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS cp_registry_meta (
 CREATE TABLE IF NOT EXISTS cp_candidates (
   tenant_id TEXT NOT NULL,
   product_app TEXT NOT NULL,
-  lane TEXT NOT NULL CHECK (lane IN ('staging', 'production')),
+  lane TEXT NOT NULL CHECK (lane IN ('staging', 'production', 'gray')),
   digest TEXT NOT NULL,
   metadata_json TEXT NOT NULL,
   PRIMARY KEY (tenant_id, product_app, lane, digest)
@@ -98,6 +98,13 @@ CREATE TABLE IF NOT EXISTS cp_rollouts (
   record_json TEXT NOT NULL,
   PRIMARY KEY (tenant_id, product_app, digest)
 );
+CREATE TABLE IF NOT EXISTS cp_devices (
+  tenant_id TEXT NOT NULL,
+  product_app TEXT NOT NULL,
+  serial TEXT NOT NULL,
+  record_json TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, product_app, serial)
+);
 `.trim();
 
 export type CpRegistryStore = {
@@ -111,6 +118,8 @@ function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
     schemaVersion: 1,
     staging: raw.staging ?? [],
     production: raw.production ?? [],
+    gray: raw.gray ?? [],
+    devices: raw.devices ?? {},
     blocked: raw.blocked ?? [],
     kills: raw.kills ?? [],
     pauses: raw.pauses ?? [],

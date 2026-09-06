@@ -36,11 +36,33 @@ export const LAST_BUILD_FILE = "last-build.json";
 export const LAST_CANDIDATE_FILE = "last-candidate.json";
 export const REGISTRY_FILE = "registry.json";
 
+/** Distribution lane for host / js-update candidates and per-device slicing. */
+export type Lane = "staging" | "production" | "gray";
+
+/** Device → lane assignment (C6.3 grey slicing). Key is device serial. */
+export type DeviceLaneRecord = Record<
+  string,
+  { lane: Lane; assigned_at: string }
+>;
+
+export const LANES: readonly Lane[] = ["staging", "production", "gray"];
+
+export function isValidLane(value: unknown): value is Lane {
+  return (
+    typeof value === "string" &&
+    (LANES as readonly string[]).includes(value)
+  );
+}
+
 export type DeliveryRegistry = {
   schemaVersion: 1;
   /** Staging lane — promote-same-artifact source of truth (file CP stub). */
   staging: CandidateMetadata[];
   production: CandidateMetadata[];
+  /** Grey lane — manual / flag-driven device slice (sits beside staging/production). */
+  gray: CandidateMetadata[];
+  /** device → lane routing table (C6.3). */
+  devices: DeviceLaneRecord;
   blocked: Array<{
     release_id: string;
     digest: string;
@@ -118,6 +140,8 @@ export function emptyRegistry(): DeliveryRegistry {
     schemaVersion: 1,
     staging: [],
     production: [],
+    gray: [],
+    devices: {},
     blocked: [],
     kills: [],
     pauses: [],
@@ -130,11 +154,28 @@ function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
     schemaVersion: 1,
     staging: raw.staging ?? [],
     production: raw.production ?? [],
+    gray: raw.gray ?? [],
+    devices: normalizeDevices(raw.devices),
     blocked: raw.blocked ?? [],
     kills: raw.kills ?? [],
     pauses: raw.pauses ?? [],
     rollouts: raw.rollouts ?? [],
   };
+}
+
+function normalizeDevices(raw: DeliveryRegistry["devices"] | undefined): DeviceLaneRecord {
+  const out: DeviceLaneRecord = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [serial, rec] of Object.entries(raw)) {
+    if (!rec || typeof rec !== "object") continue;
+    const lane = rec.lane;
+    if (!isValidLane(lane)) continue;
+    out[serial] = {
+      lane,
+      assigned_at: typeof rec.assigned_at === "string" ? rec.assigned_at : new Date().toISOString(),
+    };
+  }
+  return out;
 }
 
 export function loadRegistry(projectRoot: string): DeliveryRegistry {
@@ -150,18 +191,23 @@ export function loadRegistry(projectRoot: string): DeliveryRegistry {
 
 const INSTALLABLE_KINDS = new Set(["app-host", "app-host-debug"]);
 
+/** Resolve candidate arrays for a lane selector (includes gray). */
+function lanesFor(
+  registry: DeliveryRegistry,
+  lane: Lane | "all",
+): CandidateMetadata[] {
+  if (lane === "staging") return registry.staging;
+  if (lane === "production") return registry.production;
+  if (lane === "gray") return registry.gray;
+  return [...registry.staging, ...registry.production, ...registry.gray];
+}
+
 /** #15 / Map B — installable Android app-host candidates from registry lanes. */
 export function listInstallableCandidates(
   registry: DeliveryRegistry,
-  lane: "staging" | "production" | "all" = "all",
+  lane: Lane | "all" = "all",
 ): CandidateMetadata[] {
-  const lanes: CandidateMetadata[] =
-    lane === "staging"
-      ? registry.staging
-      : lane === "production"
-        ? registry.production
-        : [...registry.staging, ...registry.production];
-  return lanes.filter(
+  return lanesFor(registry, lane).filter(
     (c) =>
       c.platform === "android" &&
       INSTALLABLE_KINDS.has(c.artifact_kind) &&
@@ -188,7 +234,7 @@ export function findArtifactByDigest(
 ): CandidateMetadata | undefined {
   const needle = digest.trim().toLowerCase();
   if (!needle) return undefined;
-  return [...registry.staging, ...registry.production].find(
+  return [...registry.staging, ...registry.production, ...registry.gray].find(
     (c) => c.digest.toLowerCase() === needle && Boolean(c.path?.trim()),
   );
 }
@@ -196,17 +242,11 @@ export function findArtifactByDigest(
 /** Map E #106 — js-update candidates for offline-package train console. */
 export function listJsUpdateCandidates(
   registry: DeliveryRegistry,
-  lane: "staging" | "production" | "all" = "all",
+  lane: Lane | "all" = "all",
   businessModule?: string,
 ): CandidateMetadata[] {
-  const lanes: CandidateMetadata[] =
-    lane === "staging"
-      ? registry.staging
-      : lane === "production"
-        ? registry.production
-        : [...registry.staging, ...registry.production];
   const mod = businessModule?.trim();
-  return lanes.filter((c) => {
+  return lanesFor(registry, lane).filter((c) => {
     if (c.artifact_kind !== "js-update") return false;
     if (mod && c.business_module !== mod) return false;
     return true;
@@ -347,6 +387,43 @@ export function resumeModule(
   registry.pauses = registry.pauses.filter((p) => p.business_module !== mod);
   saveRegistry(projectRoot, registry);
   return registry;
+}
+
+/** C6.3 grey slicing — read a device's current lane (fallback: "production"). */
+export function getDeviceLane(
+  registry: DeliveryRegistry,
+  serial: string,
+): Lane {
+  const rec = registry.devices[serial];
+  return rec?.lane ?? "production";
+}
+
+/** C6.3 grey slicing — assign a device to a lane (persisted, idempotent). */
+export function setDeviceLane(
+  projectRoot: string,
+  serial: string,
+  lane: Lane,
+): { registry: DeliveryRegistry; lane: Lane } {
+  if (!serial?.trim()) {
+    throw new Error("setDeviceLane: serial required");
+  }
+  if (!isValidLane(lane)) {
+    throw new Error(`setDeviceLane: invalid lane "${lane}"`);
+  }
+  const registry = loadRegistry(projectRoot);
+  registry.devices = {
+    ...registry.devices,
+    [serial.trim()]: { lane, assigned_at: new Date().toISOString() },
+  };
+  saveRegistry(projectRoot, registry);
+  return { registry, lane };
+}
+
+/** C6.3 grey slicing — list device→lane assignments. */
+export function listDeviceLanes(
+  registry: DeliveryRegistry,
+): DeviceLaneRecord {
+  return registry.devices;
 }
 
 /** update_ids CP kill (+ digest-block) → feed A5 excludeSlotsByBlockedUpdates */

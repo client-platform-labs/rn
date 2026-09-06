@@ -31,10 +31,14 @@ function openDb(projectRoot: string): DatabaseSync {
       value TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS candidates (
-      lane TEXT NOT NULL CHECK (lane IN ('staging', 'production')),
+      lane TEXT NOT NULL CHECK (lane IN ('staging', 'production', 'gray')),
       digest TEXT NOT NULL,
       metadata_json TEXT NOT NULL,
       PRIMARY KEY (lane, digest)
+    );
+    CREATE TABLE IF NOT EXISTS devices (
+      serial TEXT PRIMARY KEY,
+      record_json TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS blocked (
       digest TEXT PRIMARY KEY,
@@ -92,6 +96,13 @@ export function loadRegistrySqlite(projectRoot: string): DeliveryRegistry {
       )
       .all() as Array<{ metadata_json: string }>
   ).map((r) => JSON.parse(r.metadata_json) as CandidateMetadata);
+  const gray = (
+    db
+      .prepare(
+        "SELECT metadata_json FROM candidates WHERE lane = 'gray' ORDER BY rowid",
+      )
+      .all() as Array<{ metadata_json: string }>
+  ).map((r) => JSON.parse(r.metadata_json) as CandidateMetadata);
   const blocked = (
     db
       .prepare("SELECT record_json FROM blocked ORDER BY rowid")
@@ -114,14 +125,31 @@ export function loadRegistrySqlite(projectRoot: string): DeliveryRegistry {
   ).map(
     (r) => JSON.parse(r.record_json) as DeliveryRegistry["rollouts"][number],
   );
+  const devices = (
+    db
+      .prepare("SELECT record_json FROM devices")
+      .all() as Array<{ record_json: string }>
+  ).map(
+    (r) =>
+      JSON.parse(r.record_json) as Record<
+        string,
+        DeliveryRegistry["devices"][string]
+      >,
+  );
+  const deviceRecord: DeliveryRegistry["devices"] = {};
+  for (const d of devices) {
+    for (const [serial, rec] of Object.entries(d)) deviceRecord[serial] = rec;
+  }
   return {
     schemaVersion: 1,
     staging,
     production,
+    gray,
     blocked,
     kills,
     pauses,
     rollouts,
+    devices: deviceRecord,
   };
 }
 
@@ -138,6 +166,7 @@ export function saveRegistrySqlite(
     db.prepare("DELETE FROM kills").run();
     db.prepare("DELETE FROM pauses").run();
     db.prepare("DELETE FROM rollouts").run();
+    db.prepare("DELETE FROM devices").run();
     const insertCandidate = db.prepare(
       "INSERT INTO candidates (lane, digest, metadata_json) VALUES (?, ?, ?)",
     );
@@ -146,6 +175,15 @@ export function saveRegistrySqlite(
     }
     for (const c of registry.production) {
       insertCandidate.run("production", c.digest, JSON.stringify(c));
+    }
+    for (const c of registry.gray ?? []) {
+      insertCandidate.run("gray", c.digest, JSON.stringify(c));
+    }
+    const insertDevice = db.prepare(
+      "INSERT INTO devices (serial, record_json) VALUES (?, ?)",
+    );
+    for (const [serial, rec] of Object.entries(registry.devices ?? {})) {
+      insertDevice.run(serial, JSON.stringify({ [serial]: rec }));
     }
     const insertBlocked = db.prepare(
       "INSERT INTO blocked (digest, record_json) VALUES (?, ?)",

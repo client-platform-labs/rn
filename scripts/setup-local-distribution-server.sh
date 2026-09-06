@@ -70,8 +70,14 @@ nohup "$NODE" "$RD" cp-serve --port "$CP_PORT" --host 0.0.0.0 \
 CP_PID=$!
 disown "$CP_PID" 2>/dev/null || true
 echo "$CP_PID" >"$PID_CP"
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -sf "http://127.0.0.1:${CP_PORT}/health" >/dev/null 2>&1; then
+# 等 CP_PID 真正 listen 在 $CP_PORT（避免老进程残留导致 EADDRINUSE 后悄悄死掉）
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  if ! kill -0 "$CP_PID" 2>/dev/null; then
+    echo "cp-serve 进程已退出（pid $CP_PID），见 $LOG_DIR/cp-serve.log"
+    tail -30 "$LOG_DIR/cp-serve.log"
+    exit 1
+  fi
+  if lsof -nP -iTCP:"$CP_PORT" -sTCP:LISTEN -p "$CP_PID" >/dev/null 2>&1; then
     break
   fi
   sleep 0.5

@@ -1,0 +1,76 @@
+# Distribution Service Helm values — production form (single-node CP + Data Service).
+# Multi-tenant contract lives at distribution.rnCp.databaseUrl (per-tenant Postgres).
+
+nameOverride: ""
+fullnameOverride: ""
+labels: {}
+
+distribution:
+  image:
+    repository: client-platform/distribution-service
+    tag: local
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 4040
+  env:
+    # Single-value bearer token (dev default). REQUIRED in production.
+    cpToken: change-me-to-a-long-random-secret
+    cpRole: admin
+    # file | sqlite
+    cpRegistry: file
+    cpDisableConsole: "0"
+    # Multi-tenant opt-in: postgres://user:pass@host/db (empty = single-tenant file/sqlite).
+    databaseUrl: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+  healthcheck:
+    path: /health
+    port: 4040
+
+dataService:
+  enabled: true
+  image:
+    repository: client-platform/data-service
+    tag: local
+    pullPolicy: IfNotPresent
+  port: 8001
+  env:
+    # Optional X-API-Key; empty = open read (dev). Set in prod.
+    apiKey: ""
+  dataVolumes:
+    # hostPath mounts for source SQLite DBs (read-only). Set to real paths in prod.
+    stockScreener: /root/code/stock-screener/data
+    dashboard: /root/code/dashboard/data
+
+# Optional: healthy Nous backend (skip by default in this chart).
+nous:
+  enabled: false
+
+service:
+  type: ClusterIP
+  distributionPort: 4040
+  dataServicePort: 8001
+
+ingress:
+  enabled: false
+  className: ""
+  host: dist.tiangong.local
+  stagingHost: dist-staging.tiangong.local
+
+resources:
+  distribution:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  dataService:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

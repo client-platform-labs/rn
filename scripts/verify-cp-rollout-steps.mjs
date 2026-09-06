@@ -80,8 +80,8 @@ try {
   await sleep(700);
 
   const html = await (await fetch(`${base}/`)).text();
-  if (!html.includes("Rollouts") || !html.includes("Start rollout")) {
-    fail("console missing Rollouts / Start rollout");
+  if (!html.includes("灰度发布") || !html.includes("开始灰度") || !html.includes("Rollout")) {
+    fail("console missing 灰度发布 / 开始灰度 / Rollout");
   } else {
     console.log("OK console Rollouts controls");
   }

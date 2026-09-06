@@ -185,9 +185,9 @@ const STEPS = [
   {
     id: "BF-ios",
     kind: "afk",
-    title: "#5 BF iOS rn-module stub",
+    title: "#5 BF iOS rn-module stub + real simulator (L0 static / L1 dynamic)",
     issue: 5,
-    run: () => runNode(path.join(repoRoot, "scripts/verify-bf-ios-stub.mjs")),
+    run: () => runNode(path.join(repoRoot, "scripts/verify-bf-ios.mjs")),
   },
   {
     id: "BF-consumer",

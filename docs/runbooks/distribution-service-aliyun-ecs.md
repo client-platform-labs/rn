@@ -93,7 +93,7 @@ From your dev machine, after `rn-delivery release` on an app project, copy artif
 docker compose -f deploy/distribution-service/docker-compose.yml exec distribution sh -c '
   echo PKfake > /data/project/demo.apk
   cat > /data/project/.rn/delivery/registry.json <<EOF
-{"schemaVersion":1,"staging":[{"release_id":"lab-1","artifact_kind":"app-host-debug","platform":"android","profile":"debug-host","digest":"'"$(printf a%.0s {1..64})"'","stage":"promote","path":"/data/project/demo.apk","configuration":"debug"}],"production":[],"blocked":[],"kills":[],"pauses":[],"rollouts":[]}
+{"schemaVersion":1,"staging":[{"release_id":"lab-1","artifact_kind":"app-host-debug","platform":"android","profile":"debug-host","digest":"'"$(printf a%.0s {1..64})"'","stage":"promote","path":"/data/project/demo.apk","configuration":"debug"}],"production":[],"gray":[],"devices":{},"blocked":[],"kills":[],"pauses":[],"rollouts":[]}
 EOF
 '
 curl -s "http://127.0.0.1:4040/v1/candidates" | jq .
@@ -140,3 +140,5 @@ node scripts/verify-distribution-compose.mjs
 
 - Helm chart + Postgres + OSS (Aliyun Object Storage) for blobs
 - Same OpenAPI contract — only topology changes
+
+> **注**：Helm chart 现已落地（`deploy/distribution-service/helm/`），多租户 Postgres 契约见 `deploy/distribution-service/.env.example` 的 `RN_CP_DATABASE_URL` 说明。
