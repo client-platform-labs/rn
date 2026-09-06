@@ -73,14 +73,24 @@ RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
 if [[ "$RC" == "401" ]]; then ok "错 token → 401"
 else err "错 token 未 401 (rc=$RC)"; FAILS=$((FAILS+1)); fi
 
-step "6.10 上线门禁：七阶段日志中含 sign/release/ingest"
-LOG="$E2E_HOST/.rn/distribution-lab/logs/cp-serve.log"
-for kw in ingest sign release promote; do
-  if grep -qE "\\b${kw}\\b" "$LOG" 2>/dev/null; then
-    ok "cp-serve.log 含 $kw"
+step "6.10 上线门禁：结构化审计日志（cp-audit.log）"
+AUDIT="$E2E_HOST/.rn/distribution-lab/logs/cp-audit.log"
+if [[ -f "$AUDIT" ]]; then
+  ok "cp-audit.log 存在"
+  # 每行必须是合法 JSON，且含 method/path/outcome 字段
+  BAD_LINES=$(awk 'NF' "$AUDIT" 2>/dev/null | while IFS= read -r line; do
+    echo "$line" | jq -e '.method and .path and .outcome' >/dev/null 2>&1 || echo "$line"
+  done)
+  if [[ -z "$BAD_LINES" ]]; then
+    ok "审计日志每行结构化（method/path/outcome）"
   else
-    warn "cp-serve.log 未含 $kw（可能未触发该路径）"
+    err "审计日志存在非结构化行"; FAILS=$((FAILS+1))
   fi
-done
+  OK_COUNT=$(jq -s '[.[] | select(.outcome == "ok")] | length' "$AUDIT" 2>/dev/null || echo 0)
+  if [[ "$OK_COUNT" -ge 1 ]]; then ok "含 $OK_COUNT 条 outcome=ok 写路由审计"
+  else warn "暂无 outcome=ok 条目（本链只测鉴权拒绝路径，跨链写路由会补）"; fi
+else
+  err "cp-audit.log 不存在（CP 写路由未落审计）"; FAILS=$((FAILS+1))
+fi
 
 chain_done

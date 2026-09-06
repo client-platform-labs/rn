@@ -11,6 +11,7 @@
 : "${E2E_CP:=http://127.0.0.1:4040}"
 : "${E2E_TOKEN:=dev}"
 : "${E2E_NOUS:=http://127.0.0.1:8000}"
+: "${E2E_DATA_SERVICE:=http://127.0.0.1:8001}"
 
 CHAIN_NAME="$(basename "${BASH_SOURCE[1]:-unknown}" .sh)"
 mkdir -p "$E2E_OUT"

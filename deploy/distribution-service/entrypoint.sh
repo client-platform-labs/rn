@@ -13,7 +13,7 @@ fi
 
 if [ ! -f "${ROOT}/.rn/delivery/registry.json" ]; then
   printf '%s\n' \
-    '{"schemaVersion":1,"staging":[],"production":[],"blocked":[],"kills":[],"pauses":[],"rollouts":[]}' \
+    '{"schemaVersion":1,"staging":[],"production":[],"gray":[],"devices":{},"blocked":[],"kills":[],"pauses":[],"rollouts":[]}' \
     > "${ROOT}/.rn/delivery/registry.json"
 fi
 

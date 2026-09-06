@@ -86,6 +86,12 @@ export interface CandidateMetadata {
   path?: string | null;
   /** sha256 hex of artifact bytes. Empty/"pending*" means not yet sealed. */
   digest: string;
+  /**
+   * iOS only — absolute path to the built .app bundle (Debug-iphonesimulator).
+   * Distinct from `path` (which points at the primary digestable artifact) so
+   * installers can `xcrun simctl install` the produced bundle directly.
+   */
+  bundle_path?: string;
   runtime_fingerprint_digest?: string;
   /** Furthest completed stage for this candidate (stage machine cursor). */
   stage: DeliveryStage;

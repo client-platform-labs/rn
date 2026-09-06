@@ -4,7 +4,7 @@ import {
   promoteCandidateToStaging,
 } from "./candidate-store.js";
 import { assertDependencyAllowsPublish } from "./dependency-gate.js";
-import { installAndroidApk } from "./install.js";
+import { installAndroidApk, installIosApp } from "./install.js";
 import { pickCandidate } from "./release-shared.js";
 import { assertProfileAllowsStage } from "./stages.js";
 import { evaluateDeliveryValidate } from "./validate.js";
@@ -65,6 +65,15 @@ export async function runRelease(options: {
   ) {
     await installAndroidApk(promoted.path);
     console.error("rn-delivery release: installed on device");
+  }
+
+  if (
+    options.install &&
+    promoted.platform === "ios" &&
+    promoted.bundle_path
+  ) {
+    await installIosApp(promoted.bundle_path);
+    console.error("rn-delivery release: installed + launched on iOS simulator");
   }
 }
 

@@ -18,10 +18,10 @@ done
 
 step "8.2 灰度 lane（gray 切分）"
 if jq -e '.gray' "$REG" >/dev/null 2>&1; then
-  ok "gray lane 配置存在"
+  GRAY_N=$(jq '.gray | length' "$REG" 2>/dev/null || echo 0)
+  ok "gray lane 存在 (entries=$GRAY_N; empty is ok)"
 else
-  warn "无 gray lane（当前 thin CP 只 staging/production 两档）"
-  SKIPS=$((SKIPS+1))
+  err "无 gray lane（registry 结构缺失 .gray 数组）"; FAILS=$((FAILS+1))
 fi
 
 step "8.3 device 切片配置（device-manifest）"
@@ -31,13 +31,15 @@ if [[ -f "$DEV_MFST" ]]; then
   if jq -e . "$DEV_MFST" >/dev/null 2>&1; then ok "JSON 合法"
   else err "JSON 损坏"; FAILS=$((FAILS+1)); fi
   SERIAL=$E2E_DEVICE
-  if jq -e --arg s "$SERIAL" '.allow[]? | select(. == $s)' "$DEV_MFST" >/dev/null 2>&1; then
-    ok "设备 $SERIAL 在 allow 列表"
+  # allow 可为具体 serial，或通配 "*"
+  if jq -e --arg s "$SERIAL" '((.allow // []) | (index($s) != null) or (index("*") != null))' "$DEV_MFST" >/dev/null 2>&1; then
+    ok "设备 $SERIAL 在 allow 列表（或通配 *）"
   else
     warn "设备 $SERIAL 不在 allow（gray lane 不会下发）"
   fi
 else
-  skip "无 device-manifest（生产灰度按 lane 兜底）"
+  # device-manifest 是设备切片配置，首次访问由 CP/seed 生成默认结构
+  err "无 device-manifest（设备切片配置未落地）"; FAILS=$((FAILS+1))
 fi
 
 step "8.4 灰度模拟：PUT 设备到 staging lane"
@@ -46,15 +48,19 @@ RC=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
   -H "Content-Type: application/json" \
   -d "{\"serial\":\"$E2E_DEVICE\",\"lane\":\"staging\"}" \
   "$E2E_CP/v1/devices/$E2E_DEVICE/lane")
-ok "PUT lane rc=$RC"
+if [[ "$RC" == "200" ]]; then ok "PUT lane rc=$RC"
+else err "PUT lane rc=$RC（期望 200）"; FAILS=$((FAILS+1)); fi
 
-step "8.5 灰度切换：把设备切到 production（生产 lane）"
+step "8.5 灰度切换：把设备切到 production（生产 lane），并回读校验"
 RC=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
   -H "Authorization: Bearer $E2E_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"serial\":\"$E2E_DEVICE\",\"lane\":\"production\"}" \
   "$E2E_CP/v1/devices/$E2E_DEVICE/lane")
-ok "PUT lane→production rc=$RC"
+if [[ "$RC" == "200" ]]; then ok "PUT lane→production rc=$RC"
+else err "PUT lane→production rc=$RC（期望 200）"; FAILS=$((FAILS+1)); fi
+GOT_LANE=$(curl -sf -H "Authorization: Bearer $E2E_TOKEN" "$E2E_CP/v1/devices/$E2E_DEVICE/lane" | jq -r '.lane // empty' 2>/dev/null)
+assert_eq "production" "$GOT_LANE" "回读设备 lane"
 
 step "8.6 Kill Switch：slo-breach 触发"
 RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \

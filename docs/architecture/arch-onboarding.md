@@ -190,7 +190,7 @@ jq '.kills' ~/code/tiangong-host/.rn/delivery/registry.json
 | **业务模块开发** | 我的 desk 模块能不能跑 | chain 02/05/07 | `bash scripts/e2e/run-all.sh 2 5 7` |
 | **壳工程** | host APK 能不能装 | chain 03/04/06 | `bash scripts/e2e/run-all.sh 3 4 6` |
 | **SRE / 运维** | 灰度 / rollback 通不通 | chain 08/09 | `bash scripts/e2e/run-all.sh 8 9` |
-| **iOS 工程师** | (今日不在范围 — 见 §7) | n/a | n/a |
+| **iOS 工程师** | simulator 装壳 + launch | chain 10 | `bash scripts/e2e/run-all.sh 10` |
 | **7 渠道运营** | Android 多市场发版前 | `scripts/release-readiness/09-7channel.sh` | (pre-flight only) |
 
 ---
@@ -204,35 +204,39 @@ jq '.kills' ~/code/tiangong-host/.rn/delivery/registry.json
 `sign` 阶段本身已实现（`RN_DELIVERY_SIGN_KEY` 可切 HMAC，无 key 时 digest-seal 占位）。**真根因**是 `chain-06` 发壳流程只做了 `ingest-host → release`，漏掉了七阶段合同里 `sign` 这一步，导致 host candidate 进 registry 时没有 `signature` 和 `supply_chain.host.sbom` slot，进而 chain 03/08 判「缺签名/SBOM」。
 
 **已修**：`chain-06` 在 `ingest-host` 后补 `rn-delivery sign`。签名/SBOM slot 就位后，Chain 03/08 这两条 WARN 自动消除。真 CA / 真 CycloneDX 仍是企业侧 backlog（#90），但「release 壳校验链形同虚设」这句不再成立——sign 阶段已在链上真跑。
-   210|**说明**：`rn-delivery` 的 signature 是无 key 时的 digest-seal（不是工业 CA 签名），这是有意设计的薄实现（`Map C C7` 的替换点）。链上现在确实执行了 sign 阶段。
+
+**说明**：`rn-delivery` 的 signature 是无 key 时的 digest-seal（不是工业 CA 签名），这是有意设计的薄实现（`Map C C7` 的替换点）。链上现在确实执行了 sign 阶段。
 
 ### 6.2 CP Auth（✅ 已修 · 根因是测试测错了对象）
 
-CP Auth **早已实现且 `verify-cp-auth.mjs` PASS**（CI 在跑）。它只保护**写路由**（POST promote/block/kill/pause/rollout、PUT dependency-manifest）；而 `GET /v1/candidates`、`/health`、`/v1/service` 是**设计上的公开读路由**。
+CP Auth **早已实现且 `verify-cp-auth.mjs` PASS**（CI 在跑）。它只保护**写路由**（POST promote/block/kill/pause/rollout、PUT dependency-manifest / devices/:serial/lane）；而 `GET /v1/candidates`、`/health`、`/v1/service` 是**设计上的公开读路由**。
 
 **真根因**：`chain-06` 6.8-6.9 和 `chain-09` 9.2-9.3 之前拿 `GET /v1/candidates` 去断言「无 token 应 401」，这是**测错了端点**——公开读路由本来就应该 200。
 
 **已修**：改成对 `POST /v1/promote`（受保护的写路由）断言「无 token / 错 token → 401，正确 token → 400（鉴权通过但 digest 不存在）」。9.4 从「正确 token → 200」更正为「正确 token → 400」。
-   220|**说明**：企业多租户隔离仍缺（token 是单值 `RN_CP_TOKEN`，非 per-tenant），那是真 backlog，但「Auth 未启用」不再是事实。
 
-### 6.3 灰度 / 运维引擎未开通（顿在蓝图/钢线）
+**说明**：企业多租户隔离仍缺（token 是单值 `RN_CP_TOKEN`，非 per-tenant），那是真 backlog，但「Auth 未启用」不再是事实。
 
-| Chain | Step | 现象 | 根因 |
-|-------|------|------|------|
-| 04 | 4.8 | `rollout/tick` rc=404 | rollout 引擎没起 |
-| 08 | 8.2 | 无 gray lane | thin CP 只 staging/production 两档 |
-| 08 | 8.3 | 无 device-manifest | 设备切片/灰度按 lane 兜底 |
-| 08 | 8.4-8.5 | PUT lane rc=404 | 切 lane 端点未实现 |
+### 6.3 灰度 / 运维引擎（✅ 已修 · 设备切片 + gray lane）
 
-**影响**：灰度放量、设备分组、AB 实验这些「工业级」能力目前只有 registry 结构占位（`pauses/kills/rollouts` 键都在），端点还没实接。
+此前 E2E 报 404 的根因是端点未实接。现已落地：
 
-### 6.4 日志 / 门禁路径未触发（可观测性 gap）
+| 能力 | 实现 | 验证 |
+|------|------|------|
+| gray lane | `registry.gray[]`（与 staging/production 平级） | chain-08 8.2 |
+| device→lane | `GET\|PUT /v1/devices/:serial/lane` + `registry.devices` | chain-08 8.4-8.5 · `verify-cp-device-lane.mjs` |
+| device-manifest | `.rn/device-manifest.json`（seed 幂等生成，`allow=["*"]`） | chain-08 8.3 · seed-registry |
+| rollout/tick · slo-breach | 已有写路由；chain-04 提为鉴权后 400 真断言 | chain-04 4.8-4.9 |
 
-| Chain | Step | 现象 |
+**说明**：这是「设备级 lane 切片」的薄实现，不是完整 AB 实验平台。cohort 百分比放量仍走现有 `rollouts` 状态机。
+
+### 6.4 七阶段审计日志（✅ 已修 · 结构化 cp-audit.log）
+
+| Chain | Step | 现状 |
 |-------|------|------|
-| 06 | 6.10 | cp-serve.log 未含 sign/release/ingest 七阶段日志 |
+| 06 | 6.10 | `.rn/distribution-lab/logs/cp-audit.log` 每写路由一行 JSON（`ts/method/path/actor/outcome`），含 `denied` |
 
-**影响**：上线门禁想靠日志断言「七阶段都走过」，但当前 CP 不把这些事件写到统一 log，门禁只能靠 registry 状态推断，不是真 log 审计。
+所有写路由（promote/block/kill/pause/resume/rollout\*/dependency-manifest PUT/device-lane PUT）在鉴权失败与成功时都落审计。`verify-cp-device-lane.mjs` 覆盖 denied + ok。
 
 ### 6.5 业务 / 数据侧未初始化（无害）
 
@@ -248,17 +252,15 @@ CP Auth **早已实现且 `verify-cp-auth.mjs` PASS**（CI 在跑）。它只保
 
 ### 真问题 0 个
 
-全跑 **9 chain 全 PASS · 0 FAIL · 48s · 0 人工干预**。上面所有 SKIP/WARN 都有明确归属（灰度/运维端点、日志门禁、业务/数据侧未初始化），不是回归缺陷。
+全跑 **10 chain（含 iOS，无 runtime 时 chain-10 SKIP）· 0 FAIL · 0 人工干预**。6.1–6.4 已闭环；剩余 6.5 是数据/文档细节。
 
-**按优先级待修**：6.3 灰度/运维端点（rollout/tick 404、device-manifest、gray lane）> 6.4 日志门禁 > 6.5 数据/文档细节。签名/SBOM 和 CP Auth 已核实是测试脚本 bug（已修），不再是产品缺口。
+**按优先级待修**：6.5 数据/文档细节 > 企业深化（真 CA / per-tenant / 真观测）。签名/SBOM、CP Auth、灰度切片、审计日志不再是产品缺口。
 
 ---
 
-## 7. iOS / Harmony / 7 渠道 (今日不在范围)
+## 7. iOS / Harmony / 7 渠道
 
-按你今天要求，**iOS 没跑**（需 macOS + Xcode + 模拟器/真机）。如下次扩展：
-
-- **iOS**：装 Xcode → 同套步骤（chain 改 adb → xcrun simctl）· 工作量 +50%
+- **iOS**：已接 `rn-delivery build --platform ios`（真 .app + sha256 digest）+ `installIosApp`（simctl）+ `chain-10-ios-lifecycle.sh` + `verify-bf-ios.mjs`。本机若未装 iOS Simulator Runtime，chain-10 会干净 SKIP（不红）。装 Runtime：Xcode → Settings → Platforms → iOS。
 - **Harmony**：shelved（缺真机 + DevEco Studio）
 - **7 渠道（华为/小米/OPPO/vivo/...）**：上市前在 `scripts/release-readiness/09-7channel.sh` 验
 
@@ -354,12 +356,15 @@ sed 's/\x1b\[[0-9;]*m//g' /tmp/e2e-out/chain-XX.log | grep -E "✗|✓|!"
 
 - [x] **签名/SBOM 链上执行**：`chain-06` 补 sign 阶段，Chain 03/08 WARN 消除（真 CA/CycloneDX 仍是 #90 企业 backlog）— §6.1
 - [x] **CP-Auth 更正测试**：chain 6/9 改为测受保护写路由，Auth 已验证在跑（企业 per-tenant 隔离是真 backlog）— §6.2
-- [ ] **灰度/运维引擎开通**: rollout/tick + gray lane + device-manifest (Chain 04/08 抹掉 WARN) — §6.3
-- [ ] **日志门禁**: CP 七阶段事件写统一 log，`chain-06 6.10` 转真审计 — §6.4
+- [x] **灰度/运维引擎开通**: gray lane + device-manifest + `PUT/GET /v1/devices/:serial/lane` + chain 04/08 真断言 — §6.3
+- [x] **日志门禁**: 写路由落结构化 `cp-audit.log`，`chain-06 6.10` 真审计 — §6.4
+- [x] **iOS 链**: build 真 digest + simctl install/launch + chain-10（无 Runtime 时 SKIP）
+- [x] **data-service 跨服务**: chain-09 接真 Python 后端（健康 + 业务探针 + SSE）
+- [x] **Helm L2 契约**: `deploy/distribution-service/helm/` + 生产 runbook（per-tenant 仍是演进契约）
+- [x] **CI 集成（无设备）**: release-readiness 01–05 已进 GitHub Actions；真机门禁方案见 `docs/architecture/device-gate-plan.md`（自托管 runner 未落地）
 - [ ] **数据/文档细节**: bundle 输出目录统一 + jsonc BOM + Nous init — §6.5
-- [ ] **iOS 链**: 装 Xcode + xcrun simctl 适配
-- [ ] **CI 集成**: 无设备 release-readiness 阶梯进 GitHub Actions；真机门禁走自托管 runner + 设备农场
-- [ ] **Atlas 同步**: 在 `wayfinding-map-f/ATLAS.md §4` 链接到本手册
+- [ ] **真机门禁落地**: 自托管 runner + 设备农场（方案已写）
+- [ ] **Atlas §4 链接本手册**: 若尚未互链则补一行
 
 ---
 

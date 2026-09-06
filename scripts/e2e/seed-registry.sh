@@ -55,6 +55,22 @@ for MOD in desk fixture_second; do
   fi
 done
 
+step "seed.device-manifest: 确保设备切片配置落地"
+DEV_MFST="$E2E_HOST/.rn/device-manifest.json"
+if [[ ! -f "$DEV_MFST" ]]; then
+  mkdir -p "$E2E_HOST/.rn"
+  cat > "$DEV_MFST" <<'JSON'
+{
+  "schemaVersion": 1,
+  "allow": ["*"],
+  "default_lane": "production"
+}
+JSON
+  ok "device-manifest 已生成（allow=*，default=production）"
+else
+  ok "device-manifest 已存在"
+fi
+
 step "seed.verify: 确认 staging lane 有数据"
 HOSTS=$(cp_get "/v1/candidates?lane=staging" | jq '.candidates | length' 2>/dev/null)
 JS=$(cp_get "/v1/js-updates?module=desk&lane=staging" | jq '.candidates | length' 2>/dev/null)

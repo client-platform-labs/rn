@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "distribution-service.fullname" . }}-distribution-env
+  labels:
+    {{- include "distribution-service.labels" . | nindent 4 }}
+data:
+  RN_CP_HOST: "0.0.0.0"
+  PORT: {{ .Values.distribution.port | quote }}
+  RN_CP_TOKEN: {{ .Values.distribution.env.cpToken | quote }}
+  RN_CP_ROLE: {{ .Values.distribution.env.cpRole | quote }}
+  RN_CP_REGISTRY: {{ .Values.distribution.env.cpRegistry | quote }}
+  RN_CP_DISABLE_CONSOLE: {{ .Values.distribution.env.cpDisableConsole | quote }}
+  RN_CP_DATABASE_URL: {{ .Values.distribution.env.databaseUrl | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "distribution-service.fullname" . }}-dataservice-env
+  labels:
+    {{- include "distribution-service.labels" . | nindent 4 }}
+data:
+  API_KEY: {{ .Values.dataService.env.apiKey | quote }}

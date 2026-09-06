@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/e2e/run-all.sh — 全链路 E2E 自动化测试套件
 #
-# 9 大类全链路 E2E（壳+离线包全生命周期：新建+维护）：
+# 10 大类全链路 E2E（壳+离线包全生命周期：新建+维护）：
 #   1. CLI 工具链         (chain-01-cli.sh)
 #   2. Debug 包多离线包   (chain-02-debug-multi-bundle.sh)
 #   3. Release 壳加载     (chain-03-release-load.sh)
@@ -11,6 +11,7 @@
 #   7. 离线包管理平台     (chain-07-biz-portal.sh)
 #   8. 离线包更新策略     (chain-08-update-strategy.sh)
 #   9. 后台服务           (chain-09-backend-services.sh)
+#  10. iOS simulator 生命周期 (chain-10-ios-lifecycle.sh) — 无 runtime 时 SKIP
 #
 # 用法：
 #   bash scripts/e2e/run-all.sh           # 全跑
@@ -29,6 +30,7 @@ CP_BASE="${CP_BASE:-http://127.0.0.1:4040}"
 CP_TOKEN="${RN_CP_TOKEN:-dev}"
 LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
 NOUS_BASE="${NOUS_BASE:-http://127.0.0.1:8000}"
+DATA_SERVICE_BASE="${DATA_SERVICE_BASE:-http://127.0.0.1:8001}"
 
 # ── 颜色 / 输出工具 ──
 RED=$'\033[31m'; GRN=$'\033[32m'; YLW=$'\033[33m'; CYN=$'\033[36m'; RST=$'\033[0m'
@@ -42,6 +44,7 @@ note()   { printf "    %s\n" "$*"; }
 export E2E_OUT E2E_REPO="$REPO" E2E_HOST="$HOST_PROJ" E2E_DESK="$DESK_PROJ"
 export E2E_SECOND="$SECOND_PROJ" E2E_DEVICE="$DEVICE_SERIAL" E2E_CP="$CP_BASE"
 export E2E_TOKEN="$CP_TOKEN" E2E_LAN_IP="$LAN_IP" E2E_NOUS="$NOUS_BASE"
+export E2E_DATA_SERVICE="$DATA_SERVICE_BASE"
 
 # ── 前置校验 ──
 banner "Pre-flight"
@@ -75,6 +78,7 @@ ALL_CHAINS=(
   "07-biz-portal:07-biz-portal.sh"
   "08-update-strategy:08-update-strategy.sh"
   "09-backend-services:09-backend-services.sh"
+  "10-ios-lifecycle:10-ios-lifecycle.sh"
 )
 
 # 选择要跑的 chain

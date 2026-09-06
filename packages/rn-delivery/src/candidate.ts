@@ -67,6 +67,7 @@ export function buildCandidateMetadata(input: {
   channel?: string;
   configuration?: string;
   path?: string | null;
+  bundle_path?: string;
   runtime_fingerprint_digest?: string;
   supply_chain?: DualSupplyChainInterfaces;
 }): CandidateMetadata {

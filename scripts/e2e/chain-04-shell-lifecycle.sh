@@ -58,25 +58,22 @@ step "4.7 [部署] sign + release 幂等"
 DIG=$(node "$RD" release app-host --lane staging --digest "$(cp_get /v1/candidates?lane=staging | jq -r '.candidates[0].digest')" 2>&1 | head -3)
 ok "release 触发: $DIG"
 
-step "4.8 [运维] rollout tick 端点（CP）"
-RC=$(cp_get_code "/v1/rollout/tick")
-if [[ "$RC" == "200" || "$RC" == "400" || "$RC" == "405" ]]; then
-  ok "rollout/tick 端点可达 (rc=$RC)"
-else
-  warn "rollout/tick 不可达 (rc=$RC) — 钢线未启用 rollout 引擎"
-  SKIPS=$((SKIPS+1))
-fi
+step "4.8 [运维] rollout tick 端点（POST 写路由，鉴权 + 参数校验）"
+RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+  -H "Authorization: Bearer $E2E_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  "$E2E_CP/v1/rollout/tick")
+# 正确 token + 空 body → digest required → 400
+assert_eq "400" "$RC" "rollout/tick → 400（digest 必填，鉴权已过）"
 
 step "4.9 [运维] slo-breach 端点"
 RC=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $E2E_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"digest":"x","reason":"e2e-probe"}' \
+  -d '{"digest":"nonexistent","reason":"e2e-probe"}' \
   "$E2E_CP/v1/rollout/slo-breach")
-if [[ "$RC" == "200" || "$RC" == "400" || "$RC" == "404" || "$RC" == "401" ]]; then
-  ok "slo-breach 端点可达 (rc=$RC)"
-else
-  warn "slo-breach 端点异常 (rc=$RC)"
-fi
+# 正确 token + 不存在的 digest → pauseRollout 抛 RolloutError → 400
+assert_eq "400" "$RC" "slo-breach → 400（无 rollout for digest，端点已可达）"
 
 step "4.10 [运维] pause / kill registry keys"
 REG="$E2E_HOST/.rn/delivery/registry.json"

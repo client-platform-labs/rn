@@ -1,0 +1,62 @@
+{{- if .Values.dataService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "distribution-service.fullname" . }}-dataservice
+  labels:
+    {{- include "distribution-service.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "distribution-service.name" . }}-dataservice
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "distribution-service.name" . }}-dataservice
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: data-service
+          image: "{{ .Values.dataService.image.repository }}:{{ .Values.dataService.image.tag }}"
+          imagePullPolicy: {{ .Values.dataService.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.dataService.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ include "distribution-service.fullname" . }}-dataservice-env
+          volumeMounts:
+            - name: stock-screener
+              mountPath: /root/code/stock-screener/data
+              readOnly: true
+            - name: dashboard
+              mountPath: /root/code/dashboard/data
+              readOnly: true
+          {{- with .Values.resources.dataService }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: {{ .Values.dataService.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: {{ .Values.dataService.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: stock-screener
+          hostPath:
+            path: {{ .Values.dataService.dataVolumes.stockScreener }}
+            type: Directory
+        - name: dashboard
+          hostPath:
+            path: {{ .Values.dataService.dataVolumes.dashboard }}
+            type: Directory
+{{- end }}

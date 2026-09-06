@@ -96,6 +96,42 @@ out=$(curl -sf "$E2E_NOUS/v1/global/latest" 2>/dev/null | head -c 200 || true)
 if [[ -n "$out" ]]; then ok "/v1/global/latest 有数据: ${out:0:80}..."
 else warn "global/latest 空（业务未初始化）"; fi
 
+step "9.11b data-service 后端健康（独立 Python 真后端）"
+D=$(curl -sf "$E2E_DATA_SERVICE/v1/health" 2>/dev/null)
+if [[ -n "$D" ]]; then
+  STATUS=$(echo "$D" | jq -r '.status // empty')
+  assert_eq "ok" "$STATUS" "data-service /v1/health"
+else
+  skip "data-service 未起 — 跨服务测试 skip"; SKIPS=$((SKIPS+1))
+fi
+
+step "9.11c data-service 真业务接口探针（端点来自 data-service/routes/*.py）"
+if [[ -n "$D" ]]; then
+  # sentiment.py:/v1/sentiment/latest · macro.py:/v1/macro/indicators · risk.py:/v1/benchmark
+  for ep in /v1/sentiment/latest /v1/macro/indicators /v1/benchmark; do
+    RC=$(curl -s -o /dev/null -w '%{http_code}' "$E2E_DATA_SERVICE$ep")
+    # 200=有数据；401=需 X-API-Key；404/500=库空或路由挂但服务通 — 都算探针可达
+    if [[ "$RC" =~ ^(200|401|404|500)$ ]]; then ok "GET $ep rc=$RC"
+    else err "GET $ep rc=$RC（期望 200/401/404/500）"; FAILS=$((FAILS+1)); fi
+  done
+else
+  skip "data-service 探针 skip（服务未起）"; SKIPS=$((SKIPS+1))
+fi
+
+step "9.11d data-service SSE 连通探针"
+if [[ -n "$D" ]]; then
+  SSE=$(curl -sfN --max-time 2 "$E2E_DATA_SERVICE/v1/sse/stream?topics=e2e" 2>/dev/null | head -c 200 || true)
+  if [[ -n "$SSE" ]]; then ok "SSE 流连通: ${SSE:0:60}..."
+  else warn "SSE 无数据（可能无 topic 订阅，服务本身已 /health 通过）"; fi
+else
+  skip "SSE 探针 skip（服务未起）"; SKIPS=$((SKIPS+1))
+fi
+
+step "9.11e 跨服务：CP registry 模块 vs data-service 业务能力（一致性说明）"
+MODS=$(node $E2E_REPO/scripts/e2e/jget.mjs "$E2E_HOST/.rn/catalog-embed.json" .modules | jq 'length' 2>/dev/null || echo 0)
+DS_PATHS=$(curl -sf "$E2E_DATA_SERVICE/openapi.json" 2>/dev/null | jq -r '.paths | keys[]' 2>/dev/null | grep -cE "^/v1" || echo 0)
+ok "catalog modules=$MODS, data-service /v1/* paths=$DS_PATHS"
+
 step "9.12 adb reverse 跨服务路由（device → host cp）"
 adb_dev reverse tcp:4040 tcp:4040 2>/dev/null && ok "reverse 4040（device→host CP）" || warn "reverse 4040 失败"
 

@@ -24,8 +24,37 @@ services:
       RN_CP_ROLE: ${RN_CP_ROLE:-admin}
       RN_CP_REGISTRY: ${RN_CP_REGISTRY:-file}
       RN_CP_DISABLE_CONSOLE: ${RN_CP_DISABLE_CONSOLE:-0}
+      # 多租户契约：当前是单值 token（RN_CP_TOKEN），per-tenant 隔离走
+      # RN_CP_DATABASE_URL → Postgres adapter（见 .env.example 注释）。
+      RN_CP_DATABASE_URL: ${RN_CP_DATABASE_URL:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4040/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     volumes:
       - distribution-data:/data/project
+
+  data-service:
+    image: client-platform/data-service:local
+    build:
+      context: ${DATA_SERVICE_CONTEXT:-../../data-service}
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${DATA_SERVICE_PORT:-8001}:8001"
+    environment:
+      API_KEY: ${DATA_SERVICE_API_KEY:-}
+    volumes:
+      - ${STOCK_SCREENER_DATA:-~/code/stock-screener/data}:/root/code/stock-screener/data
+      - ${DASHBOARD_DATA:-~/code/dashboard/data}:/root/code/dashboard/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/v1/health', timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   distribution-data:

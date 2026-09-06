@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 
 import { computeFingerprint, releaseSourceHygieneOk } from "@client-platform/rn-core";
@@ -30,6 +31,32 @@ export function androidAssembleGradleTask(
   profile: DeliveryProfile,
 ): "assembleDebug" | "assembleRelease" {
   return profile === "release" ? "assembleRelease" : "assembleDebug";
+}
+
+/** Locate the built .app bundle under a derived data path. */
+function findIosAppBundle(
+  derived: string,
+  scheme: string,
+  configuration: "Debug" | "Release",
+): string | undefined {
+  const products = path.join(
+    derived,
+    "Build",
+    "Products",
+    `${configuration}-iphonesimulator`,
+  );
+  const appDir = path.join(products, `${scheme}.app`);
+  return existsSync(appDir) ? appDir : undefined;
+}
+
+/** Locate the primary executable inside an .app bundle (bundled --exe == PRODUCT_NAME). */
+function findIosExecutable(appBundle: string, scheme: string): string | undefined {
+  const direct = path.join(appBundle, scheme);
+  if (existsSync(direct)) return direct;
+  // Fallback: any regular file without an extension at bundle root.
+  const entries = readdirSync(appBundle, { withFileTypes: true });
+  const candidate = entries.find((e) => e.isFile() && !e.name.includes("."));
+  return candidate ? path.join(appBundle, candidate.name) : undefined;
 }
 
 export async function runBuild(options: {
@@ -221,12 +248,34 @@ export async function runBuild(options: {
         profile,
         configuration:
           profile === "debug-host" ? "Debug/iphonesimulator" : "Release",
-        path: derived,
+        path: null,
         digest: "pending:app-bundle-in-derived-data",
         stage: "compile",
         runtime_fingerprint_digest: fingerprintDigest,
         supply_chain: emptyDualSupplyChain(),
       });
+      const appBundle = findIosAppBundle(
+        derived,
+        scheme,
+        iosConfiguration === "Release" ? "Release" : "Debug",
+      );
+      if (appBundle) {
+        const executable = findIosExecutable(appBundle, scheme);
+        meta.bundle_path = appBundle;
+        if (executable) {
+          meta.digest = sha256File(executable);
+          // `path` is the digestable primary artifact (the executable), not the derived dir.
+          meta.path = executable;
+        } else {
+          console.error(
+            "rn-delivery build: .app found but no primary executable — digest stays pending",
+          );
+        }
+      } else {
+        console.error(
+          "rn-delivery build: .app bundle not found under derived data (digest stays pending)",
+        );
+      }
       results.push(meta);
       console.log(JSON.stringify(meta, null, 2));
     }

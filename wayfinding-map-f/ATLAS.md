@@ -754,24 +754,22 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 
 ## 5. 缺口 · 下一刀
 
-### 5.0 实测缺口（2026-09-05 · 机器化 E2E 9 chain 实证）
+### 5.0 实测缺口（2026-09-06 · 机器化 E2E 10 chain 实证）
 
-> 来源：`bash scripts/e2e/run-all.sh`（48s 全 PASS），SKIP/WARN 按根因归 5 类，详见
+> 来源：`bash scripts/e2e/run-all.sh` + `verify-cp-device-lane.mjs` PASS，详见
 > [docs/architecture/arch-onboarding.md §6](../architecture/arch-onboarding.md#6-已知-skip--warn-清单-2026-09-05)。
 >
-> **重要纠偏（2026-09-05 合成后复核）**：最初把 6.1「签名/SBOM stub」和 6.2「CP Auth 未启用」归为产品缺口，**实为测试脚本 bug**，已修：
-> - 6.1 实为 `chain-06` 发壳流程漏跑 `sign` 阶段（sign 本已实现，无 key 时 digest-seal 占位）；补 sign 后 signature + SBOM slot 就位，Chain 03/08 WARN 消除。
-> - 6.2 实为 `chain-06/09` 测错了端点（对设计上公开的 `GET /v1/candidates` 断言 401）；改成测受保护的 `POST /v1/promote` 后 Auth 已验证在跑。
+> **纠偏史**：6.1/6.2 曾误报为产品缺口，实为测试 bug（已修）。6.3/6.4 曾是真缺口，现已产品化落地。
 
 | # | 根因 | 涉及 chain | 状态 |
 |---|------|-----------|------|
-| 6.1 | 签名/SBOM 链上未真执行（chain-06 漏 sign） | 03 · 08 | ✅ 已修（真 CA/CycloneDX 仍 #90 企业 backlog） |
-| 6.2 | CP-Auth 测试测错端点（已实现，只护写路由） | 06 · 09 | ✅ 已修（企业 per-tenant 隔离是真 backlog） |
-| 6.3 | **灰度/运维引擎未开通**（rollout/tick、gray lane、device-manifest、PUT lane 全 404） | 04 · 08 | 🟡 待做 |
-| 6.4 | **日志门禁未触发**（CP 七阶段事件不写统一 log） | 06 | 🟡 待做 |
-| 6.5 | **业务/数据侧未初始化**（bundle 目录命名、jsonc BOM、Nous 未 init） | 02 · 09 | ⚪ 低 |
+| 6.1 | 签名/SBOM 链上未真执行（chain-06 漏 sign） | 03 · 08 | ✅ 已修（真 CA/CycloneDX 仍 #90） |
+| 6.2 | CP-Auth 测试测错端点（已实现，只护写路由） | 06 · 09 | ✅ 已修（per-tenant 仍是 backlog） |
+| 6.3 | 灰度设备切片（gray lane + device-manifest + PUT/GET lane） | 04 · 08 | ✅ 已修（`verify-cp-device-lane` PASS） |
+| 6.4 | 七阶段结构化审计日志（`cp-audit.log`） | 06 | ✅ 已修 |
+| 6.5 | 业务/数据侧未初始化（bundle 目录、jsonc BOM、Nous 未 init） | 02 · 09 | ⚪ 低 |
 
-**结论**：距离「工业级交付」真正的剩余缺口是 **6.3 灰度/运维引擎开通**（rollout/tick / gray lane / device-manifest 端点 404）和 **6.4 日志门禁**。签名/SBOM 与 CP-Auth 已核实为测试 bug 并修复，不再是产品缺口；它们的**企业级深化**（真 CA、per-tenant 隔离）独立于本 E2E 链，属 #89/#90/多租户 backlog。
+**结论**：E2E 层 6.1–6.4 已闭环。剩余「工业级」差距转向企业深化——真 CA、per-tenant、真观测后端、多业务线负载、iOS Simulator Runtime 装齐后跑绿 chain-10（代码已就位）。
 
 ### 5.1 已 shelved / deferred（不在本季度范围）
 
@@ -792,10 +790,10 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 | 剥核产线 | #133 / #141 | MVP 与 runtime 联调未做 | **P1** |
 | 业务 module first 联调 | #115 | 业务方 7 天接入剧本无样本 | P1 |
 | oncall runbook | #88 / D5 | 人眼级操作无；真 SLO 后端缺 | P1 |
-| 壳 iOS Debug Host | #160 / #165 | iOS 实测未做 | P1 |
+| 壳 iOS Debug Host | #160 / #165 | 代码链已就位（build digest + simctl + chain-10）；缺本机 iOS Runtime 真跑证据 | P1 |
 | Expo 互操作 | #16 | 迁移工具未做 | P2 |
 | Quality Signal Bus | #9 / #74 | 真 E2E 信号源未接 | P1 |
-| Distribution Helm L2 | E 下一阶段 | Helm chart / 多副本 / 高可用未做 | **P0**（产品上市阻塞） |
+| Distribution Helm L2 | E 下一阶段 | Helm chart 已落 `deploy/distribution-service/helm/`；多副本/HA/per-tenant 仍薄 | **P1**（契约已有，深化待做） |
 
 ### 5.3 真未做（不是 shelved，而是从未排进 backlog）
 
@@ -809,10 +807,10 @@ ls scripts/verify-*.mjs | wc -l          # 当前 45+ 个
 
 ### 5.4 真生产上市阻塞（按严重度排序）
 
-1. **Distribution Helm L2 + 多租户**——单 Compose 跑通但真生产不可用
-2. **真观测后端**——SLO breach pause 真触发依赖它；当前是合同/夹具
+1. **真观测后端**——SLO breach pause 真触发依赖它；当前是合同/夹具
+2. **多租户 per-tenant 鉴权**——Helm chart + 生产 runbook 已就位；鉴权仍是单值 `RN_CP_TOKEN`（演进契约见 `docs/runbooks/distribution-service-production.md`）
 3. **多业务线真生产负载**——所有 L5 钢线基于 tiangong 单业务；多业务时 namespace 冲突、错误归因、跨包通信 ACL 未实战
-4. **iOS Debug Host 对称**——iOS 用户群未覆盖
+4. **iOS Debug Host 对称真证据**——代码链已就位；本机装 iOS Simulator Runtime 后 chain-10 可出证据
 5. **Harmony 主路径**——shelved；如要 Harmony 上市须 #93 重新评估
 
 ---

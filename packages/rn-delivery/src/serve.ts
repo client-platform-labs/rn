@@ -1,4 +1,5 @@
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import {
   createServer,
   type IncomingMessage,
@@ -14,7 +15,10 @@ import {
   blockedUpdateIdsForRuntime,
   findInstallableByDigest,
   findArtifactByDigest,
+  getDeviceLane,
+  isValidLane,
   killModuleUpdates,
+  listDeviceLanes,
   listInstallableCandidates,
   listJsUpdateCandidates,
   loadRegistry,
@@ -22,6 +26,7 @@ import {
   pauseRollout,
   resumeModule,
   resumeRollout,
+  setDeviceLane,
   startRollout,
   tickRollout,
 } from "./candidate-store.js";
@@ -54,6 +59,39 @@ const STATIC_DIR = path.join(
 
 const CP_SERVICE_NAME = "control-plane";
 const CP_SERVICE_API = 1;
+
+/** C6.4 — structured audit log for every CP write route. One JSON line per event. */
+export type CpAuditEntry = {
+  ts: string;
+  method: string;
+  path: string;
+  actor: string;
+  outcome: "ok" | "denied" | "error";
+  detail?: string;
+};
+
+function auditLogDir(projectRoot: string): string {
+  return path.join(projectRoot, ".rn", "distribution-lab", "logs");
+}
+
+function auditLogPath(projectRoot: string): string {
+  return path.join(auditLogDir(projectRoot), "cp-audit.log");
+}
+
+/** Append a structured audit entry. Never throws (audit must not break the route). */
+export function appendAudit(
+  projectRoot: string,
+  entry: Omit<CpAuditEntry, "ts">,
+): void {
+  try {
+    const dir = auditLogDir(projectRoot);
+    mkdirSync(dir, { recursive: true });
+    const line: CpAuditEntry = { ...entry, ts: new Date().toISOString() };
+    appendFileSync(auditLogPath(projectRoot), `${JSON.stringify(line)}\n`);
+  } catch {
+    // audit is best-effort; a full disk must not take the CP down.
+  }
+}
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -171,11 +209,25 @@ export function createControlPlane(options: {
       const requireCpAuth = () => {
         const auth = checkCpBearerAuth(req.headers.authorization, cpAuthToken);
         if (!auth.ok) {
+          appendAudit(projectRoot, {
+            method: req.method ?? "UNKNOWN",
+            path: url.pathname,
+            actor: "anonymous",
+            outcome: "denied",
+            detail: auth.error,
+          });
           sendJson(res, auth.status, { error: auth.error });
           return false;
         }
         const role = checkCpMutatingRole(cpRole);
         if (!role.ok) {
+          appendAudit(projectRoot, {
+            method: req.method ?? "UNKNOWN",
+            path: url.pathname,
+            actor: cpRole,
+            outcome: "denied",
+            detail: role.error,
+          });
           sendJson(res, role.status, { error: role.error });
           return false;
         }
@@ -257,7 +309,7 @@ export function createControlPlane(options: {
       if (req.method === "GET" && url.pathname === "/v1/candidates") {
         const lane = url.searchParams.get("lane");
         const laneFilter =
-          lane === "staging" || lane === "production" ? lane : "all";
+          isValidLane(lane) ? lane : "all";
         const registry = loadRegistry(projectRoot);
         sendJson(res, 200, {
           candidates: listInstallableCandidates(registry, laneFilter).map(
@@ -270,7 +322,7 @@ export function createControlPlane(options: {
       if (req.method === "GET" && url.pathname === "/v1/js-updates") {
         const lane = url.searchParams.get("lane");
         const laneFilter =
-          lane === "staging" || lane === "production" ? lane : "all";
+          isValidLane(lane) ? lane : "all";
         const moduleFilter = url.searchParams.get("module") || undefined;
         const registry = loadRegistry(projectRoot);
         sendJson(res, 200, {
@@ -363,6 +415,62 @@ export function createControlPlane(options: {
         return;
       }
 
+      {
+        // C6.3 grey slicing — per-device lane routing.
+        const devMatch = url.pathname.match(/^\/v1\/devices\/([^/]+)\/lane$/);
+        if (devMatch) {
+          const serial = decodeURIComponent(devMatch[1] ?? "");
+          if (req.method === "GET") {
+            const registry = loadRegistry(projectRoot);
+            const lane = getDeviceLane(registry, serial);
+            sendJson(res, 200, { serial, lane, devices: listDeviceLanes(registry) });
+            return;
+          }
+          if (req.method === "PUT") {
+            if (!requireCpAuth()) return;
+            const raw = await readBody(req);
+            const body = raw
+              ? (JSON.parse(raw) as { lane?: string })
+              : {};
+            if (!isValidLane(body.lane)) {
+              appendAudit(projectRoot, {
+                method: "PUT",
+                path: url.pathname,
+                actor: cpRole,
+                outcome: "error",
+                detail: `invalid lane "${body.lane ?? ""}"`,
+              });
+              sendJson(res, 400, {
+                error: "invalid lane",
+                allowed: ["staging", "production", "gray"],
+              });
+              return;
+            }
+            const { registry, lane } = setDeviceLane(projectRoot, serial, body.lane);
+            appendAudit(projectRoot, {
+              method: "PUT",
+              path: url.pathname,
+              actor: cpRole,
+              outcome: "ok",
+              detail: `lane=${lane} serial=${serial}`,
+            });
+            sendJson(res, 200, {
+              ok: true,
+              action: "device-lane-set",
+              serial,
+              lane,
+              registry,
+            });
+            return;
+          }
+        }
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1/devices") {
+        sendJson(res, 200, { devices: listDeviceLanes(loadRegistry(projectRoot)) });
+        return;
+      }
+
       if (req.method === "GET" && url.pathname === "/v1/dependency-manifest") {
         sendJson(res, 200, loadDependencyManifest(projectRoot));
         return;
@@ -386,6 +494,13 @@ export function createControlPlane(options: {
           host_capability_set: body.host_capability_set,
           require_declared: body.require_declared === true,
         });
+        appendAudit(projectRoot, {
+          method: "PUT",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `deps=${Array.isArray(body.dependencies) ? body.dependencies.length : 0}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "dependency-manifest-put",
@@ -402,6 +517,13 @@ export function createControlPlane(options: {
         await runPromote({
           cwd: projectRoot,
           digest: body.digest,
+        });
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest ?? ""}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -443,6 +565,13 @@ export function createControlPlane(options: {
           candidate,
           body.reason ?? "cp-api block",
         );
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "block",
@@ -477,6 +606,13 @@ export function createControlPlane(options: {
           reason: body.reason,
           actor: cpRole,
         });
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `module=${body.business_module ?? ""} updates=${(body.update_ids ?? []).join(",")}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "kill",
@@ -498,6 +634,13 @@ export function createControlPlane(options: {
           reason: body.reason,
           actor: cpRole,
         });
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `module=${body.business_module ?? ""}`,
+        });
         sendJson(res, 200, { ok: true, action: "pause", pause, registry });
         return;
       }
@@ -515,6 +658,13 @@ export function createControlPlane(options: {
           );
         }
         const registry = resumeModule(projectRoot, body.business_module);
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `module=${body.business_module}`,
+        });
         sendJson(res, 200, { ok: true, action: "resume", registry });
         return;
       }
@@ -547,6 +697,13 @@ export function createControlPlane(options: {
           min_soak_ms: body.min_soak_ms ?? resolveCpMinSoakMs(),
           sli_thresholds: body.sli_thresholds,
         });
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `module=${body.business_module ?? ""} digest=${body.digest ?? ""}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "rollout_start",
@@ -576,6 +733,13 @@ export function createControlPlane(options: {
           human_full_approved: body.human_full_approved,
           forceSoak: body.force_soak === true,
         });
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "rollout_advance",
@@ -596,6 +760,13 @@ export function createControlPlane(options: {
           );
         }
         const { registry, rollout } = pauseRollout(projectRoot, body.digest);
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "rollout_pause",
@@ -616,6 +787,13 @@ export function createControlPlane(options: {
           );
         }
         const { registry, rollout } = resumeRollout(projectRoot, body.digest);
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "rollout_resume",
@@ -638,6 +816,13 @@ export function createControlPlane(options: {
           );
         }
         const { registry, rollout } = pauseRollout(projectRoot, body.digest);
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest} reason=${body.reason?.trim() || "slo_breach"}`,
+        });
         sendJson(res, 200, {
           ok: true,
           action: "rollout_slo_breach_pause",
@@ -669,6 +854,13 @@ export function createControlPlane(options: {
           sli: body.sli,
           human_full_approved: body.human_full_approved === true,
           now: body.now ? new Date(body.now) : undefined,
+        });
+        appendAudit(projectRoot, {
+          method: "POST",
+          path: url.pathname,
+          actor: cpRole,
+          outcome: "ok",
+          detail: `digest=${body.digest} tick=${result.action}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -723,8 +915,10 @@ function printBanner(handle: ControlPlaneHandle, label: string): void {
   console.error("  GET  /v1/artifacts/:digest  (Map E host download)");
   console.error("  GET  /v1/js-updates?lane=&module=  (Map E JS train)");
   console.error("  GET|PUT /v1/dependency-manifest (Map E deps)");
+  console.error("  GET  /v1/devices | GET|PUT /v1/devices/:serial/lane (C6.3 grey slice)");
   console.error("  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)");
   console.error("  POST /v1/rollout/tick { digest, sli?, now? } (C5 P10 auto)");
+  console.error("  audit -> .rn/distribution-lab/logs/cp-audit.log (C6.4)");
 }
 
 /** Map B thin CP — CLI-embedded serve (compat). */
