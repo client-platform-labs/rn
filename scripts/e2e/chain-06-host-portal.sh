@@ -12,7 +12,7 @@ S=$(cp_get /v1/service | jq -r '.name // empty')
 assert_eq "control-plane" "$S" "/v1/service.name"
 
 step "6.3 装包台 /portal/host"
-RC=$(curl -s -o /dev/null -w '%{http_code}' http://dist.tiangong.local/portal/host)
+RC=$(curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://dist.tiangong.local/portal/host)
 if [[ "$RC" == "200" ]]; then
   ok "/portal/host OK"
 else
@@ -21,11 +21,16 @@ else
 fi
 
 step "6.4 JS 发版台 /portal/js"
-RC=$(curl -s -o /dev/null -w '%{http_code}' http://dist-staging.tiangong.local/portal/js)
-ok "/portal/js rc=$RC"
+RC=$(curl -s --noproxy '*' -o /dev/null -w '%{http_code}' http://dist-staging.tiangong.local/portal/js)
+if [[ "$RC" == "200" ]]; then
+  ok "/portal/js OK"
+else
+  if [[ "$RC" == "404" ]]; then warn "/portal/js 404（caddy 未配该路径）"
+  else err "/portal/js rc=$RC"; FAILS=$((FAILS+1)); fi
+fi
 
 step "6.5 装包台页面含 upload 表单"
-HTML=$(curl -s http://dist.tiangong.local/portal/host 2>/dev/null || curl -s http://127.0.0.1:4040/portal/host 2>/dev/null || true)
+HTML=$(curl -s --noproxy '*' http://dist.tiangong.local/portal/host 2>/dev/null || curl -s http://127.0.0.1:4040/portal/host 2>/dev/null || true)
 if grep -qE "upload|apk|host" <<< "$HTML"; then ok "装包台页面含 host 关键词"
 else warn "装包台页面未含 host 关键词"; SKIPS=$((SKIPS+1)); fi
 
