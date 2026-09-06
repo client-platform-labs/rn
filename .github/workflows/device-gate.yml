@@ -63,7 +63,10 @@ jobs:
           echo "/opt/homebrew/bin"  >> "$GITHUB_PATH"
           echo "/opt/homebrew/sbin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/share/android-commandlinetools/platform-tools" >> "$GITHUB_PATH"
-          NVM_NODE="$(ls -d "$HOME"/.nvm/versions/node/v* 2>/dev/null | sort -V | tail -1 || true)"
+          # Pin node to the .nvmrc major (not the highest installed) to avoid
+          # node/corepack version mismatch.
+          NVM_MAJOR="$(grep -oE '[0-9]+' .nvmrc | head -1)"
+          NVM_NODE="$(ls -d "$HOME"/.nvm/versions/node/v${NVM_MAJOR}.* 2>/dev/null | sort -V | tail -1 || true)"
           if [[ -n "$NVM_NODE" ]]; then echo "$NVM_NODE/bin" >> "$GITHUB_PATH"; fi
           echo "ANDROID_HOME=/opt/homebrew/share/android-commandlinetools" >> "$GITHUB_ENV"
           echo "--- tool versions ---"
