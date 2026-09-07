@@ -58,9 +58,14 @@ if (pkgPath && existsSync(templatesDir)) {
     const out = path.join(pkgPath, name.replace(".template", ""));
     if (!dryRun) {
       mkdirSync(pkgPath, { recursive: true });
-      writeFileSync(out, readFileSync(src, "utf8"));
+      // rewrite template package → <appId>.ota so MainApplication import resolves
+      const body = readFileSync(src, "utf8").replace(
+        /^package\s+[\w.]+/m,
+        `package ${appId}.ota`,
+      );
+      writeFileSync(out, body);
     }
-    sh(`copy ${name} → ${path.relative(projectRoot, out)}`);
+    sh(`copy ${name} → ${path.relative(projectRoot, out)} (package=${appId}.ota)`);
   }
 }
 
