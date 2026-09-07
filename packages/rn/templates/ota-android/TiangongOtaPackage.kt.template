@@ -1,0 +1,20 @@
+package com.clientplatform.ota
+
+import com.facebook.react.ReactPackage
+import com.facebook.react.bridge.NativeModule
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.uimanager.ViewManager
+
+/**
+ * Registers the on-device OTA native adapter (shell-core `OtaNativeAdapter`).
+ * Skeleton — device e2e HITL pending (G0/G7).
+ */
+class TiangongOtaPackage : ReactPackage {
+  override fun createNativeModules(
+    reactContext: ReactApplicationContext,
+  ): List<NativeModule> = listOf(TiangongOtaModule(reactContext))
+
+  override fun createViewManagers(
+    reactContext: ReactApplicationContext,
+  ): List<ViewManager<*, *>> = emptyList()
+}
