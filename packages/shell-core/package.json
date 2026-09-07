@@ -1,0 +1,21 @@
+{
+  "name": "@client-platform/shell-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "On-device OTA runtime client (GF/BF shared) — host injects the native adapter",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@client-platform/rn-core": "workspace:*"
+  }
+}
