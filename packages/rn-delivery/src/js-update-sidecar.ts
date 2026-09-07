@@ -21,6 +21,8 @@ export type JsUpdateSidecar = {
   bundle_path: string;
   digest: string;
   signature?: string;
+  release_id: string;
+  artifact_kind: string;
   candidate: JsUpdateCandidate;
   host_context: {
     artifact_line: string;
@@ -75,6 +77,8 @@ export function writeJsUpdateSidecar(
     bundle_path: input.bundlePath,
     digest: input.metadata.digest,
     signature: input.metadata.signature,
+    release_id: input.metadata.release_id,
+    artifact_kind: input.metadata.artifact_kind,
     candidate: buildJsUpdateCandidate({
       businessModule,
       updateId,

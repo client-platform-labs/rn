@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./ota": {
+      "types": "./dist/ota-gate.d.ts",
+      "import": "./dist/ota-gate.js"
     }
   },
   "types": "./dist/index.d.ts",
@@ -18,6 +22,8 @@
     "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
+    "@noble/ed25519": "^2.3.0",
+    "@noble/hashes": "^2.4.0",
     "ajv": "^8.20.0",
     "jsonc-parser": "^3.3.1"
   }

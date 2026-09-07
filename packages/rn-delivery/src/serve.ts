@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, rmSync } from "node:fs";
 import {
   createServer,
   type IncomingMessage,
@@ -48,7 +48,7 @@ import { runPromote } from "./promote.js";
 import { buildDeviceJsUpdateManifest } from "./device-manifest.js";
 import { pickCandidate } from "./release-shared.js";
 import { useSqliteRegistry } from "./registry-sqlite.js";
-import { usePostgresRegistry } from "./registry-postgres.js";
+import { createLocalDirectoryArtifactStore } from "./artifact-store.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
 import {
   KillPauseError,
@@ -174,15 +174,41 @@ function withDownloadUrl(c: CandidateMetadata): CandidateMetadata & {
   };
 }
 
+function artifactContentInfo(meta?: {
+  platform?: string;
+  artifact_kind?: string;
+}): { contentType: string; extension: string } {
+  const kind = meta?.artifact_kind ?? "";
+  const platform = meta?.platform ?? "";
+  if (
+    platform === "android" &&
+    (kind === "app-host" || kind === "app-host-debug")
+  ) {
+    return {
+      contentType: "application/vnd.android.package-archive",
+      extension: "apk",
+    };
+  }
+  if (platform === "android" && kind === "rn-module") {
+    return { contentType: "application/octet-stream", extension: "aar" };
+  }
+  if (kind === "js-update") {
+    return { contentType: "application/octet-stream", extension: "hbc" };
+  }
+  return { contentType: "application/octet-stream", extension: "bin" };
+}
+
 function streamArtifact(
   res: ServerResponse,
   filePath: string,
   digest: string,
+  meta?: { platform?: string; artifact_kind?: string },
 ): void {
-  const name = path.basename(filePath) || `${digest.slice(0, 12)}.apk`;
+  const { contentType, extension } = artifactContentInfo(meta);
+  const name = `${digest.slice(0, 12)}.${extension}`;
   const size = statSync(filePath).size;
   res.writeHead(200, {
-    "content-type": "application/vnd.android.package-archive",
+    "content-type": contentType,
     "content-length": size,
     "content-disposition": `attachment; filename="${name}"`,
   });
@@ -247,6 +273,7 @@ export function createControlPlane(options: {
   const host = options.host ?? "127.0.0.1";
   const serviceMode = options.serviceMode ?? "cli-serve";
   const storage: "file" | "sqlite" = useSqliteRegistry() ? "sqlite" : "file";
+  const artifactStore = createLocalDirectoryArtifactStore(projectRoot);
   const cpAuthConfig = resolveCpAuthConfig();
   const cpRole = resolveCpRole();
   /** Last authenticated tenant for the current request (set by requireCpAuth). */
@@ -254,6 +281,7 @@ export function createControlPlane(options: {
 
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
+    console.error(`[cp-access] ${req.method} ${url.pathname}${url.search}`);
     requestTenant = "default";
     try {
       const requireCpAuth = () => {
@@ -349,6 +377,36 @@ export function createControlPlane(options: {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/ready") {
+        const deliveryDirPath = path.join(projectRoot, ".rn/delivery");
+        const registryFile = useSqliteRegistry()
+          ? path.join(deliveryDirPath, "registry.sqlite")
+          : path.join(deliveryDirPath, "registry.json");
+        const artifactsPath = path.join(deliveryDirPath, "artifacts");
+        const checks = {
+          registry: existsSync(registryFile),
+          artifacts_dir: existsSync(artifactsPath),
+        };
+        let writable = false;
+        try {
+          mkdirSync(artifactsPath, { recursive: true });
+          const probe = path.join(artifactsPath, "__ready_probe__");
+          appendFileSync(probe, "x");
+          rmSync(probe, { force: true });
+          writable = true;
+        } catch {
+          writable = false;
+        }
+        const ready = checks.registry && checks.artifacts_dir && writable;
+        sendJson(res, ready ? 200 : 503, {
+          ok: ready,
+          service: CP_SERVICE_NAME,
+          checks,
+          writable,
+        });
+        return;
+      }
+
       if (req.method === "GET" && url.pathname === "/v1/metrics") {
         res.writeHead(200, {
           "content-type": "text/plain; version=0.0.4; charset=utf-8",
@@ -424,8 +482,6 @@ export function createControlPlane(options: {
           projectRoot,
           replaceable_backend: true,
           default_min_soak_ms: labSoak ?? 60_000,
-          postgres: usePostgresRegistry(),
-          postgres_env: "RN_CP_DATABASE_URL",
           auth: {
             single_token: Boolean(cpAuthConfig.token),
             tenants: tenants ?? null,
@@ -433,9 +489,8 @@ export function createControlPlane(options: {
           },
           metrics: "/v1/metrics",
           sli: "POST /v1/sli",
-          note: usePostgresRegistry()
-            ? "thin CP — Postgres adapter contract (B8); default storage remains file/sqlite"
-            : "thin CP — Postgres adapter contract = Map B B8 (opt-in via RN_CP_DATABASE_URL)",
+          note:
+            "thin CP — production storage = file | sqlite; Postgres is an unwired RDS/HA seam (ADR-013 / G9)",
         });
         return;
       }
@@ -513,21 +568,21 @@ export function createControlPlane(options: {
         const artMatch = url.pathname.match(/^\/v1\/artifacts\/([^/]+)$/);
         if (req.method === "GET" && artMatch) {
           const digest = decodeURIComponent(artMatch[1] ?? "");
-          const registry = loadRegistry(projectRoot);
-          const cand = findArtifactByDigest(registry, digest);
-          if (!cand?.path?.trim()) {
+          const cand = findArtifactByDigest(loadRegistry(projectRoot), digest);
+          const filePath = artifactStore.get(digest) ?? cand?.path?.trim() ?? null;
+          if (!filePath) {
             sendJson(res, 404, { error: "artifact_not_found", digest });
             return;
           }
-          if (!existsSync(cand.path)) {
+          if (!existsSync(filePath)) {
             sendJson(res, 404, {
               error: "artifact_file_missing",
               digest,
-              path: cand.path,
+              path: filePath,
             });
             return;
           }
-          streamArtifact(res, cand.path, cand.digest);
+          streamArtifact(res, filePath, digest, cand ?? undefined);
           return;
         }
       }

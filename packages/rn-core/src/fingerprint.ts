@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 
 import {
   DEFAULT_JS_ARTIFACT_MAX_PROFILES,
@@ -44,7 +45,8 @@ export function digestRuntimeFingerprint(
 ): string {
   const canonical = toCanonicalFingerprintPayload(input);
   const json = JSON.stringify(canonical);
-  return createHash("sha256").update(json, "utf8").digest("hex");
+  // @noble/hashes sha256 — device-safe (Hermes has no node:crypto), same output.
+  return bytesToHex(sha256(new TextEncoder().encode(json)));
 }
 
 function requiredFieldsEqual(

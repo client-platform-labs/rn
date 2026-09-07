@@ -25,6 +25,7 @@ function openDb(projectRoot: string): DatabaseSync {
   const file = sqlitePath(projectRoot);
   mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
+  db.exec("PRAGMA journal_mode = WAL;");
   db.exec(`
     CREATE TABLE IF NOT EXISTS registry_meta (
       key TEXT PRIMARY KEY,

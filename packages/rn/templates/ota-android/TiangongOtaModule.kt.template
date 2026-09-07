@@ -1,0 +1,66 @@
+// SKELETON — on-device OTA native adapter (Android Kotlin).
+// Productized from tiangong-host `TiangongOta`; device build + e2e = HITL PENDING (G0).
+// Consumed by @client-platform/shell-core `OtaNativeAdapter`. Do not claim verified.
+package com.clientplatform.ota
+
+import android.util.Base64
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+
+class TiangongOtaModule(
+    private val reactContext: ReactApplicationContext,
+) : ReactContextBaseJavaModule(reactContext) {
+
+    override fun getName(): String = "TiangongOta"
+
+    @ReactMethod
+    fun getOtaPublicKeys(promise: Promise) {
+        // TODO(G0): return baked K1+K2 Ed25519 public keys (hex) from res/raw or BuildConfig.
+        //           MUST NOT be fetched from the OTA payload (ADR-017 trust boundary).
+        promise.resolve(emptyArray<String>())
+    }
+
+    @ReactMethod
+    fun ensureModuleSlots(moduleId: String, promise: Promise) {
+        // TODO(G0): create filesDir/ota/<moduleId>/{staged,active,baseline}
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun writeFileBase64(relPath: String, base64: String, promise: Promise) {
+        // TODO(G0): Base64.decode(base64, Base64.DEFAULT) → filesDir/<relPath>; resolve abs path
+        promise.resolve("")
+    }
+
+    @ReactMethod
+    fun writeFileUtf8(relPath: String, utf8: String, promise: Promise) {
+        // TODO(G0): write filesDir/<relPath> (UTF-8); resolve abs path
+        promise.resolve("")
+    }
+
+    @ReactMethod
+    fun setActiveBundlePathForModule(moduleId: String, filePath: String, promise: Promise) {
+        // TODO(G0): persist per-module active bundle path (SharedPreferences / file)
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun clearActiveBundlePathForModule(moduleId: String, promise: Promise) {
+        // TODO(G0): clear persisted active path → fall back to embedded baseline
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun setRootModuleId(moduleId: String, promise: Promise) {
+        // TODO(G0): persist root module id
+        promise.resolve(null)
+    }
+
+    @ReactMethod
+    fun reload(promise: Promise) {
+        // TODO(G0): reload the RN runtime (mirror tiangong-host reload implementation)
+        promise.resolve(null)
+    }
+}

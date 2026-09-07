@@ -64,7 +64,7 @@ describe("gateBundleLoad composition", () => {
 
   it("passes load without composition args", () => {
     const r = gateBundleLoad(
-      { candidate: checkout, signature: "sig", expectedDigest: "sig" },
+      { candidate: checkout, allowUnsignedInDev: true },
       host,
     );
     assert.equal(r.ok, true);
@@ -74,8 +74,7 @@ describe("gateBundleLoad composition", () => {
     const r = gateBundleLoad(
       {
         candidate: checkout,
-        signature: "sig",
-        expectedDigest: "sig",
+        allowUnsignedInDev: true,
         composition: { checkout, home: homeOld },
         dependencies: deps,
         version_labels: {
@@ -93,8 +92,7 @@ describe("gateBundleLoad composition", () => {
     const r = gateBundleLoad(
       {
         candidate: checkout,
-        signature: "sig",
-        expectedDigest: "sig",
+        allowUnsignedInDev: true,
         composition: { checkout, home: homeNew },
         dependencies: deps,
         version_labels: {

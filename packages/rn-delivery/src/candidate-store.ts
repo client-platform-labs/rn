@@ -2,6 +2,8 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -90,6 +92,25 @@ export function ensureDeliveryDir(projectRoot: string): string {
   return dir;
 }
 
+/**
+ * ADR-013 — atomic write for file-mode delivery state (tmp + rename in same dir).
+ * A crash mid-write must never leave a truncated registry.json / last-build.json.
+ */
+export function writeFileAtomicSync(filePath: string, data: string): void {
+  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    writeFileSync(tmp, data);
+    renameSync(tmp, filePath);
+  } catch (err) {
+    try {
+      if (existsSync(tmp)) rmSync(tmp, { force: true });
+    } catch {
+      /* best-effort cleanup */
+    }
+    throw err;
+  }
+}
+
 export type LastBuildRecord = {
   schemaVersion: 1;
   built_at: string;
@@ -106,14 +127,14 @@ export function writeBuildResults(
     built_at: new Date().toISOString(),
     candidates,
   };
-  writeFileSync(
+  writeFileAtomicSync(
     path.join(deliveryDir(projectRoot), LAST_BUILD_FILE),
     `${JSON.stringify(record, null, 2)}\n`,
   );
   const primary =
     candidates.find((c) => c.platform === "android") ?? candidates[0];
   if (primary) {
-    writeFileSync(
+    writeFileAtomicSync(
       path.join(deliveryDir(projectRoot), LAST_CANDIDATE_FILE),
       `${JSON.stringify(primary, null, 2)}\n`,
     );
@@ -262,7 +283,7 @@ export function saveRegistry(
     saveRegistrySqlite(projectRoot, registry);
     return;
   }
-  writeFileSync(
+  writeFileAtomicSync(
     path.join(deliveryDir(projectRoot), REGISTRY_FILE),
     `${JSON.stringify(registry, null, 2)}\n`,
   );
@@ -311,7 +332,7 @@ export function writeLastCandidate(
 ): void {
   ensureDeliveryDir(projectRoot);
   const candidateFile = path.join(deliveryDir(projectRoot), LAST_CANDIDATE_FILE);
-  writeFileSync(candidateFile, `${JSON.stringify(candidate, null, 2)}\n`);
+  writeFileAtomicSync(candidateFile, `${JSON.stringify(candidate, null, 2)}\n`);
 
   const buildFile = path.join(deliveryDir(projectRoot), LAST_BUILD_FILE);
   if (!existsSync(buildFile)) return;
@@ -319,7 +340,7 @@ export function writeLastCandidate(
   const idx = record.candidates.findIndex((c) => c.digest === candidate.digest);
   if (idx < 0) return;
   record.candidates[idx] = candidate;
-  writeFileSync(buildFile, `${JSON.stringify(record, null, 2)}\n`);
+  writeFileAtomicSync(buildFile, `${JSON.stringify(record, null, 2)}\n`);
 }
 
 export function promoteStagingToProduction(

@@ -89,11 +89,14 @@ describe("ADR-008 P0 contracts", () => {
       host,
     );
     assert.equal(allowedDev.ok, true);
-    const verified = gateBundleLoad(
+    const stubRefused = gateBundleLoad(
       { candidate, signature: "abc", expectedDigest: "abc" },
       host,
     );
-    assert.equal(verified.ok, true);
+    assert.equal(stubRefused.ok, false);
+    if (!stubRefused.ok) {
+      assert.equal(stubRefused.signatureStatus, "invalid");
+    }
   });
 
   it("quality signals require business_module + update_id", () => {

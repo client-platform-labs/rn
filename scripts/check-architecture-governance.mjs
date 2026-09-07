@@ -11,10 +11,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 
 const PRINCIPLES_MARKER = "## Principles compliance";
-const ADR_DIR = path.join(REPO_ROOT, "wayfinding-impl-2/docs/adr");
+const ADR_DIRS = [
+  path.join(REPO_ROOT, "wayfinding-impl-2/docs/adr"),
+  path.join(REPO_ROOT, "docs/adr"),
+];
 const PRINCIPLES_DOC = path.join(REPO_ROOT, "docs/agents/engineering-principles.md");
 const GOVERNANCE_DOC = path.join(REPO_ROOT, "docs/agents/architecture-governance.md");
-const ADR_009 = path.join(ADR_DIR, "009-architecture-principles-governance.md");
+const ADR_009 = path.join(REPO_ROOT, "wayfinding-impl-2/docs/adr", "009-architecture-principles-governance.md");
 
 const FORBIDDEN_PRODUCT_PATTERNS = [
   {
@@ -50,10 +53,14 @@ export function checkArchitectureGovernance(root = REPO_ROOT) {
     }
   }
 
-  if (existsSync(ADR_DIR)) {
-    for (const name of readdirSync(ADR_DIR)) {
+  for (const adrDir of ADR_DIRS) {
+    if (!existsSync(adrDir)) {
+      errors.push(`missing ADR directory: ${path.relative(REPO_ROOT, adrDir)}`);
+      continue;
+    }
+    for (const name of readdirSync(adrDir)) {
       if (!name.endsWith(".md") || name === "000-template.md") continue;
-      const full = path.join(ADR_DIR, name);
+      const full = path.join(adrDir, name);
       const body = readFileSync(full, "utf8");
       if (!body.includes(PRINCIPLES_MARKER)) {
         errors.push(
@@ -61,8 +68,6 @@ export function checkArchitectureGovernance(root = REPO_ROOT) {
         );
       }
     }
-  } else {
-    errors.push("missing ADR directory");
   }
 
   for (const rule of FORBIDDEN_PRODUCT_PATTERNS) {
