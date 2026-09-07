@@ -1,5 +1,5 @@
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, rmSync } from "node:fs";
 import {
   createServer,
   type IncomingMessage,
@@ -373,6 +373,36 @@ export function createControlPlane(options: {
           projectRoot,
           service: CP_SERVICE_NAME,
           api: CP_SERVICE_API,
+        });
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/ready") {
+        const deliveryDirPath = path.join(projectRoot, ".rn/delivery");
+        const registryFile = useSqliteRegistry()
+          ? path.join(deliveryDirPath, "registry.sqlite")
+          : path.join(deliveryDirPath, "registry.json");
+        const artifactsPath = path.join(deliveryDirPath, "artifacts");
+        const checks = {
+          registry: existsSync(registryFile),
+          artifacts_dir: existsSync(artifactsPath),
+        };
+        let writable = false;
+        try {
+          mkdirSync(artifactsPath, { recursive: true });
+          const probe = path.join(artifactsPath, "__ready_probe__");
+          appendFileSync(probe, "x");
+          rmSync(probe, { force: true });
+          writable = true;
+        } catch {
+          writable = false;
+        }
+        const ready = checks.registry && checks.artifacts_dir && writable;
+        sendJson(res, ready ? 200 : 503, {
+          ok: ready,
+          service: CP_SERVICE_NAME,
+          checks,
+          writable,
         });
         return;
       }
