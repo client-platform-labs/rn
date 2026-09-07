@@ -23,3 +23,17 @@
 - [ ] 真机走通 check → fetch → verify → install → reload → rollback。
 - [ ] 崩溃环计数（native 启动计数 + shell-core `crash-loop`）真机验证。
 - [ ] 双公钥 K1/K2 + 「K1 吊销」真机验证（ADR-018）。
+
+## 工业级实现契约（设备 e2e 验证出的正确做法）
+
+1. **公钥数组必须 `Arguments.createArray()`**：Kotlin `arrayOf()` 过 RN 桥变成
+   `WritableNativeArray`，JS 里 `Array.isArray()===false` —— 公钥会丢，验签 fail-closed。
+   JS 侧也一律用 `Array.from()` 归一化。
+2. **`installed_update_id` 持久化在 native**：`setInstalledUpdateId(moduleId, id)` 必须在
+   `reload()` 之前调用（reload 杀进程）。启动时 `pullOtaUpdate` 用它跳过已安装的更新，
+   否则每次启动重复拉同一包（真机实证过的循环 bug）。
+3. **崩溃环计数持久化在 native**：每次启动 `recordStartupFailure()`+1，健康启动
+   `resetStartupFailures()`；达到 `DEFAULT_CRASH_LOOP_MAX` 时 JS 调
+   `rollbackToEmbeddedBaseline`（除非自然回退到基线，ADR-014）。
+4. **验签信任边界**：公钥烘焙在 native，`@noble` 验签在随 APK 的 shell-core 包（`rn-core/ota`）；
+   绝不用 OTA 下来的 JS 验 OTA 包。

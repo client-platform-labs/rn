@@ -4,6 +4,13 @@ export type {
   OtaClient,
   OtaVerifyResult,
 } from "./ota-client.js";
+export { pullOtaUpdate } from "./pull-ota.js";
+export type {
+  OtaLane,
+  PullOtaClient,
+  PullOtaFetchManifest,
+  PullOtaResult,
+} from "./pull-ota.js";
 export {
   assertModuleId,
   assetBaselineUri,
