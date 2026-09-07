@@ -82,6 +82,7 @@ async function bootOta(moduleId: string): Promise<PullOtaResult> {
       if (!base) return null;
       const res = await fetch(
         `${base}/v1/js-updates/check?module=${encodeURIComponent(moduleId2)}&lane=${lane}`,
+        { signal: AbortSignal.timeout(8000) },
       );
       if (res.status === 204) return null;
       if (!res.ok) throw new Error(`check HTTP ${res.status}`);
