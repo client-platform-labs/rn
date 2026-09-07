@@ -281,6 +281,7 @@ export function createControlPlane(options: {
 
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${host}`);
+    console.error(`[cp-access] ${req.method} ${url.pathname}${url.search}`);
     requestTenant = "default";
     try {
       const requireCpAuth = () => {

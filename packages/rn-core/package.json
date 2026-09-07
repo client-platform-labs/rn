@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./ota": {
+      "types": "./dist/ota-gate.d.ts",
+      "import": "./dist/ota-gate.js"
     }
   },
   "types": "./dist/index.d.ts",

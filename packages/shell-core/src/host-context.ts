@@ -1,4 +1,4 @@
-import type { HostSelectorContext } from "@client-platform/rn-core";
+import type { HostSelectorContext } from "@client-platform/rn-core/ota";
 import type { OtaSidecar } from "./ota-native.js";
 
 /** Rebuild the host selector context from a sidecar's host_context block. */

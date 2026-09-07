@@ -3,7 +3,7 @@
  * The raw native surface is host-owned (Kotlin module); shell-core depends only
  * on this adapter interface, never on `react-native` imports.
  */
-import type { JsUpdateCandidate } from "@client-platform/rn-core";
+import type { JsUpdateCandidate } from "@client-platform/rn-core/ota";
 
 export type OtaSidecar = {
   update_id?: string;
