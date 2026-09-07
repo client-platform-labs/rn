@@ -34,6 +34,35 @@
 - `index.js`：注入 `globalThis.__TIANGONG_CP_BASE_URL__ = http://127.0.0.1:18899`（配合 `adb reverse tcp:18899`）。
 - `App.tsx`：`console.error("[ota] APP EVAL")`（诊断，可删）。
 
+## 结果：✅ 真机完整链路跑通（2026-09-07 13:31，vivo V2425A，release 模式）
+
+设备端原生日志链（OTAE2E）：
+
+```
+JS: verify OK signature=pem:ed25519:wqwjPC   ← 真 Ed25519 验签在设备通过（烘焙公钥 3c728c…）
+ensureModuleSlots module=desk
+writeFileBase64 ota/desk/staged/index.hbc bytes=2212200   ← CP 下载签名包
+JS: verify OK …（下载后二次验签）
+setActiveBundlePathForModule …/ota/desk/staged/index.hbc   ← 安装
+reload
+```
+
+cp 访问日志：设备反复 `GET /v1/js-updates/check` + `GET /v1/artifacts/2c0a3b…`。fail-closed 也实证过（公钥为空时 `verify REJECTED … keys=0`，拒绝加载）。
+
+## 根因（工业级答案，非 RN 平台缺陷）
+
+1. **非 RN 缺陷**：运行时观测 `DEBUG=false reactBuildConfig.DEBUG=false`，host 是正确的 release 模式。
+2. **reference host 加载的是预构建的 desk.hbc 基线**（`jsBundleFile=assets://ota/desk/index.hbc`），我的 shell 源码编辑不在运行的 bundle 里。**正确修法 = 重跑正式基线管线** `node scripts/embed-baseline.mjs --module desk`（Metro `--dev false` → hermesc → 嵌入 assets），设备即跑新代码。
+3. **RN 桥真实坑（平台级教训）**：Kotlin `arrayOf()` 过桥是 `WritableNativeArray`，`Array.isArray()`=false → 公钥丢失。**必须 `Arguments.createArray()` 或 JS 侧 `Array.from()`**。已修，验签即过。
+
+## 真实发现（G7/productization 待办）
+
+- **重拉/重载循环**：安装 reload 后 app 回到基线（root 模块 active path 未持久化），且 `__TIANGONG_UPDATE_ID__` 跨进程重置 → 每启动重复拉同一更新。需：installed update_id 持久化（native prefs）+ shell-core `crash-loop` 预算 + 跳过已安装 digest 的逻辑。这是 reference host 的模块路径解析/持久化问题，是 G7 产品化时要在 greenfield 模板里定义正确的行为。
+
+## 遗留（待清理）
+
+- tiangong-host 的 test-only 改动（`if (false && __DEV__)` 强制拉取、`index.js` 注入 127.0.0.1:18899、原生埋点、logJs 桥）——设备 e2e 完成后回滚/收编到产品化实现。
+
 ## 平台侧验证命令（复现 LIVE VERIFY）
 
 ```bash
