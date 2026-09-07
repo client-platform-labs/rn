@@ -7,6 +7,7 @@ import {
   evaluateRuntimeCompositionGate,
   type BundleDependencyEdge,
 } from "./dependency-manifest.js";
+import { verifyEd25519Seal } from "./ed25519-verify.js";
 import { gateJsCandidate } from "./selector.js";
 import type {
   GateJsCandidateResult,
@@ -28,6 +29,11 @@ export type BundleLoadArtifact = {
   expectedDigest?: string | null;
   /** Dev Session may skip signature while still requiring fingerprint gate. */
   allowUnsignedInDev?: boolean;
+  /** ADR-017 — Ed25519 seal context (must match server sign payload). */
+  release_id?: string;
+  artifact_kind?: string;
+  /** Baked Ed25519 public keys (hex, 32 bytes each) — K1 + K2. */
+  publicKeys?: readonly string[];
   /**
    * Map E — live module composition on device (module id → candidate).
    * When set with `dependencies`, peer/hard coexistence is fail-closed.
@@ -82,12 +88,36 @@ export function gateBundleLoad(
         reason: `unsigned package refused for business_module=${artifact.candidate.business_module} update_id=${artifact.candidate.update_id}`,
       };
     }
-  } else if (expected && sig !== expected) {
-    return {
-      ok: false,
-      signatureStatus: "invalid",
-      reason: `signature mismatch for update_id=${artifact.candidate.update_id}`,
-    };
+  } else if (sig.startsWith("pem:ed25519:")) {
+    // ADR-017 — real Ed25519 verify against baked public keys (fail-closed).
+    const verified = verifyEd25519Seal(
+      sig,
+      {
+        release_id: artifact.release_id ?? "",
+        artifact_kind: artifact.artifact_kind ?? "",
+        digest: expected ?? "",
+      },
+      artifact.publicKeys ?? [],
+    );
+    if (!verified) {
+      return {
+        ok: false,
+        signatureStatus: "invalid",
+        reason: `Ed25519 signature verification failed for update_id=${artifact.candidate.update_id}`,
+      };
+    }
+    signatureStatus = "verified";
+  } else {
+    // digest-stub / HMAC hex — refused in release (ADR-017 fail-closed).
+    if (artifact.allowUnsignedInDev) {
+      signatureStatus = "skipped_dev";
+    } else {
+      return {
+        ok: false,
+        signatureStatus: "invalid",
+        reason: `non-Ed25519 signature refused for update_id=${artifact.candidate.update_id} (digest-stub/HMAC not allowed in release)`,
+      };
+    }
   }
 
   if (

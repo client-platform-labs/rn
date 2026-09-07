@@ -12,6 +12,7 @@ import {
   hostArtifactKindForProfile,
 } from "./candidate.js";
 import { writeBuildResults, writeLastCandidate } from "./candidate-store.js";
+import { archiveArtifactIfPresent } from "./artifact-store.js";
 import type { DeliveryProfile } from "./types.js";
 import {
   DeliveryError,
@@ -54,6 +55,7 @@ export async function runIngestHost(options: {
   });
 
   writeBuildResults(projectRoot, [meta]);
+  archiveArtifactIfPresent(projectRoot, meta);
   writeLastCandidate(projectRoot, meta);
   console.log(JSON.stringify(meta, null, 2));
 }

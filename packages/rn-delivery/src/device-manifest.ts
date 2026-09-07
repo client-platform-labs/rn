@@ -9,6 +9,8 @@ export type DeviceJsUpdateManifest = {
   update_id: string;
   digest: string;
   signature?: string;
+  release_id: string;
+  artifact_kind: string;
   candidate: JsUpdateSidecar["candidate"];
   host_context: JsUpdateSidecar["host_context"];
   channel: string;
@@ -38,6 +40,8 @@ export function buildDeviceJsUpdateManifest(
     update_id: sidecar.update_id,
     digest: sidecar.digest,
     signature: sidecar.signature ?? meta.signature,
+    release_id: sidecar.release_id,
+    artifact_kind: sidecar.artifact_kind,
     candidate: sidecar.candidate,
     host_context: sidecar.host_context,
     channel: sidecar.candidate.channel ?? "default",

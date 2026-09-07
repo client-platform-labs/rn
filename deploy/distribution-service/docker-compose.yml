@@ -22,7 +22,7 @@ services:
       PORT: "4040"
       RN_CP_TOKEN: ${RN_CP_TOKEN:-}
       RN_CP_ROLE: ${RN_CP_ROLE:-admin}
-      RN_CP_REGISTRY: ${RN_CP_REGISTRY:-file}
+      RN_CP_REGISTRY: ${RN_CP_REGISTRY:-sqlite}
       RN_CP_DISABLE_CONSOLE: ${RN_CP_DISABLE_CONSOLE:-0}
       # 多租户契约：当前是单值 token（RN_CP_TOKEN），per-tenant 隔离走
       # RN_CP_DATABASE_URL → Postgres adapter（见 .env.example 注释）。

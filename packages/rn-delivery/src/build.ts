@@ -5,6 +5,7 @@ import path from "node:path";
 import { computeFingerprint, releaseSourceHygieneOk } from "@client-platform/rn-core";
 
 import { writeBuildResults } from "./candidate-store.js";
+import { archiveArtifactIfPresent } from "./artifact-store.js";
 
 import {
   buildCandidateMetadata,
@@ -156,6 +157,7 @@ export async function runBuild(options: {
         runtime_fingerprint_digest: fingerprintDigest,
         supply_chain: emptyDualSupplyChain(),
       });
+      archiveArtifactIfPresent(projectRoot, meta);
       results.push(meta);
       console.log(JSON.stringify(meta, null, 2));
     }
@@ -276,6 +278,7 @@ export async function runBuild(options: {
           "rn-delivery build: .app bundle not found under derived data (digest stays pending)",
         );
       }
+      archiveArtifactIfPresent(projectRoot, meta);
       results.push(meta);
       console.log(JSON.stringify(meta, null, 2));
     }

@@ -10,6 +10,7 @@ import {
   writeBuildResults,
   writeLastCandidate,
 } from "./candidate-store.js";
+import { archiveArtifactIfPresent } from "./artifact-store.js";
 import {
   fingerprintDigestFromManifest,
   resolveRuntimeFingerprint,
@@ -146,6 +147,7 @@ export async function runUpdate(options: {
     fingerprint,
   });
   meta.sidecar_path = sidecarPath;
+  archiveArtifactIfPresent(projectRoot, meta);
 
   const prior = readLastBuild(projectRoot);
   const others =

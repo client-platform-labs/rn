@@ -1,9 +1,9 @@
 /**
- * Map B B8 — opt-in Postgres registry adapter contract (not multi-tenant SaaS).
+ * Map B B8 — Postgres registry adapter *seam* (ADR-013: unwired, not implemented).
  *
- * Default CP storage remains file (registry.json) or SQLite (B3).
- * When `RN_CP_DATABASE_URL` is set, callers may use a Postgres-backed store
- * scoped by `tenant_id` + `product_app`.
+ * Production CP storage is atomic file or SQLite (default). Postgres remains a
+ * deferred RDS/HA upgrade seam (G9): DDL + in-memory parity adapter only.
+ * Do not claim `RN_CP_DATABASE_URL` enables Postgres storage yet.
  */
 import type { DeliveryRegistry } from "./candidate-store.js";
 import { emptyRegistry } from "./candidate-store.js";
