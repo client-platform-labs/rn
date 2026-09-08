@@ -46,4 +46,4 @@ Related: Map H #218、D1/D2、ADR-009/016
 - **注册**：`rn module link --module-root <path>` 声明式写入 `.rn/dev-session.jsonc`（root + packageName + entry）。
 - **生成**：`rn module register` 从 dev-session 生成 host-resolver（`extraNodeModules[packageName]=root`）+ 注册表胶水（import 走声明包名）。
 - **消费**：ship / rn 只读声明（dev-session + 模块自描述），不猜路径。
-- **门禁**：`check-architecture-governance.mjs` 拒绝参考宿主泄漏（`@tiangong/` 硬编码 / `com.hermesgfapp` / `TiangongOta` / `__TIANGONG_*`）。
+- **结构收敛**：模块解析实现收敛到唯一共享处（ship / rn / 生成均从 dev-session 声明 + 模块自描述读取），不存在第二套自拼路径的逻辑；不靠宿主名黑名单（host-agnostic，换宿主不复发）。

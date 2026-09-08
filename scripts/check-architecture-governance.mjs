@@ -97,39 +97,6 @@ export function checkImportDirection(root = REPO_ROOT) {
  * ADR-022: engine-agnostic packages (core / shell-core) must not import react-native.
  */
 
-/**
- * C7 (map-h/corr): 参考宿主泄漏门禁. Active code must not hardcode a reference
- * host's scope/name (tiangong / hermesgfapp / TiangongOta / __TIANGONG_). Module
- * identity is declared (client-platform.module.jsonc business_module + package
- * name), never assumed. Test fixtures may reference scoped names as data.
- */
-const REFERENCE_HOST_LEAK_RE =
-  /@tiangong\/[a-z_]+|com\.hermesgfapp|TiangongOta|__TIANGONG_[A-Z_]+/g;
-
-export function checkReferenceHostLeakage(root = REPO_ROOT) {
-  const errors = [];
-  for (const [dirPath] of [["packages"], ["plugins"]]) {
-    const base = path.join(root, dirPath);
-    if (!existsSync(base)) continue;
-    for (const entry of readdirSync(base, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const srcDir = path.join(base, entry.name, "src");
-      if (!existsSync(srcDir)) continue;
-      const files = [];
-      walkFiles(srcDir, files);
-      for (const file of files) {
-        const src = readFileSync(file, "utf8");
-        for (const m of src.matchAll(REFERENCE_HOST_LEAK_RE)) {
-          errors.push(
-            `reference-host-leak: ${path.relative(root, file)} has "${m[0]}" (declare module identity; no hardcoded host scope)`,
-          );
-        }
-      }
-    }
-  }
-  return errors;
-}
-
 export function checkEngineAgnosticPurity(root = REPO_ROOT) {
   const errors = [];
   for (const pkgName of ENGINE_AGNOSTIC_PACKAGES) {
@@ -203,7 +170,6 @@ export function checkArchitectureGovernance(root = REPO_ROOT) {
   // ADR-021/022: dependency direction + engine-agnostic purity
   errors.push(...checkImportDirection(root));
   errors.push(...checkEngineAgnosticPurity(root));
-  errors.push(...checkReferenceHostLeakage(root));
 
   return { ok: errors.length === 0, errors };
 }
