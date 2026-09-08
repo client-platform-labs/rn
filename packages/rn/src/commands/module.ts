@@ -135,21 +135,26 @@ export async function runModuleRegister(options: {
   const projectRoot = path.resolve(options.cwd);
   assertRnProject(projectRoot);
   const config = loadDevSessionConfig(projectRoot);
-  const moduleIds = config ? Object.keys(config.modules) : [];
-  if (moduleIds.length === 0) {
+  const modules = config
+    ? Object.entries(config.modules).map(([moduleId, binding]) => ({
+        moduleId,
+        packageName: binding.packageName,
+      }))
+    : [];
+  if (modules.length === 0) {
     throw new CliError(
-      "no business modules registered — run rn module init <id> first",
+      "no business modules registered — run rn module link <id> first",
       EXIT_FAIL,
     );
   }
   if (options.dryRun) {
     options.logger.writeHuman("module register plan (dry-run):");
-    for (const id of moduleIds) {
-      options.logger.writeHuman(`  register: ${id}`);
+    for (const m of modules) {
+      options.logger.writeHuman(`  register: ${m.moduleId} (${m.packageName ?? "unscoped"})`);
     }
     return;
   }
-  const file = writeModuleRegistry(projectRoot, moduleIds);
+  const file = writeModuleRegistry(projectRoot, modules);
   options.logger.writeHuman(
     `Wrote generated registry: ${path.relative(projectRoot, file)}`,
   );
