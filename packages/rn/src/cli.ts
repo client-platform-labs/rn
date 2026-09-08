@@ -218,15 +218,18 @@ export async function run(argv = process.argv): Promise<number> {
     );
   moduleCmd
     .command("link")
-    .description("Link an existing modules/<id> into .rn/dev-session.jsonc")
+    .description(
+      "Link a business module (sibling or in-repo) into .rn/dev-session.jsonc",
+    )
     .argument("<moduleId>", "business_module id")
+    .option("--module-root <path>", "Module repo path (declared, not guessed)")
     .option("--metro-port <port>", "Metro port", (v) => Number.parseInt(v, 10))
-    .option("--entry <path>", "Metro entry relative to project root")
+    .option("--entry <path>", "Module entry relative to module root")
     .option("--dry-run", "print plan without changes")
     .action(
       async (
         moduleId: string,
-        opts: { metroPort?: number; entry?: string; dryRun?: boolean },
+        opts: { moduleRoot?: string; metroPort?: number; entry?: string; dryRun?: boolean },
       ) => {
         await runModuleLink({
           cwd: process.cwd(),
@@ -234,6 +237,7 @@ export async function run(argv = process.argv): Promise<number> {
           logger: loggerFromArgv(argv),
           metroPort: opts.metroPort,
           entry: opts.entry,
+          moduleRoot: opts.moduleRoot,
           dryRun: Boolean(opts.dryRun),
         });
       },

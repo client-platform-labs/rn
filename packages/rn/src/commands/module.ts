@@ -89,26 +89,27 @@ export async function runModuleLink(options: {
   logger: CliLogger;
   metroPort?: number;
   entry?: string;
+  /** Module repo path (sibling or in-repo); declared, never guessed. */
+  moduleRoot?: string;
   dryRun?: boolean;
 }): Promise<void> {
   const projectRoot = path.resolve(options.cwd);
   assertRnProject(projectRoot);
   assertModuleId(options.moduleId);
 
-  const dest = moduleWorkspaceRoot(projectRoot, options.moduleId);
+  const dest = options.moduleRoot
+    ? path.resolve(options.moduleRoot)
+    : moduleWorkspaceRoot(projectRoot, options.moduleId);
   if (!existsSync(dest)) {
     throw new CliError(
-      `module workspace missing: ${MODULES_DIR}/${options.moduleId} — run rn module init ${options.moduleId}`,
+      `module root missing: ${dest} — pass --module-root <path>`,
       EXIT_FAIL,
     );
   }
 
   if (options.dryRun) {
     options.logger.writeHuman("module link plan (dry-run):");
-    options.logger.writeHuman(
-      `  link: ${options.moduleId} → .rn/dev-session.jsonc` +
-        (options.metroPort ? ` port=${options.metroPort}` : ""),
-    );
+    options.logger.writeHuman(`  module: ${options.moduleId} @ ${dest}`);
     return;
   }
 
@@ -117,10 +118,11 @@ export async function runModuleLink(options: {
     moduleId: options.moduleId,
     metroPort: options.metroPort,
     entry: options.entry,
+    moduleRoot: dest,
   });
   const port = config.modules[options.moduleId]?.metroPort;
   options.logger.writeHuman(
-    `Linked ${options.moduleId} → Metro :${port} (entry=${config.modules[options.moduleId]?.entry})`,
+    `Linked ${options.moduleId} → Metro :${port} (root=${dest}, entry=${config.modules[options.moduleId]?.entry})`,
   );
 }
 

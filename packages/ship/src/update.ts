@@ -30,7 +30,16 @@ import {
 /** Read a JSON(C) file leniently; returns null on any failure. */
 function readJson(file: string): Record<string, unknown> | null {
   try {
-    return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    const raw = readFileSync(file, "utf8");
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      // JSONC fallback: strip line comments + trailing commas.
+      const stripped = raw
+        .replace(/\/\/.*$/gm, "")
+        .replace(/,([\s\n]*[}\]])/g, "$1");
+      return JSON.parse(stripped) as Record<string, unknown>;
+    }
   } catch {
     return null;
   }
