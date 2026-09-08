@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   checkImportDirection,
   checkEngineAgnosticPurity,
+  checkReferenceHostLeakage,
 } from "./check-architecture-governance.mjs";
 
 function makePackage(root, pkg, files) {
@@ -78,6 +79,23 @@ test("checkEngineAgnosticPurity catches react-native import in shell-core", () =
     const errors = checkEngineAgnosticPurity(root);
     assert.equal(errors.length, 1);
     assert.match(errors[0], /engine-agnostic/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkReferenceHostLeakage catches hardcoded host scope", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "gov-leak-"));
+  try {
+    mkdirSync(path.join(root, "packages", "rn", "src", "cmd"), { recursive: true });
+    writeFileSync(
+      path.join(root, "packages", "rn", "src", "cmd", "x.ts"),
+      'import { a } from "@tiangong/desk";\n',
+      "utf8",
+    );
+    const errors = checkReferenceHostLeakage(root);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /reference-host-leak/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

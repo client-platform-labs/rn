@@ -36,3 +36,14 @@ Related: Map H #218、D1/D2、ADR-009/016
 | **GF/BF / topology** | 生成式注册表取代手写 import，不假设单模块。 |
 | **Blast radius** | 全包 import 图；门禁先行（先红后绿）。 |
 | **Evidence** | governance 门禁用例 + 壳 grep 探针。 |
+
+## Amendment (2026-09-09): 模块身份契约（map-h/corr C1–C7）
+
+模块解析「声明驱动 + 单一真源」，平台零参考宿主名硬编码：
+
+- **身份**：`client-platform.module.jsonc.business_module`（与 OTA sidecar/slots 同源）；入口 `entry`（默认 index）。
+- **包名**：模块 `package.json.name`（任意 scope / 无 scope），不假设 `@tiangong/`。
+- **注册**：`rn module link --module-root <path>` 声明式写入 `.rn/dev-session.jsonc`（root + packageName + entry）。
+- **生成**：`rn module register` 从 dev-session 生成 host-resolver（`extraNodeModules[packageName]=root`）+ 注册表胶水（import 走声明包名）。
+- **消费**：ship / rn 只读声明（dev-session + 模块自描述），不猜路径。
+- **门禁**：`check-architecture-governance.mjs` 拒绝参考宿主泄漏（`@tiangong/` 硬编码 / `com.hermesgfapp` / `TiangongOta` / `__TIANGONG_*`）。

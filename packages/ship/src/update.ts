@@ -47,17 +47,10 @@ function readJson(file: string): Record<string, unknown> | null {
 
 /**
  * Resolve a business module's root directory.
- * Single source of truth = the generated host-resolver mapping (`@tiangong/<id>`),
- * which `rn module register` writes from the registered module list. Falls back
- * to the legacy in-repo `modules/<id>` workspace. No hardcoded sibling paths.
- */
-/**
- * Resolve a business module's root directory.
  * Authoritative identity = the module's self-descriptor `client-platform.module.jsonc`
  * `business_module` field (the same id used in OTA sidecars / slots). We match that,
- * not the package-name segment, so singletons (react / react-native) and any
- * scope (`@acme/checkout`, `@tiangong/desk`, unscoped `watchlist`) are unambiguous.
- * Falls back to the legacy in-repo `modules/<id>` workspace.
+ * not the package-name segment, so singletons (react / react-native) and any module
+ * scope are unambiguous. Falls back to the legacy in-repo `modules/<id>` workspace.
  */
 /** Read a module's declared dev-session binding (single source of truth, C2). */
 function loadDevSessionBinding(
