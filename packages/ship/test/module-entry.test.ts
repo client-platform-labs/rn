@@ -99,3 +99,32 @@ describe("moduleEntry (工业解析：host-resolver 映射 + 自描述 entry)", 
     }
   });
 });
+
+describe("moduleEntry (C4: dev-session 为唯一真源)", () => {
+  it("prefers dev-session declared root + entry over host-resolver scan", () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "ship-ds-"));
+    try {
+      const realModule = path.join(root, "actual-checkout");
+      mkdirSync(realModule, { recursive: true });
+      writeFileSync(path.join(realModule, "main.ts"), "export {};\n", "utf8");
+      // dev-session 声明 root（与 host-resolver 里另一个路径不同）
+      mkdirSync(path.join(root, ".rn"), { recursive: true });
+      writeFileSync(
+        path.join(root, ".rn", "dev-session.jsonc"),
+        JSON.stringify({ modules: { checkout: { root: realModule, entry: "main", packageName: "@acme/checkout" } } }),
+        "utf8",
+      );
+      // host-resolver 指向错误路径（应被忽略，dev-session 优先）
+      mkdirSync(path.join(root, ".rn", "metro"), { recursive: true });
+      writeFileSync(
+        path.join(root, ".rn", "metro", "host-resolver.cjs"),
+        `module.exports = { load: () => ({ resolver: { extraNodeModules: { "@acme/checkout": "/wrong/path" } } }) };\n`,
+        "utf8",
+      );
+      assert.equal(resolveModuleRoot(root, "checkout"), realModule);
+      assert.equal(moduleEntry(root, "checkout"), path.join(realModule, "main.ts"));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

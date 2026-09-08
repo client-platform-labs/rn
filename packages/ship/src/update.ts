@@ -50,10 +50,38 @@ function readJson(file: string): Record<string, unknown> | null {
  * scope (`@acme/checkout`, `@tiangong/desk`, unscoped `watchlist`) are unambiguous.
  * Falls back to the legacy in-repo `modules/<id>` workspace.
  */
+/** Read a module's declared dev-session binding (single source of truth, C2). */
+function loadDevSessionBinding(
+  projectRoot: string,
+  moduleId: string,
+): { root?: string; packageName?: string; entry?: string } | undefined {
+  const ds = readJson(path.join(projectRoot, ".rn", "dev-session.jsonc"));
+  if (!ds) return undefined;
+  const mod = (ds["modules"] as Record<string, Record<string, unknown>> | undefined)?.[moduleId];
+  if (!mod) return undefined;
+  return {
+    root: typeof mod["root"] === "string" ? (mod["root"] as string) : undefined,
+    packageName:
+      typeof mod["packageName"] === "string"
+        ? (mod["packageName"] as string)
+        : undefined,
+    entry: typeof mod["entry"] === "string" ? (mod["entry"] as string) : undefined,
+  };
+}
+
+/**
+ * Resolve a business module's root directory.
+ * Primary source = the dev-session DECLARED root (C2). Fallbacks for older
+ * dev-sessions: host-resolver scan matched by `business_module` descriptor, then
+ * legacy in-repo `modules/<id>`. Never guesses a scope or sibling path.
+ */
 export function resolveModuleRoot(
   projectRoot: string,
   moduleId: string,
 ): string | undefined {
+  const declared = loadDevSessionBinding(projectRoot, moduleId);
+  if (declared?.root && existsSync(declared.root)) return declared.root;
+
   const resolverPath = path.join(projectRoot, ".rn", "metro", "host-resolver.cjs");
   if (existsSync(resolverPath)) {
     try {
@@ -91,12 +119,11 @@ export function resolveModuleRoot(
  * 2. `package.json` `main`;
  * 3. `index`.
  */
-export function resolveEntryBase(moduleRoot: string): string {
-  const descriptor = readJson(path.join(moduleRoot, "client-platform.module.jsonc"));
-  const declared = descriptor?.["entry"];
-  if (typeof declared === "string" && declared.trim()) {
-    return declared.trim().replace(/\.(js|ts|tsx)$/, "");
-  }
+export function resolveEntryBase(moduleRoot: string, declaredEntry?: string): string {
+  // 1. declared entry from dev-session (C2) or client-platform.module.jsonc
+  const candidate = declaredEntry?.trim() ?? readEntryFromDescriptor(moduleRoot);
+  if (candidate) return candidate.replace(/\.(js|ts|tsx)$/, "");
+  // 2. package.json main
   const pkg = readJson(path.join(moduleRoot, "package.json"));
   const main = pkg?.["main"];
   if (typeof main === "string" && main.trim()) {
@@ -105,15 +132,22 @@ export function resolveEntryBase(moduleRoot: string): string {
   return "index";
 }
 
+function readEntryFromDescriptor(moduleRoot: string): string | undefined {
+  const descriptor = readJson(path.join(moduleRoot, "client-platform.module.jsonc"));
+  const declared = descriptor?.["entry"];
+  return typeof declared === "string" && declared.trim() ? declared.trim() : undefined;
+}
+
 export function moduleEntry(projectRoot: string, moduleId: string): string {
-  const root = resolveModuleRoot(projectRoot, moduleId);
+  const binding = loadDevSessionBinding(projectRoot, moduleId);
+  const root = binding?.root ?? resolveModuleRoot(projectRoot, moduleId);
   if (!root) {
     throw new DeliveryError(
-      `module "${moduleId}" not registered — run rn module register (writes .rn/metro/host-resolver.cjs @tiangong/<id> mapping)`,
+      `module "${moduleId}" not registered — run rn module link <id> (writes .rn/dev-session.jsonc)`,
       EXIT_FAIL,
     );
   }
-  const base = path.join(root, resolveEntryBase(root));
+  const base = path.join(root, resolveEntryBase(root, binding?.entry));
   for (const ext of [".js", ".ts", ".tsx"]) {
     if (existsSync(base + ext)) return base + ext;
   }
