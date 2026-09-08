@@ -193,7 +193,7 @@ export function evaluateEnterpriseDoctor(options: {
     const mainRoot = moduleWorkspaceRoot(root, "main");
     const mainOk =
       existsSync(path.join(mainRoot, "package.json")) &&
-      existsSync(path.join(mainRoot, "index.js"));
+      existsSync(path.join(mainRoot, "index.ts"));
     checks.push({
       id: "p0-topology-b-main",
       ok: mainOk,

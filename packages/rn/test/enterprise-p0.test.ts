@@ -34,7 +34,7 @@ describe("module workspace + enterprise doctor", () => {
         JSON.stringify({ name: "app", dependencies: { "react-native": "0.87.0" } }),
       );
       scaffoldModuleWorkspace({ projectRoot: root, moduleId: "checkout" });
-      assert.ok(existsSync(path.join(root, "modules/checkout/index.js")));
+      assert.ok(existsSync(path.join(root, "modules/checkout/index.ts")));
       const config = linkModuleToDevSession({
         projectRoot: root,
         moduleId: "checkout",

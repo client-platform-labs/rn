@@ -35,7 +35,7 @@ export function renderModulePackageJson(moduleId: string): string {
       name: `@rn-modules/${moduleId}`,
       version: "0.0.0",
       private: true,
-      main: "index.js",
+      main: "index.ts",
     },
     null,
     2,
