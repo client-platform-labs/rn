@@ -4,13 +4,14 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import {
   DEFAULT_JS_ARTIFACT_MAX_PROFILES,
   type ComputedFingerprint,
+  type EngineFingerprint,
   type NewArchFlags,
   type RuntimeFingerprint,
   type RuntimeFingerprintRequired,
   type SupportWindowValidationResult,
 } from "./types.js";
 
-/** Stable key order for required fields in canonical JSON / digests. */
+/** Stable key order for legacy required fields in canonical JSON / digests. */
 export const RUNTIME_FINGERPRINT_REQUIRED_KEYS = [
   "rnExactTuple",
   "hermesVmIdentity",
@@ -27,22 +28,37 @@ function sortObjectKeys(value: NewArchFlags): NewArchFlags {
   return sorted;
 }
 
-/** Build the required-field payload with stable key order for hashing. */
+/** Stable key order for the engine sub-object (ADR-022) when present. */
+function sortEngineFingerprint(value: EngineFingerprint): EngineFingerprint {
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort()) {
+    sorted[key] = value[key];
+  }
+  return sorted as EngineFingerprint;
+}
+
+/**
+ * Build the canonical payload for hashing with stable key order.
+ * ADR-022: when `engine` is present it participates in the digest;
+ * legacy fingerprints (no `engine`) digest exactly as before.
+ */
 export function toCanonicalFingerprintPayload(
-  input: RuntimeFingerprintRequired,
-): RuntimeFingerprintRequired {
-  return {
+  input: RuntimeFingerprint,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {
     rnExactTuple: input.rnExactTuple,
     hermesVmIdentity: input.hermesVmIdentity,
     hbcBytecodeVersion: input.hbcBytecodeVersion,
     newArchFlags: sortObjectKeys(input.newArchFlags),
     nativeAbiSurfaceDigest: input.nativeAbiSurfaceDigest,
   };
+  if (input.engine !== undefined) {
+    out.engine = sortEngineFingerprint(input.engine);
+  }
+  return out;
 }
 
-export function digestRuntimeFingerprint(
-  input: RuntimeFingerprintRequired,
-): string {
+export function digestRuntimeFingerprint(input: RuntimeFingerprint): string {
   const canonical = toCanonicalFingerprintPayload(input);
   const json = JSON.stringify(canonical);
   // @noble/hashes sha256 — device-safe (Hermes has no node:crypto), same output.
@@ -50,8 +66,8 @@ export function digestRuntimeFingerprint(
 }
 
 function requiredFieldsEqual(
-  a: RuntimeFingerprintRequired,
-  b: RuntimeFingerprintRequired,
+  a: RuntimeFingerprint,
+  b: RuntimeFingerprint,
 ): boolean {
   const left = toCanonicalFingerprintPayload(a);
   const right = toCanonicalFingerprintPayload(b);
@@ -78,6 +94,9 @@ export function computeFingerprint(
       ...input.officialCapabilityNativeLocks,
     ];
   }
+  if (input.engine !== undefined) {
+    fingerprint.engine = sortEngineFingerprint(input.engine);
+  }
   return {
     fingerprint,
     digest: digestRuntimeFingerprint(fingerprint),
@@ -86,7 +105,7 @@ export function computeFingerprint(
 
 /**
  * Equality for load-time identity. Prefers digest compare when both sides
- * expose digests; otherwise deep-compares required fields.
+ * expose digests; otherwise deep-compares canonical payloads.
  */
 export function fingerprintsEqual(
   a: RuntimeFingerprint | ComputedFingerprint,

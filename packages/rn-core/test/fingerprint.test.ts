@@ -72,6 +72,40 @@ describe("fingerprintsEqual", () => {
   });
 });
 
+describe("engine sub-object (ADR-022)", () => {
+  it("legacy fingerprint without engine keeps digest identical", () => {
+    const a = computeFingerprint(baseInput);
+    const b = computeFingerprint({ ...baseInput });
+    assert.equal(a.digest, b.digest);
+  });
+
+  it("engine sub-object participates in the digest", () => {
+    const withEngine = computeFingerprint({
+      ...baseInput,
+      engine: { id: "react-native", version: "0.86.2", hbc: 96 },
+    });
+    const withoutEngine = computeFingerprint(baseInput);
+    assert.notEqual(withEngine.digest, withoutEngine.digest);
+    assert.deepEqual(withEngine.fingerprint.engine, {
+      id: "react-native",
+      version: "0.86.2",
+      hbc: 96,
+    });
+  });
+
+  it("engine sub-object key order does not churn the digest", () => {
+    const a = computeFingerprint({
+      ...baseInput,
+      engine: { id: "react-native", version: "0.86.2", hbc: 96 },
+    });
+    const b = computeFingerprint({
+      ...baseInput,
+      engine: { hbc: 96, id: "react-native", version: "0.86.2" },
+    });
+    assert.equal(a.digest, b.digest);
+  });
+});
+
 describe("validateSupportWindow", () => {
   it("accepts a label inside the window under max_profiles", () => {
     const result = validateSupportWindow({

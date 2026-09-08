@@ -36,8 +36,19 @@ export type ArtifactKind =
 export type NewArchFlags = Readonly<Record<string, unknown>>;
 
 /**
+ * Engine adapter identity (ADR-022).
+ * Generic shape in core; rn-engine fills RN dims (rnExactTuple/hermes/hbc/newArch).
+ */
+export interface EngineFingerprint {
+  id: string;
+  version: string;
+  [key: string]: unknown;
+}
+
+/**
  * Shell-executable runtime surface fingerprint.
  * Field names align with blueprint appendix + reference schema stub.
+ * `engine` is the ADR-022 sub-object; when present it participates in the digest.
  */
 export interface RuntimeFingerprint {
   rnExactTuple: string;
@@ -47,6 +58,8 @@ export interface RuntimeFingerprint {
   nativeAbiSurfaceDigest: string;
   /** Recommended: official capability native implementation version locks. */
   officialCapabilityNativeLocks?: string[];
+  /** Optional engine sub-object (ADR-022). */
+  engine?: EngineFingerprint;
 }
 
 /** Current Greenfield project contract version (identity spine required). */

@@ -44,6 +44,15 @@ export const projectManifestSchema = {
           type: "array",
           items: { type: "string" },
         },
+        engine: {
+          type: "object",
+          required: ["id", "version"],
+          additionalProperties: true,
+          properties: {
+            id: { type: "string", minLength: 1 },
+            version: { type: "string", minLength: 1 },
+          },
+        },
       },
     },
     capability_set: {
@@ -93,6 +102,15 @@ const runtimeFingerprintProperties = {
   officialCapabilityNativeLocks: {
     type: "array",
     items: { type: "string" },
+  },
+  engine: {
+    type: "object",
+    required: ["id", "version"],
+    additionalProperties: true,
+    properties: {
+      id: { type: "string", minLength: 1 },
+      version: { type: "string", minLength: 1 },
+    },
   },
 } as const;
 
@@ -241,6 +259,15 @@ export const runtimeFingerprintSchema = {
     officialCapabilityNativeLocks: {
       type: "array",
       items: { type: "string" },
+    },
+    engine: {
+      type: "object",
+      required: ["id", "version"],
+      additionalProperties: true,
+      properties: {
+        id: { type: "string", minLength: 1 },
+        version: { type: "string", minLength: 1 },
+      },
     },
   },
   additionalProperties: false,

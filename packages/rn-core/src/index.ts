@@ -11,6 +11,7 @@ export {
 export type {
   ArtifactKind,
   ComputedFingerprint,
+  EngineFingerprint,
   ExpoInteropConfig,
   GateJsCandidateResult,
   HostSelectorContext,
