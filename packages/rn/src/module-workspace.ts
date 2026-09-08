@@ -167,7 +167,11 @@ export function scaffoldModuleWorkspace(options: {
     renderModulePackageJson(options.moduleId),
     "utf8",
   );
-  writeFileSync(path.join(root, "index.js"), renderModuleIndex(options.moduleId), "utf8");
+  writeFileSync(
+    path.join(root, "index.ts"),
+    renderModuleIndex(options.moduleId),
+    "utf8",
+  );
   writeFileSync(
     path.join(root, "src/ModuleApp.tsx"),
     renderModuleApp(options.moduleId),
