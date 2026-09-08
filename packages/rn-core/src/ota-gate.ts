@@ -8,7 +8,7 @@
  * that Metro cannot resolve on device.
  */
 export { gateBundleLoad } from "./bundle-load-gate.js";
-export { verifyEd25519Seal } from "./ed25519-verify.js";
+export { verifyEd25519Seal, verifyRevocationSeal } from "./ed25519-verify.js";
 export type {
   BundleLoadArtifact,
   BundleLoadGateResult,

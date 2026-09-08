@@ -121,4 +121,32 @@ describe("pullOtaUpdate orchestration (ADR-014)", () => {
     });
     assert.equal(err.status, "failed");
   });
+
+  it("ADR-018: fails closed when the signing key is revoked", async () => {
+    let fetchCalls = 0;
+    let seenRevoked: readonly string[] | undefined;
+    const client: PullOtaClient = {
+      verifySidecar: (sidecar, revoked) => {
+        seenRevoked = revoked;
+        // the client would reject here — assert the revoked set reached it
+        if (revoked && revoked.includes("k1hex")) {
+          return { ok: false, reason: "signing key revoked" };
+        }
+        return { ok: true, updateId: "u1" };
+      },
+      async fetchUpdate() {
+        fetchCalls += 1;
+        return { hbcPath: "/t", sidecarPath: "/t", sidecar: {} };
+      },
+      async installAndReload() {},
+    };
+    const r = await pullOtaUpdate(client, native(), "desk", {
+      fetchManifest: async () => manifest("u9"),
+      fetchRevocations: async () => ["k1hex"],
+    });
+    assert.equal(r.status, "failed");
+    if (r.status === "failed") assert.match(r.reason, /revoked/);
+    assert.deepEqual(seenRevoked, ["k1hex"]);
+    assert.equal(fetchCalls, 0); // revoked → never fetches
+  });
 });

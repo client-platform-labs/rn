@@ -41,7 +41,10 @@ export function createOtaClient(
     }
   }
 
-  function verifySidecar(sidecar: OtaSidecar): OtaVerifyResult {
+  function verifySidecar(
+    sidecar: OtaSidecar,
+    revokedPublicKeys?: readonly string[],
+  ): OtaVerifyResult {
     const host = readHostContextFromSidecar(sidecar);
     if (!host) return { ok: false, reason: "missing host_context" };
     const candidate = sidecar.candidate as JsUpdateCandidate | undefined;
@@ -54,6 +57,7 @@ export function createOtaClient(
         release_id: sidecar.release_id,
         artifact_kind: sidecar.artifact_kind,
         publicKeys: native.getOtaPublicKeys(),
+        revokedPublicKeys,
       },
       host,
     );

@@ -15,7 +15,7 @@ export type OtaLane = "staging" | "production";
 
 /** Minimal surface observed on the injected OTA client. */
 export type PullOtaClient = {
-  verifySidecar(sidecar: OtaSidecar): OtaVerifyResult;
+  verifySidecar(sidecar: OtaSidecar, revoked?: readonly string[]): OtaVerifyResult;
   fetchUpdate(
     candidate: OtaSidecar,
     moduleId?: string,
@@ -32,6 +32,9 @@ export type PullOtaFetchManifest = (
   lane: OtaLane,
 ) => Promise<OtaSidecar | null>;
 
+/** ADR-018 — fetch a K2-signed revocation list; returns the revoked key set. */
+export type PullOtaFetchRevocations = () => Promise<string[]>;
+
 export type PullOtaResult =
   | { status: "skipped"; reason: string }
   | { status: "no_update" }
@@ -47,11 +50,26 @@ export async function pullOtaUpdate(
     lane?: OtaLane;
     channel?: string;
     fetchManifest: PullOtaFetchManifest;
+    /** ADR-018 — optional: fetch + verify a K2-signed revocation list first. */
+    fetchRevocations?: PullOtaFetchRevocations;
     asRoot?: boolean;
   },
 ): Promise<PullOtaResult> {
   const lane = opts.lane ?? "production";
   const channel = opts.channel ?? "default";
+
+  // ADR-018 — obtain revoked keys (K2-verified by the host) before any verify.
+  let revoked: string[] = [];
+  if (opts.fetchRevocations) {
+    try {
+      revoked = await opts.fetchRevocations();
+    } catch (err) {
+      return {
+        status: "failed",
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
 
   let manifest: OtaSidecar | null;
   try {
@@ -78,12 +96,12 @@ export async function pullOtaUpdate(
     return { status: "already_installed", updateId: installedId };
   }
 
-  const verify = client.verifySidecar(manifest);
+  const verify = client.verifySidecar(manifest, revoked);
   if (!verify.ok) return { status: "failed", reason: verify.reason };
 
   try {
     const { hbcPath, sidecar } = await client.fetchUpdate(manifest, moduleId);
-    const post = client.verifySidecar(sidecar);
+    const post = client.verifySidecar(sidecar, revoked);
     if (!post.ok) return { status: "failed", reason: post.reason };
 
     const updateId = verify.updateId ?? candidateUpdateId ?? "";

@@ -37,6 +37,8 @@ export interface OtaNativeAdapter {
    * NOT `Array.isArray` in JS — use `Array.from()` on the JS side as a fallback.
    */
   getOtaPublicKeys(): string[];
+  /** Baked backup key K2 (hex) used to verify the revocation list (ADR-018). */
+  getRevocationKey?(): string;
   /** Installed update_id (persisted natively) — used to skip re-pull on boot (ADR-014). */
   getInstalledUpdateId?(moduleId: string): Promise<string | null>;
   /** Persist the newly activated update_id BEFORE reload (reload kills the process). */

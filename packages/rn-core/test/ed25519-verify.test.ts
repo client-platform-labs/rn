@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { generateKeyPairSync, sign as nodeSign } from "node:crypto";
 
-import { verifyEd25519Seal } from "../dist/ed25519-verify.js";
+import { verifyEd25519Seal, verifyRevocationSeal } from "../dist/ed25519-verify.js";
 
 function rawPubHex() {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
@@ -23,7 +23,7 @@ describe("verifyEd25519Seal (ADR-017)", () => {
     const { privateKey, pubHex } = rawPubHex();
     const sig = nodeSign(null, Buffer.from(message, "utf8"), privateKey);
     const seal = `pem:ed25519:${sig.toString("base64")}`;
-    assert.equal(verifyEd25519Seal(seal, ctx, [pubHex]), true);
+    assert.equal(verifyEd25519Seal(seal, ctx, [pubHex]), pubHex);
   });
 
   it("rejects tampered digest / payload", () => {
@@ -32,7 +32,7 @@ describe("verifyEd25519Seal (ADR-017)", () => {
     const seal = `pem:ed25519:${sig.toString("base64")}`;
     assert.equal(
       verifyEd25519Seal(seal, { ...ctx, digest: "b".repeat(64) }, [pubHex]),
-      false,
+      null,
     );
   });
 
@@ -41,7 +41,7 @@ describe("verifyEd25519Seal (ADR-017)", () => {
     const { pubHex: otherPub } = rawPubHex();
     const sig = nodeSign(null, Buffer.from(message, "utf8"), privateKey);
     const seal = `pem:ed25519:${sig.toString("base64")}`;
-    assert.equal(verifyEd25519Seal(seal, ctx, [otherPub]), false);
+    assert.equal(verifyEd25519Seal(seal, ctx, [otherPub]), null);
   });
 
   it("accepts K2 (dual-key) signature, and rejects non-pem stubs", () => {
@@ -53,9 +53,23 @@ describe("verifyEd25519Seal (ADR-017)", () => {
         k1.pubHex,
         k2.pubHex,
       ]),
-      true,
+      k2.pubHex,
     );
-    // digest-stub hex is not a pem:ed25519 seal → always false.
-    assert.equal(verifyEd25519Seal("a".repeat(64), ctx, [k1.pubHex]), false);
+    // digest-stub hex is not a pem:ed25519 seal → always null.
+    assert.equal(verifyEd25519Seal("a".repeat(64), ctx, [k1.pubHex]), null);
+  });
+
+  it("ADR-018: verifyRevocationSeal accepts a K2-signed revocation payload", () => {
+    const k2 = rawPubHex();
+    const payload = JSON.stringify({ schemaVersion: 1, revoked: ["k1hex"], ts: "t" });
+    const seal = `pem:ed25519:${nodeSign(null, Buffer.from(payload, "utf8"), k2.privateKey).toString("base64")}`;
+    assert.equal(verifyRevocationSeal(seal, payload, k2.pubHex), true);
+    // tampered payload / wrong key → false
+    assert.equal(
+      verifyRevocationSeal(seal, JSON.stringify({ revoked: [] }), k2.pubHex),
+      false,
+    );
+    const k3 = rawPubHex();
+    assert.equal(verifyRevocationSeal(seal, payload, k3.pubHex), false);
   });
 });

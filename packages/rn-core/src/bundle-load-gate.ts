@@ -34,6 +34,8 @@ export type BundleLoadArtifact = {
   artifact_kind?: string;
   /** Baked Ed25519 public keys (hex, 32 bytes each) — K1 + K2. */
   publicKeys?: readonly string[];
+  /** ADR-018 — keys revoked via a K2-signed revocation list; a matching key is rejected. */
+  revokedPublicKeys?: readonly string[];
   /**
    * Map E — live module composition on device (module id → candidate).
    * When set with `dependencies`, peer/hard coexistence is fail-closed.
@@ -90,7 +92,7 @@ export function gateBundleLoad(
     }
   } else if (sig.startsWith("pem:ed25519:")) {
     // ADR-017 — real Ed25519 verify against baked public keys (fail-closed).
-    const verified = verifyEd25519Seal(
+    const matchedKey = verifyEd25519Seal(
       sig,
       {
         release_id: artifact.release_id ?? "",
@@ -99,11 +101,20 @@ export function gateBundleLoad(
       },
       artifact.publicKeys ?? [],
     );
-    if (!verified) {
+    if (matchedKey === null) {
       return {
         ok: false,
         signatureStatus: "invalid",
         reason: `Ed25519 signature verification failed for update_id=${artifact.candidate.update_id}`,
+      };
+    }
+    // ADR-018 — a revoked signing key is rejected even though the seal is valid.
+    const revoked = artifact.revokedPublicKeys ?? [];
+    if (revoked.includes(matchedKey)) {
+      return {
+        ok: false,
+        signatureStatus: "invalid",
+        reason: `signing key revoked for update_id=${artifact.candidate.update_id}`,
       };
     }
     signatureStatus = "verified";

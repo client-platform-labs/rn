@@ -38,34 +38,58 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 /**
- * Verify a `pem:ed25519:<base64>` seal against any of the baked public keys.
- * The signed message is the same one rn-delivery sign.ts seals:
- * `${release_id}:${artifact_kind}:${digest}`. Returns false (never throws)
- * on malformed seals / keys / signatures.
+ * Verify a `pem:ed25519:<base64>` seal against any of the baked public keys and
+ * return the matching key (hex) or null. The signed message is the same one
+ * rn-delivery sign.ts seals: `${release_id}:${artifact_kind}:${digest}`.
+ * Returns null (never throws) on malformed seals / keys / signatures.
  */
 export function verifyEd25519Seal(
   seal: string,
   context: { release_id: string; artifact_kind: string; digest: string },
   publicKeysHex: readonly string[],
-): boolean {
+): string | null {
   if (!seal.startsWith(PEM_SEAL_PREFIX) || publicKeysHex.length === 0) {
-    return false;
+    return null;
   }
   let signature: Uint8Array;
   try {
     signature = base64ToBytes(seal.slice(PEM_SEAL_PREFIX.length));
   } catch {
-    return false;
+    return null;
   }
   const message = utf8Bytes(
     `${context.release_id}:${context.artifact_kind}:${context.digest}`,
   );
   for (const keyHex of publicKeysHex) {
     try {
-      if (verify(signature, message, hexToBytes(keyHex))) return true;
+      if (verify(signature, message, hexToBytes(keyHex))) return keyHex;
     } catch {
       /* try next key */
     }
   }
-  return false;
+  return null;
+}
+
+/**
+ * ADR-018 — verify a revocation-list seal (signed by the backup key K2) over a
+ * canonical payload string (the revocation document). The device trusts this
+ * because K2 is baked; an attacker holding only K1 cannot forge it.
+ */
+export function verifyRevocationSeal(
+  seal: string,
+  canonicalPayload: string,
+  k2PublicKeyHex: string,
+): boolean {
+  if (!seal.startsWith(PEM_SEAL_PREFIX)) return false;
+  let signature: Uint8Array;
+  try {
+    signature = base64ToBytes(seal.slice(PEM_SEAL_PREFIX.length));
+  } catch {
+    return false;
+  }
+  try {
+    return verify(signature, utf8Bytes(canonicalPayload), hexToBytes(k2PublicKeyHex));
+  } catch {
+    return false;
+  }
 }
