@@ -13,6 +13,7 @@ import {
   DEFAULT_MAIN_METRO_PORT,
   defaultModulePort,
   type DevSessionConfig,
+  loadModuleManifest,
 } from "@client-platform/core";
 
 import {
@@ -185,6 +186,8 @@ export function linkModuleToDevSession(options: {
   moduleId: string;
   metroPort?: number;
   entry?: string;
+  /** Module repo path (default modules/<id> for in-repo ADR-005). */
+  moduleRoot?: string;
 }): DevSessionConfig {
   const existing = loadDevSessionConfig(options.projectRoot);
   const modules = { ...(existing?.modules ?? {}) };
@@ -193,9 +196,25 @@ export function linkModuleToDevSession(options: {
     options.metroPort ??
     (modules[options.moduleId]?.metroPort ||
       defaultModulePort(options.moduleId, index));
+
+  // Declared identity (never guessed): module root + package name + entry.
+  const root =
+    options.moduleRoot ??
+    modules[options.moduleId]?.root ??
+    moduleWorkspaceRoot(options.projectRoot, options.moduleId);
+  const pkg = readModulePackageJson(root);
+  const manifest = readModuleManifest(root);
+  const entry =
+    options.entry ??
+    modules[options.moduleId]?.entry ??
+    manifest?.entry ??
+    (pkg?.main ? pkg.main.replace(/\.(js|ts|tsx)$/, "") : "index");
+
   modules[options.moduleId] = {
     metroPort: port,
-    entry: options.entry ?? `${MODULES_DIR}/${options.moduleId}/index`,
+    entry,
+    root,
+    packageName: pkg?.name,
     envOverlay: modules[options.moduleId]?.envOverlay,
   };
   const config: DevSessionConfig = {
@@ -215,6 +234,30 @@ export function linkModuleToDevSession(options: {
   };
   writeDevSessionConfig(options.projectRoot, config);
   return config;
+}
+
+/** Read a module's package.json `name` + `main` (returns undefined when absent). */
+function readModulePackageJson(
+  moduleRoot: string,
+): { name?: string; main?: string } | undefined {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(path.join(moduleRoot, "package.json"), "utf8"),
+    ) as { name?: string; main?: string };
+    return pkg;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Read a module's client-platform.module.jsonc `entry` + `business_module`. */
+function readModuleManifest(
+  moduleRoot: string,
+): { entry?: string; business_module?: string } | undefined {
+  const file = path.join(moduleRoot, "client-platform.module.jsonc");
+  if (!existsSync(file)) return undefined;
+  const parsed = loadModuleManifest(moduleRoot);
+  return parsed.ok ? parsed.manifest : undefined;
 }
 
 export function writeGreenfieldHostProfile(projectRoot: string): void {

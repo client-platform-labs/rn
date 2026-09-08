@@ -55,6 +55,17 @@ export {
 } from "./manifest.js";
 
 export {
+  loadModuleManifest,
+  MODULE_MANIFEST_FILENAME,
+  MODULE_MANIFEST_SCHEMA_VERSION,
+  validateModuleManifestText,
+} from "./module-manifest.js";
+export type {
+  ModuleManifest,
+  ModuleManifestValidation,
+} from "./module-manifest.js";
+
+export {
   jsSelectorHostSchema,
   jsUpdateCandidateSchema,
   moduleSlotsSchema,

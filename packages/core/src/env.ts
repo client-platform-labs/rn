@@ -40,6 +40,10 @@ export interface ModuleDevBinding {
   metroPort: number;
   entry?: string;
   envOverlay?: EnvDimensions;
+  /** Module repo absolute path (declared, never guessed ../<id>). */
+  root?: string;
+  /** Module npm package name (from its package.json, any scope). */
+  packageName?: string;
 }
 
 export interface DevSessionConfig {
