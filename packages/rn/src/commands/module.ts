@@ -14,6 +14,7 @@ import {
   writeModuleRegistry,
 } from "../module-workspace.js";
 import { loadDevSessionConfig } from "../dev-session-config.js";
+import { writeHostMetroResolver } from "../host-metro-config.js";
 
 const MODULE_ID_RE = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -149,5 +150,9 @@ export async function runModuleRegister(options: {
   const file = writeModuleRegistry(projectRoot, moduleIds);
   options.logger.writeHuman(
     `Wrote generated registry: ${path.relative(projectRoot, file)}`,
+  );
+  const resolver = writeHostMetroResolver(projectRoot);
+  options.logger.writeHuman(
+    `Wrote host Metro resolver: ${path.relative(projectRoot, resolver)}`,
   );
 }

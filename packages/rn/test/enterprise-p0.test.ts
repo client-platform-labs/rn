@@ -40,10 +40,10 @@ describe("module workspace + enterprise doctor", () => {
         moduleId: "checkout",
       });
       assert.ok(config.modules.checkout?.metroPort);
-      assert.match(
-        config.modules.checkout!.entry!,
-        /modules\/checkout/,
-      );
+      // NEW declared model (ADR-021/D2): entry relative to module root (from
+      // package.json main), root declared — not a hardcoded modules/<id>/index.
+      assert.equal(config.modules.checkout?.entry, "index");
+      assert.ok(config.modules.checkout?.root?.endsWith("modules/checkout"));
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
