@@ -18,3 +18,6 @@ build/
 docs/hitl/*.jsonl
 docs/hitl/*-latest.json
 docs/hitl/*-latest.md
+
+# Scratch agent workspace — temporary, never a deliverable
+.scratch/
