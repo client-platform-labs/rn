@@ -28,13 +28,18 @@ import {
 
 function moduleEntry(projectRoot: string, moduleId: string): string {
   const candidates = [
+    // in-repo module workspace (ADR-005 topology B)
     path.join(projectRoot, "modules", moduleId, "index.js"),
     path.join(projectRoot, "modules", moduleId, "index.ts"),
+    // sibling business repo (industrial topology, resolved as @tiangong/<id>)
+    path.resolve(projectRoot, "..", moduleId, "index.js"),
+    path.resolve(projectRoot, "..", moduleId, "index.ts"),
+    path.resolve(projectRoot, "..", moduleId, "entries", "host-surface.js"),
   ];
   const found = candidates.find((p) => existsSync(p));
   if (!found) {
     throw new DeliveryError(
-      `module entry missing for "${moduleId}" — expected modules/${moduleId}/index.js`,
+      `module entry missing for "${moduleId}" — checked modules/${moduleId}/index.{js,ts} and ../${moduleId}/index.{js,ts}`,
       EXIT_FAIL,
     );
   }
