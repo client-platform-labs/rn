@@ -56,3 +56,23 @@ export interface OtaNativeAdapter {
   recordStartupFailure?(moduleId: string): Promise<number>;
   resetStartupFailures?(moduleId: string): Promise<void>;
 }
+
+/**
+ * HostEngineAdapter (ADR-022 / D5): the engine-agnostic surface a shell depends
+ * on. Extends OtaNativeAdapter with the engine lifecycle group, so the shell's
+ * boot/OTA flow never touches AppRegistry / NativeModules / ReactActivity
+ * directly — each engine supplies one implementation.
+ */
+export interface HostEngineAdapter extends OtaNativeAdapter {
+  /** Mount the root surface for a module (replaces AppRegistry.registerComponent). */
+  mountRoot(moduleId: string, entry: string): void;
+  /** Resolve the host's native surface handle (replaces ReactActivity / FlutterActivity). */
+  hostSurface(): unknown;
+  /** Call a native bridge method (replaces NativeModules.X). */
+  callNative(method: string, args: readonly unknown[]): Promise<unknown>;
+  /**
+   * Runtime identity observed by the host (ADR-023): engine id, engine version,
+   * artifact extension. Used ONLY for match decisions — never in the trust chain.
+   */
+  runtimeIdentity(): { engine: string; version: string; artifactExt: string };
+}

@@ -24,4 +24,4 @@ export {
   shouldRollbackOnCrashLoop,
 } from "./crash-loop.js";
 export type { CrashLoopState } from "./crash-loop.js";
-export type { OtaNativeAdapter, OtaSidecar } from "./ota-native.js";
+export type { HostEngineAdapter, OtaNativeAdapter, OtaSidecar } from "./ota-native.js";
