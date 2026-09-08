@@ -90,3 +90,7 @@ pnpm test   # includes governance test
 | 006 Unified multi-Metro | Dev session | ✅ 一编排面；禁 per-slice adb fork |
 | 007 Cross-module comm | Runtime contract | ✅ 总线/存储合同；禁 Bundle 互 import |
 | 008 Runtime risks P0 | Runtime + doctor | ✅ fail closed；交付归 rn-delivery |
+
+## Amendment (ADR-021, 2026-09-08)
+
+ADR-021 将本 ADR 的门禁从「反模式正则」扩展为「依赖方向 DAG + import 方向检查 + 契约面 TS 门禁 + 命名规则」，`check-architecture-governance.mjs` 同步扩展。规范 DAG：`core` → `rn-engine` → `ship`/`rn`；壳不得静态 import 业务模块（生成式注册表）。

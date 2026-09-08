@@ -35,3 +35,6 @@ Related: Map G #193（G1）、G0、ADR-017
 | **GF/BF / topology** | 双公钥烘焙在嵌入原生侧，GF/BF 同机制。 |
 | **Blast radius** | P0 信任根；吊销状态机进 runbook + 真机探针。 |
 | **Evidence** | G8 runbook 吊销状态机 + verify-* + 真机 e2e。 |
+## Amendment (ADR-023, 2026-09-08)
+
+双公钥烘焙不变；指纹匹配（`runtimeIdentity`）不参与 K1/K2 验签信任链——指纹只做「包是否匹配设备」的 fail-closed 拒绝，不构成信任。

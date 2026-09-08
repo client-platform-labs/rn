@@ -37,3 +37,6 @@ Related: Map G #192、#193（G1）、#199（G7）、新前置票 G0、ADR-017/01
 | **GF/BF / topology** | 同一 shell-core 客户端供 GF/BF 共用，协议单一。 |
 | **Blast radius** | 运行时客户端跨宿主共用，属 P0，需 G0 内真机/doctor 覆盖。 |
 | **Evidence** | 新票 G0 + greenfield 模板探针 + BF/GF 同客户端验证。 |
+## Amendment (ADR-022, 2026-09-08)
+
+「rn-core 纯验签」随 ADR-022 拆分：纯验签/门禁/契约层归 `core`（引擎无关），RN 专属（指纹维度/版本常量）归 `rn-engine`。本文中「rn-core」一词在拆分后指 `core`。

@@ -37,3 +37,6 @@ Related: Map G #193（G1）、G0、ADR-016/018
 | **GF/BF / topology** | rn-core 纯函数供任何宿主复用，协议单一。 |
 | **Blast radius** | P0 信任根；需真机 + verify-* 阻断测试。 |
 | **Evidence** | @noble/ed25519 + verify-* 探针 + 真机 e2e（G7）。 |
+## Amendment (ADR-023, 2026-09-08)
+
+指纹权威来源由「core 常量」改为「引擎适配器 `runtimeIdentity()` 声明 + 发布侧密封 `host_context` 交叉校验」；`runtimeIdentity()` 只做匹配判断、不进信任链。信任链仍只认内建公钥验签 + 发布侧密封。
