@@ -37,3 +37,9 @@
    `rollbackToEmbeddedBaseline`（除非自然回退到基线，ADR-014）。
 4. **验签信任边界**：公钥烘焙在 native，`@noble` 验签在随 APK 的 shell-core 包（`rn-core/ota`）；
    绝不用 OTA 下来的 JS 验 OTA 包。
+5. **loopback cleartext（e2e/开发用）**：Android 9+ release 默认禁 cleartext HTTP。本地 CP
+   （adb reverse 127.0.0.1）需 `res/xml/network_security_config.xml` 只对 127.0.0.1/localhost
+   放行 cleartext（生产走 HTTPS，ADR-019，勿全局放开）。
+6. **sidecar fingerprint 必须完整**：`runtime_fingerprint` 含 `newArchFlags` 等全部必填字段；
+   缺失会在设备 gate `fingerprintsEqual → sortObjectKeys` 崩。更新应由 rn-delivery 产出，
+   勿手搓（本样本曾踩此坑）。
