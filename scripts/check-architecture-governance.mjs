@@ -34,6 +34,89 @@ const FORBIDDEN_PRODUCT_PATTERNS = [
   },
 ];
 
+/**
+ * ADR-021 dependency DAG (upward-only, no reverse).
+ * Key = package folder name (legacy names kept during expand–contract).
+ * Value = the @client-platform/* packages it MAY import.
+ */
+const DEPENDENCY_DAG = {
+  core: [],
+  "rn-core": [],
+  "rn-engine": ["core", "rn-core"],
+  "shell-core": ["core", "rn-core"],
+  rn: ["core", "rn-core", "rn-engine"],
+  ship: ["core", "rn-core", "rn-engine"],
+  "rn-delivery": ["core", "rn-core", "rn-engine"],
+};
+
+/** Engine-agnostic packages that must never import the RN runtime (ADR-022). */
+const ENGINE_AGNOSTIC_PACKAGES = ["core", "rn-core", "shell-core"];
+
+const INTERNAL_IMPORT_RE =
+  /(?:from\s+|import\s*\(\s*)["']@client-platform\/([^"'/]+)["']/g;
+
+const RN_RUNTIME_IMPORT_RE =
+  /(?:from\s*["']react-native["']|require\(\s*["']react-native["']\s*\)|import\s*["']react-native["'])/;
+
+/**
+ * ADR-021: enforce upward-only internal imports across packages/* and plugins/*.
+ * plugins/* may only import the contract package (core / rn-core).
+ */
+export function checkImportDirection(root = REPO_ROOT) {
+  const errors = [];
+  for (const [dirPath, pluginMode] of [
+    [path.join(root, "packages"), false],
+    [path.join(root, "plugins"), true],
+  ]) {
+    if (!existsSync(dirPath)) continue;
+    for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const pkgName = entry.name;
+      const srcDir = path.join(dirPath, pkgName, "src");
+      if (!existsSync(srcDir)) continue;
+      const allowed = pluginMode
+        ? ["core", "rn-core"]
+        : (DEPENDENCY_DAG[pkgName] ?? []);
+      const files = [];
+      walkFiles(srcDir, files);
+      for (const file of files) {
+        const src = readFileSync(file, "utf8");
+        for (const m of src.matchAll(INTERNAL_IMPORT_RE)) {
+          const target = m[1];
+          if (!allowed.includes(target)) {
+            errors.push(
+              `import-direction: ${path.relative(root, file)} imports @client-platform/${target} (forbidden for ${pkgName})`,
+            );
+          }
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+/**
+ * ADR-022: engine-agnostic packages (core / shell-core) must not import react-native.
+ */
+export function checkEngineAgnosticPurity(root = REPO_ROOT) {
+  const errors = [];
+  for (const pkgName of ENGINE_AGNOSTIC_PACKAGES) {
+    const srcDir = path.join(root, "packages", pkgName, "src");
+    if (!existsSync(srcDir)) continue;
+    const files = [];
+    walkFiles(srcDir, files);
+    for (const file of files) {
+      const src = readFileSync(file, "utf8");
+      if (RN_RUNTIME_IMPORT_RE.test(src)) {
+        errors.push(
+          `engine-agnostic: ${path.relative(root, file)} imports react-native (${pkgName} must stay engine-agnostic)`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
 function walkFiles(dir, out, depth = 0) {
   if (depth > 12 || !existsSync(dir)) return;
   for (const name of readdirSync(dir, { withFileTypes: true })) {
@@ -84,6 +167,10 @@ export function checkArchitectureGovernance(root = REPO_ROOT) {
       }
     }
   }
+
+  // ADR-021/022: dependency direction + engine-agnostic purity
+  errors.push(...checkImportDirection(root));
+  errors.push(...checkEngineAgnosticPurity(root));
 
   return { ok: errors.length === 0, errors };
 }
