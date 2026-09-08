@@ -11,14 +11,14 @@
   "scripts": {
     "typecheck": "tsc -b",
     "build": "tsc -b",
-    "test": "tsc -b && node --experimental-strip-types --test packages/rn-core/test/*.test.ts packages/rn/test/*.test.ts packages/rn-delivery/test/*.test.ts",
+    "test": "tsc -b && node --experimental-strip-types --test packages/rn-core/test/*.test.ts packages/rn/test/*.test.ts packages/ship/test/*.test.ts",
     "link:cli": "node ./scripts/link-cli.mjs",
     "install:product": "./scripts/install.sh",
     "postinstall": "node ./scripts/link-cli.mjs --postinstall"
   },
   "devDependencies": {
     "@client-platform/rn": "workspace:*",
-    "@client-platform/rn-delivery": "workspace:*",
+    "@client-platform/ship": "workspace:*",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2"
   }

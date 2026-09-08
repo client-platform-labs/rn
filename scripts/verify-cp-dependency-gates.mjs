@@ -12,7 +12,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-e-dep-"));
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
@@ -90,7 +90,7 @@ writeFileSync(
 
 const { saveDependencyManifest } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/dependency-store.js"),
+    path.join(repoRoot, "packages/ship/dist/dependency-store.js"),
   ).href
 );
 

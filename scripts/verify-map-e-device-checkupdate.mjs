@@ -15,7 +15,7 @@ const hostRoot =
   process.argv[2] ||
   process.env.TIANGONG_HOST ||
   path.join(homedir(), "code/tiangong-host");
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 const port = 18840 + Math.floor(Math.random() * 200);
 
 if (!existsSync(path.join(hostRoot, ".rn/delivery/registry.json"))) {

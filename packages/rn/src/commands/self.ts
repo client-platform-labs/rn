@@ -150,7 +150,7 @@ export async function runSelfUninstall(options: {
   }
 
   // Best-effort npm unlink
-  for (const pkg of ["@client-platform/rn", "@client-platform/rn-delivery"]) {
+  for (const pkg of ["@client-platform/rn", "@client-platform/ship"]) {
     spawnSync("npm", ["unlink", "-g", pkg], { stdio: "ignore" });
   }
 

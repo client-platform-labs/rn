@@ -11,9 +11,9 @@ importers:
       '@client-platform/rn':
         specifier: workspace:*
         version: link:packages/rn
-      '@client-platform/rn-delivery':
+      '@client-platform/ship':
         specifier: workspace:*
-        version: link:packages/rn-delivery
+        version: link:packages/ship
       '@types/node':
         specifier: ^24.3.0
         version: 24.13.3
@@ -65,15 +65,6 @@ importers:
         specifier: workspace:*
         version: link:../rn-engine
 
-  packages/rn-delivery:
-    dependencies:
-      '@client-platform/core':
-        specifier: workspace:*
-        version: link:../core
-      '@client-platform/rn-engine':
-        specifier: workspace:*
-        version: link:../rn-engine
-
   packages/rn-engine:
     dependencies:
       '@client-platform/core':
@@ -85,6 +76,15 @@ importers:
       '@client-platform/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/ship:
+    dependencies:
+      '@client-platform/core':
+        specifier: workspace:*
+        version: link:../core
+      '@client-platform/rn-engine':
+        specifier: workspace:*
+        version: link:../rn-engine
 
   plugins/rn-plugin-example-dev-session:
     dependencies:

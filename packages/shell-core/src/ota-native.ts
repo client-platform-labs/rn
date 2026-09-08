@@ -9,7 +9,7 @@ export type OtaSidecar = {
   update_id?: string;
   digest?: string;
   signature?: string;
-  /** ADR-017 signing context — must match rn-delivery seal payload. */
+  /** ADR-017 signing context — must match ship seal payload. */
   release_id?: string;
   artifact_kind?: string;
   candidate?: JsUpdateCandidate;

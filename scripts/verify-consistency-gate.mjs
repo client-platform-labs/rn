@@ -13,7 +13,7 @@ import { pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-c4-cons-"));
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "c4-cons" }));
@@ -70,7 +70,7 @@ const { evaluateQualityPromoteGate } = await import(
 );
 const { loadQualitySignals } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/quality-signals.js"),
+    path.join(repoRoot, "packages/ship/dist/quality-signals.js"),
   ).href
 );
 

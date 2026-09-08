@@ -60,7 +60,7 @@ const registry = path.join(projectRoot, ".rn/delivery/registry.json");
 if (existsSync(registry)) {
   const { loadRegistry } = await import(
     pathToFileURL(
-      path.join(repoRoot, "packages/rn-delivery/dist/candidate-store.js"),
+      path.join(repoRoot, "packages/ship/dist/candidate-store.js"),
     ).href
   );
   const reg = loadRegistry(projectRoot);

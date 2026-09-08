@@ -39,7 +39,7 @@ const tenants = JSON.stringify({ acme: "tok-acme", beta: "tok-beta" });
 const child = spawn(
   process.execPath,
   [
-    path.join(root, "packages/rn-delivery/bin/rn-delivery.mjs"),
+    path.join(root, "packages/ship/bin/ship.mjs"),
     "cp-serve",
     "--port",
     String(port),

@@ -14,7 +14,7 @@ const hostRoot =
   process.argv[2] ||
   process.env.TIANGONG_HOST ||
   path.join(process.env.HOME || "", "code/tiangong-host");
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 const port = 18820 + Math.floor(Math.random() * 200);
 
 function step(name, ok, detail = "") {

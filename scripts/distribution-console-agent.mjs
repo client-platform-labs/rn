@@ -36,7 +36,7 @@ const lane =
 
 const { listInstallableCandidates, loadRegistry } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/candidate-store.js"),
+    path.join(repoRoot, "packages/ship/dist/candidate-store.js"),
   ).href
 );
 
@@ -135,7 +135,7 @@ if (!ok) {
 console.error("distribution-console-agent: install Success");
 
 if (recordSignal) {
-  const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+  const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
   const sig = spawnSync(
     process.execPath,
     [

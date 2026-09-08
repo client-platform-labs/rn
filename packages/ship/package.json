@@ -1,11 +1,11 @@
 {
-  "name": "@client-platform/rn-delivery",
+  "name": "@client-platform/ship",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Delivery host CLI (bin: rn-delivery). Pin as a project/dev tool, not an app dependency. Do not use for store submit.",
+  "description": "Delivery host CLI (bin: ship). Pin as a project/dev tool, not an app dependency. Do not use for store submit.",
   "bin": {
-    "rn-delivery": "./bin/rn-delivery.mjs"
+    "ship": "./bin/ship.mjs"
   },
   "exports": {
     ".": {

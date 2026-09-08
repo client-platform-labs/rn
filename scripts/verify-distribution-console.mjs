@@ -68,7 +68,7 @@ if (!process.argv[2]) {
 
 const { listInstallableCandidates, loadRegistry } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/candidate-store.js"),
+    path.join(repoRoot, "packages/ship/dist/candidate-store.js"),
   ).href
 );
 
@@ -97,7 +97,7 @@ if (existsSync(auditPath)) {
 }
 
 const port = 15040 + Math.floor(Math.random() * 1000);
-const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 const child = spawn(process.execPath, [bin, "serve", "--port", String(port)], {
   cwd: projectRoot,
   stdio: ["ignore", "pipe", "pipe"],

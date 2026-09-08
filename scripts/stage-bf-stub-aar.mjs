@@ -16,7 +16,7 @@ const publishDir = path.join(androidRoot, "publish/aar");
 const publishAar = path.join(publishDir, "stub-release.aar");
 
 const { findNewestAar } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-delivery/dist/util.js")).href
+  pathToFileURL(path.join(repoRoot, "packages/ship/dist/util.js")).href
 );
 
 function fail(msg) {

@@ -18,7 +18,7 @@ const coreEntry = path.resolve(
 );
 const storeEntry = path.resolve(
   import.meta.dirname,
-  "../packages/rn-delivery/dist/candidate-store.js",
+  "../packages/ship/dist/candidate-store.js",
 );
 
 const { gateBundleLoad, gateJsCandidate } = await import(

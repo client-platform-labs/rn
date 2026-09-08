@@ -14,7 +14,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-c5-tick-"));
 const port = 18140 + Math.floor(Math.random() * 1000);
 const token = "map-c-tick-token";
-const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 const digest = "tickdigest001";
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });

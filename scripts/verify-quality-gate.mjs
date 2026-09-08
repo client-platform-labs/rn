@@ -11,11 +11,11 @@ import { pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = path.resolve(process.argv[2] ?? process.cwd());
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 const { loadRegistry } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/candidate-store.js"),
+    path.join(repoRoot, "packages/ship/dist/candidate-store.js"),
   ).href
 );
 const { evaluateQualityPromoteGate } = await import(
@@ -25,7 +25,7 @@ const { evaluateQualityPromoteGate } = await import(
 );
 const { loadQualitySignals } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/quality-signals.js"),
+    path.join(repoRoot, "packages/ship/dist/quality-signals.js"),
   ).href
 );
 

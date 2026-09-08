@@ -15,7 +15,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const dist = path.join(repoRoot, "packages/rn-delivery/dist");
+const dist = path.join(repoRoot, "packages/ship/dist");
 
 let failed = false;
 function step(name, ok, detail = "") {

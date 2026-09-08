@@ -73,7 +73,7 @@ writeFileSync(
   }),
 );
 
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 const port = 18900 + Math.floor(Math.random() * 200);
 const proc = spawn(
   process.execPath,

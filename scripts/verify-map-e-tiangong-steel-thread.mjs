@@ -21,7 +21,7 @@ const DESK = process.env.TIANGONG_DESK ?? "/Users/xuwei/code/desk";
 const NODE24 =
   process.env.TIANGONG_NODE ??
   `${process.env.HOME}/.nvm/versions/node/v24.19.0/bin/node`;
-const RD = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const RD = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 let failed = false;
 function step(name, ok, detail = "") {

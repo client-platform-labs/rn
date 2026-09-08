@@ -25,11 +25,11 @@ const coreHygiene = path.resolve(
 );
 const deliveryValidate = path.resolve(
   import.meta.dirname,
-  "../packages/rn-delivery/dist/validate.js",
+  "../packages/ship/dist/validate.js",
 );
 const deliveryStore = path.resolve(
   import.meta.dirname,
-  "../packages/rn-delivery/dist/candidate-store.js",
+  "../packages/ship/dist/candidate-store.js",
 );
 
 const { evaluateReleaseSourceHygiene } = await import(

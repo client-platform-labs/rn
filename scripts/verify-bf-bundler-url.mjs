@@ -108,7 +108,7 @@ const build = skipBuild
   : spawnSync(
   process.execPath,
   [
-    path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs"),
+    path.join(repoRoot, "packages/ship/bin/ship.mjs"),
     "build",
     "--platform",
     "android",

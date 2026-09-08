@@ -6,7 +6,7 @@
     { "path": "./packages/rn-core" },
     { "path": "./packages/shell-core" },
     { "path": "./packages/rn" },
-    { "path": "./packages/rn-delivery" },
+    { "path": "./packages/ship" },
     { "path": "./plugins/rn-plugin-example-hello" },
     { "path": "./plugins/rn-plugin-example-dev-session" }
   ]

@@ -46,7 +46,6 @@ const DEPENDENCY_DAG = {
   "shell-core": ["core"],
   rn: ["core", "rn-core", "rn-engine"],
   ship: ["core", "rn-core", "rn-engine"],
-  "rn-delivery": ["core", "rn-core", "rn-engine"],
 };
 
 /** Engine-agnostic packages that must never import the RN runtime (ADR-022). */

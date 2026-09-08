@@ -18,11 +18,11 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const androidRoot = path.join(repoRoot, "examples/brownfield-host/android");
 
 const { findNewestAar } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-delivery/dist/util.js")).href
+  pathToFileURL(path.join(repoRoot, "packages/ship/dist/util.js")).href
 );
 const { buildCandidateMetadata, validateCandidateMetadata } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/candidate.js"),
+    path.join(repoRoot, "packages/ship/dist/candidate.js"),
   ).href
 );
 

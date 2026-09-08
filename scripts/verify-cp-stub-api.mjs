@@ -29,7 +29,7 @@ if (!process.argv[2]) {
 }
 
 const port = 14040 + Math.floor(Math.random() * 1000);
-const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));

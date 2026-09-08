@@ -13,7 +13,7 @@ import { pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-d3-gov-"));
-const rd = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "d3-gov" }));
@@ -49,7 +49,7 @@ const { defaultFinanceComplianceProfile } = await import(
 );
 const { saveComplianceProfileStore, saveExceptionLedger } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/governance-store.js"),
+    path.join(repoRoot, "packages/ship/dist/governance-store.js"),
   ).href
 );
 

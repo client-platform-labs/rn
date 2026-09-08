@@ -14,7 +14,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-cp-auth-"));
 const port = 15040 + Math.floor(Math.random() * 1000);
 const token = "map-b-verify-token";
-const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(

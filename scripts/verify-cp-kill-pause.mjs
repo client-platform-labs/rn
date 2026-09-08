@@ -15,7 +15,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-cp-kill-"));
 const port = 17040 + Math.floor(Math.random() * 1000);
 const token = "map-b-kill-token";
-const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "cp-kill-demo" }));

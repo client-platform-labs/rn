@@ -1,4 +1,4 @@
-export const packageName = "@client-platform/rn-delivery" as const;
+export const packageName = "@client-platform/ship" as const;
 export { run } from "./cli.js";
 
 export {

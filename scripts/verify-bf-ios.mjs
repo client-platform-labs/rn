@@ -78,7 +78,7 @@ if (!isDarwin) {
 } else if (!existsSync(path.join(hostIos, "Pods")) || !existsSync(path.join(hostIos, "Podfile.lock"))) {
   skip("real simulator build (pods not installed — cd ios && pod install)");
 } else {
-  const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+  const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
   const build = spawnSync(process.execPath, [bin, "build", "--platform", "ios"], {
     cwd: hostRoot,
     encoding: "utf8",

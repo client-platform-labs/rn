@@ -14,7 +14,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-cp-svc-"));
 const port = 19040 + Math.floor(Math.random() * 1000);
 const token = "map-c-cp-token";
-const bin = path.join(repoRoot, "packages/rn-delivery/bin/rn-delivery.mjs");
+const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
 
 mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
 writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "cp-svc" }));

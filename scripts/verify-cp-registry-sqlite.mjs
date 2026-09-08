@@ -19,16 +19,16 @@ writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "cp-sqlite
 const { promoteCandidateToStaging, loadRegistry, blockCandidateInRegistry } =
   await import(
     pathToFileURL(
-      path.join(repoRoot, "packages/rn-delivery/dist/candidate-store.js"),
+      path.join(repoRoot, "packages/ship/dist/candidate-store.js"),
     ).href
   );
 const { buildCandidateMetadata, emptyDualSupplyChain } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-delivery/dist/candidate.js"))
+  pathToFileURL(path.join(repoRoot, "packages/ship/dist/candidate.js"))
     .href
 );
 const { REGISTRY_SQLITE_FILE } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-delivery/dist/registry-sqlite.js"),
+    path.join(repoRoot, "packages/ship/dist/registry-sqlite.js"),
   ).href
 );
 

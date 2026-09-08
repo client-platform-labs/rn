@@ -24,7 +24,7 @@ function step(name, ok, detail = "") {
 console.log("m4 debug-host verify");
 console.log("");
 
-const deliveryEntry = path.join(repoRoot, "packages/rn-delivery/dist/index.js");
+const deliveryEntry = path.join(repoRoot, "packages/ship/dist/index.js");
 const {
   hostArtifactKindForProfile,
   validateCandidateMetadata,
@@ -65,7 +65,7 @@ step(
 
 const schemaPath = path.join(
   repoRoot,
-  "packages/rn-delivery/schemas/candidate-metadata.schema.json",
+  "packages/ship/schemas/candidate-metadata.schema.json",
 );
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 step(
