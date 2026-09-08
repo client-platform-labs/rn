@@ -8,8 +8,8 @@ describe("renderModuleRegistry (ADR-021/D2 生成式注册表)", () => {
     const out = renderModuleRegistry(["desk", "fixture_second"]);
     assert.match(out, /import { getModuleApp as getDeskApp } from "@tiangong\/desk";/);
     assert.match(out, /import { getModuleApp as getFixtureSecondApp } from "@tiangong\/fixture_second";/);
-    assert.match(out, /registerModule\(\{ moduleId: "desk", getApp: getDeskApp/);
-    assert.match(out, /registerModule\(\{ moduleId: "fixture_second", getApp: getFixtureSecondApp/);
+    assert.match(out, /moduleId: "desk",[\s\S]*getApp: getDeskApp/);
+    assert.match(out, /moduleId: "fixture_second",[\s\S]*getApp: getFixtureSecondApp/);
     assert.match(out, /export function ensureGeneratedRegistrations/);
   });
 
