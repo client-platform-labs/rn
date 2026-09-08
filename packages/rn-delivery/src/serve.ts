@@ -407,6 +407,32 @@ export function createControlPlane(options: {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/v1/ota/revocations") {
+        // ADR-018 — K2-signed revocation list, published by the operator.
+        // Format: { revoked: string[], payload: <canonical string>, seal: pem:ed25519:<b64> }
+        // Device verifies seal with baked K2; a revoked key's signatures are rejected.
+        const file = process.env.RN_CP_REVOCATIONS_FILE?.trim();
+        let doc: {
+          revoked: string[];
+          payload: string;
+          seal: string | null;
+        } = { revoked: [], payload: "{}", seal: null };
+        if (file && existsSync(file)) {
+          try {
+            const parsed = JSON.parse(readFileSync(file, "utf8")) as typeof doc;
+            doc = {
+              revoked: Array.isArray(parsed.revoked) ? parsed.revoked : [],
+              payload: typeof parsed.payload === "string" ? parsed.payload : "{}",
+              seal: typeof parsed.seal === "string" ? parsed.seal : null,
+            };
+          } catch {
+            /* serve empty (fail-open to no revocations) */
+          }
+        }
+        sendJson(res, 200, doc);
+        return;
+      }
+
       if (req.method === "GET" && url.pathname === "/v1/metrics") {
         res.writeHead(200, {
           "content-type": "text/plain; version=0.0.4; charset=utf-8",
