@@ -41,11 +41,10 @@ const FORBIDDEN_PRODUCT_PATTERNS = [
  */
 const DEPENDENCY_DAG = {
   core: [],
-  "rn-core": ["core", "rn-engine"],
   "rn-engine": ["core"],
   "shell-core": ["core"],
-  rn: ["core", "rn-core", "rn-engine"],
-  ship: ["core", "rn-core", "rn-engine"],
+  rn: ["core", "rn-engine"],
+  ship: ["core", "rn-engine"],
 };
 
 /** Engine-agnostic packages that must never import the RN runtime (ADR-022). */

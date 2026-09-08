@@ -7,10 +7,12 @@ import { rmSync } from "node:fs";
 
 import {
   loadProjectManifest,
-  renderDefaultManifestJsonc,
   validateManifestText,
+} from "@client-platform/core";
+import {
+  renderDefaultManifestJsonc,
+  buildRnExactTuple,
 } from "../dist/index.js";
-import { buildRnExactTuple } from "../dist/index.js";
 
 const fixtures: string[] = [];
 

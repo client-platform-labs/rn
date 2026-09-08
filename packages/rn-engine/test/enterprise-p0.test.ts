@@ -10,12 +10,14 @@ import {
   createQualitySignal,
   createSurfaceLifecycleController,
   defaultDualModuleDevSession,
-  defaultGreenfieldFingerprint,
   formatQualitySignalLine,
   gateBundleLoad,
   resolveShellChangeAction,
   shouldBlockPromotion,
   triageJsFault,
+} from "@client-platform/core";
+import {
+  defaultGreenfieldFingerprint,
   validateBundleArtifact,
 } from "../dist/index.js";
 

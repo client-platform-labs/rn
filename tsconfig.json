@@ -3,7 +3,6 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/rn-engine" },
-    { "path": "./packages/rn-core" },
     { "path": "./packages/shell-core" },
     { "path": "./packages/rn" },
     { "path": "./packages/ship" },
