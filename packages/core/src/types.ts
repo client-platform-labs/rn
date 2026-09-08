@@ -2,6 +2,12 @@ export const HOST_SUPPORTED_API_VERSIONS = [1] as const;
 
 export const MANIFEST_FILENAME = "client-platform.manifest.jsonc";
 
+/**
+ * Extension surface kinds (ADR-021/D4).
+ * `native` / `prebuild` are RESERVED, not implemented — native injection goes
+ * through OtaNativeAdapter/HostEngineAdapter (D5), template gen through the
+ * build backend (D6). Do not treat these as live registration protocols.
+ */
 export type PluginKind = "cli-command" | "native" | "prebuild" | "dev-session";
 
 export interface PluginRecord {
