@@ -5,7 +5,7 @@ import {
   discoverPlugins,
   type Logger,
   type PluginRecord,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 export async function registerCliCommandPlugins(
   program: Command,

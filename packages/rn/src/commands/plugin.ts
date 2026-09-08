@@ -1,4 +1,4 @@
-import { discoverPlugins } from "@client-platform/rn-core";
+import { discoverPlugins } from "@client-platform/core";
 import type { CliLogger } from "../logger.js";
 
 export async function runPluginList(options: {

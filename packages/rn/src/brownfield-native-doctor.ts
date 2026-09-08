@@ -7,7 +7,7 @@ import path from "node:path";
 import {
   isGreenfieldRnTrain,
   RN_GREENFIELD_MAJOR_MINOR,
-} from "@client-platform/rn-core";
+} from "@client-platform/rn-engine";
 
 import {
   loadHostProfile,

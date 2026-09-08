@@ -23,7 +23,8 @@
     "node": ">=22 <25"
   },
   "dependencies": {
-    "@client-platform/rn-core": "workspace:*",
+    "@client-platform/core": "workspace:*",
+    "@client-platform/rn-engine": "workspace:*",
     "commander": "^15.0.0"
   }
 }

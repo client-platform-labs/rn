@@ -1,4 +1,4 @@
-import type { Logger } from "@client-platform/rn-core";
+import type { Logger } from "@client-platform/core";
 
 export interface CliLogger extends Logger {
   json: boolean;

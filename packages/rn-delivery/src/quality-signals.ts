@@ -9,7 +9,7 @@ import {
   createQualitySignal,
   type QualitySignalAttribution,
   type QualitySignalKind,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { ensureDeliveryDir } from "./candidate-store.js";
 import { DeliveryError, EXIT_FAIL, EXIT_USAGE } from "./util.js";

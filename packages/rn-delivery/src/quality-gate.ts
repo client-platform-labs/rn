@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { evaluateQualityPromoteGate } from "@client-platform/rn-core";
+import { evaluateQualityPromoteGate } from "@client-platform/core";
 
 import { loadQualitySignals } from "./quality-signals.js";
 import type { CandidateMetadata } from "./types.js";

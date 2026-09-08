@@ -1,4 +1,4 @@
-import { evaluateSbomPromoteGate } from "@client-platform/rn-core";
+import { evaluateSbomPromoteGate } from "@client-platform/core";
 
 import type { CandidateMetadata } from "./types.js";
 import { DeliveryError, EXIT_FAIL } from "./util.js";

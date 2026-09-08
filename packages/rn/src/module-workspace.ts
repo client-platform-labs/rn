@@ -13,7 +13,7 @@ import {
   DEFAULT_MAIN_METRO_PORT,
   defaultModulePort,
   type DevSessionConfig,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import {
   loadDevSessionConfig,

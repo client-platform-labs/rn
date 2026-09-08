@@ -1,4 +1,4 @@
-import type { ArtifactKind } from "@client-platform/rn-core";
+import type { ArtifactKind } from "@client-platform/core";
 
 /**
  * Unified delivery stage contract (blueprint/03 + wayfinding #12).

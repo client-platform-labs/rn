@@ -8,13 +8,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { MANIFEST_FILENAME } from "@client-platform/core";
 import {
   buildRnExactTuple,
-  MANIFEST_FILENAME,
   renderDefaultManifestJsonc,
   RN_GREENFIELD_INIT_VERSION,
   RN_GREENFIELD_MAJOR_MINOR,
-} from "@client-platform/rn-core";
+} from "@client-platform/rn-engine";
 import { CliError, EXIT_FAIL, EXIT_USAGE } from "../errors.js";
 import type { CliLogger } from "../logger.js";
 import {

@@ -1,4 +1,4 @@
-import { evaluateGovernancePromoteGate } from "@client-platform/rn-core";
+import { evaluateGovernancePromoteGate } from "@client-platform/core";
 
 import { loadRegistry } from "./candidate-store.js";
 import {

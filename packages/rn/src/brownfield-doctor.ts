@@ -12,7 +12,7 @@ import {
   negotiateDevSessionProtocol,
   resolveDevSessionProtocolVersion,
   type DevSessionConfig,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { evaluateBrownfieldNativeDoctor } from "./brownfield-native-doctor.js";
 

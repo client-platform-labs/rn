@@ -54,7 +54,7 @@ import {
   KillPauseError,
   RolloutError,
   type SliSnapshot,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 const STATIC_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),

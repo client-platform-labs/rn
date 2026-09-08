@@ -11,7 +11,7 @@ import {
 } from "../dist/candidate-store.js";
 import { assertQualityAllowsPromote } from "../dist/quality-gate.js";
 import { appendQualitySignal } from "../dist/quality-signals.js";
-import { createQualitySignal } from "@client-platform/rn-core";
+import { createQualitySignal } from "@client-platform/core";
 
 const DIGEST =
   "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";

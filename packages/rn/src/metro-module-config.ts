@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync, existsSync, rmSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import type { DevSessionConfig } from "@client-platform/rn-core";
+import type { DevSessionConfig } from "@client-platform/core";
 
 export const METRO_MODULE_DIR = path.join(".rn", "metro");
 

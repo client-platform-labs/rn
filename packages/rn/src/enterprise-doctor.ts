@@ -15,7 +15,7 @@ import {
   gateBundleLoad,
   resolveShellChangeAction,
   type DevSessionConfig,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { loadHostProfile, type BrownfieldCheck } from "./brownfield-doctor.js";
 import { metroModuleConfigPath } from "./metro-module-config.js";

@@ -5,7 +5,6 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
-  defaultGreenfieldFingerprint,
   evaluatePromoteDependencyGate,
   evaluatePublishDependencyGate,
   evaluateRuntimeCompositionGate,
@@ -13,7 +12,8 @@ import {
   type DependencyRegistryEntry,
   type HostSelectorContext,
   type JsUpdateCandidate,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
+import { defaultGreenfieldFingerprint } from "@client-platform/rn-engine";
 
 import { loadRegistry } from "./candidate-store.js";
 import {

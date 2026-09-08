@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { BundleDependencyEdge } from "@client-platform/rn-core";
+import type { BundleDependencyEdge } from "@client-platform/core";
 
 import { ensureDeliveryDir } from "./candidate-store.js";
 

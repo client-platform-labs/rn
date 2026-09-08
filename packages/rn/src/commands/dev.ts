@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   findManifestRoot,
   MANIFEST_FILENAME,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 import { ensureMetroBridge } from "../android-dev-bridge.js";
 import {
   buildAndroidInstallArgs,

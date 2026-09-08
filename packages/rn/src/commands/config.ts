@@ -2,7 +2,7 @@ import {
   findManifestRoot,
   loadProjectManifest,
   MANIFEST_FILENAME,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 import { CliError, EXIT_FAIL, EXIT_USAGE } from "../errors.js";
 import type { CliLogger } from "../logger.js";
 

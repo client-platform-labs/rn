@@ -1,4 +1,4 @@
-import type { DevSessionPluginRegister } from "@client-platform/rn-core";
+import type { DevSessionPluginRegister } from "@client-platform/core";
 
 /**
  * Third-party-shaped `dev-session` plugin (map-a/#17 hot-plug proof).

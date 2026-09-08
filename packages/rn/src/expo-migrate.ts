@@ -7,12 +7,14 @@ import path from "node:path";
 import {
   findManifestRoot,
   loadProjectManifest,
-  snapshotExpoPackageJson,
-  evaluateSdkRnDrift,
   type InteropConfig,
   type MigrationDryRunReport,
   type MigrationTrack,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
+import {
+  snapshotExpoPackageJson,
+  evaluateSdkRnDrift,
+} from "@client-platform/rn-engine";
 
 import { evaluateExpoDoctor } from "./expo-doctor.js";
 

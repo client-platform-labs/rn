@@ -24,7 +24,7 @@ import {
   type JsReleaseGate,
   type SliSnapshot,
   type TickRolloutResult,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import type { CandidateMetadata } from "./types.js";
 import {

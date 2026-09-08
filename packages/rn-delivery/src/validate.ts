@@ -4,7 +4,7 @@ import path from "node:path";
 import {
   evaluateReleaseSourceHygiene,
   releaseSourceHygieneOk,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { validateCandidateMetadata } from "./candidate.js";
 import { readLastCandidate } from "./candidate-store.js";

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
-import { defaultDualModuleDevSession } from "@client-platform/rn-core";
+import { defaultDualModuleDevSession } from "@client-platform/core";
 
 import { evaluateBrownfieldDoctor } from "../dist/brownfield-doctor.js";
 

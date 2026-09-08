@@ -13,7 +13,7 @@ import {
   type DevSessionMenuContribution,
   type DevSessionPluginRegister,
   type Logger,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { DEV_SUPPORT_MODULE_DIR } from "./dev-support/constants.js";
 

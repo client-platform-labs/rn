@@ -2,7 +2,7 @@ import {
   buildBareBrownfieldAdvisorStub,
   findManifestRoot,
   validateMigrationDryRunReport,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import type { CliLogger } from "../logger.js";
 import { CliError, EXIT_USAGE } from "../errors.js";

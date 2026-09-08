@@ -6,7 +6,7 @@ import {
   negotiateDevSessionProtocol,
   resolveDevSessionProtocolVersion,
   type DevSessionConfig,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { CliError, EXIT_FAIL } from "./errors.js";
 

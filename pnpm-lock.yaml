@@ -46,9 +46,12 @@ importers:
 
   packages/rn:
     dependencies:
-      '@client-platform/rn-core':
+      '@client-platform/core':
         specifier: workspace:*
-        version: link:../rn-core
+        version: link:../core
+      '@client-platform/rn-engine':
+        specifier: workspace:*
+        version: link:../rn-engine
       commander:
         specifier: ^15.0.0
         version: 15.0.0
@@ -64,9 +67,12 @@ importers:
 
   packages/rn-delivery:
     dependencies:
-      '@client-platform/rn-core':
+      '@client-platform/core':
         specifier: workspace:*
-        version: link:../rn-core
+        version: link:../core
+      '@client-platform/rn-engine':
+        specifier: workspace:*
+        version: link:../rn-engine
 
   packages/rn-engine:
     dependencies:
@@ -76,15 +82,15 @@ importers:
 
   packages/shell-core:
     dependencies:
-      '@client-platform/rn-core':
+      '@client-platform/core':
         specifier: workspace:*
-        version: link:../rn-core
+        version: link:../core
 
   plugins/rn-plugin-example-dev-session:
     dependencies:
-      '@client-platform/rn-core':
+      '@client-platform/core':
         specifier: workspace:*
-        version: link:../../packages/rn-core
+        version: link:../../packages/core
 
   plugins/rn-plugin-example-hello: {}
 

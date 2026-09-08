@@ -9,7 +9,7 @@ import path from "node:path";
 import type {
   ComplianceProfile,
   ExceptionLedgerEntry,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 import { DELIVERY_STATE_DIR } from "./candidate-store.js";
 

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 
-import { computeFingerprint, releaseSourceHygieneOk } from "@client-platform/rn-core";
+import { computeFingerprint, releaseSourceHygieneOk } from "@client-platform/core";
 
 import { writeBuildResults } from "./candidate-store.js";
 import { archiveArtifactIfPresent } from "./artifact-store.js";

@@ -7,11 +7,13 @@ import {
   evaluateReleaseSourceHygiene,
   findManifestRoot,
   findWorkspaceRoot,
-  isGreenfieldRnTrain,
   loadProjectManifest,
   MANIFEST_FILENAME,
+} from "@client-platform/core";
+import {
+  isGreenfieldRnTrain,
   RN_GREENFIELD_MAJOR_MINOR,
-} from "@client-platform/rn-core";
+} from "@client-platform/rn-engine";
 import { CliError, EXIT_FAIL } from "../errors.js";
 import { defaultInstallHome } from "../install-home.js";
 import type { CliLogger } from "../logger.js";
@@ -100,7 +102,7 @@ export async function runDoctor(options: {
     ).href;
     const packageChecks: Array<{ name: string; parent: string }> = [
       { name: "@client-platform/rn", parent: workspaceParent },
-      { name: "@client-platform/rn-core", parent: import.meta.url },
+      { name: "@client-platform/core", parent: import.meta.url },
     ];
     for (const check of packageChecks) {
       const ok = canResolve(check.name, check.parent);

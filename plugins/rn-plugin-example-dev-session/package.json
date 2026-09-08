@@ -13,7 +13,7 @@
   "types": "./dist/index.d.ts",
   "files": ["dist"],
   "dependencies": {
-    "@client-platform/rn-core": "workspace:*"
+    "@client-platform/core": "workspace:*"
   },
   "clientPlatform": {
     "id": "example-dev-session",

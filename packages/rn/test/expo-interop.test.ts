@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import { parseDoctorProfile } from "../dist/brownfield-doctor.js";
 import { evaluateExpoDoctor } from "../dist/expo-doctor.js";
 import { buildExpoMigrateDryRunReport } from "../dist/expo-migrate.js";
-import { validateMigrationDryRunReport } from "@client-platform/rn-core";
+import { validateMigrationDryRunReport } from "@client-platform/core";
 
 describe("expo interop doctor + migrate", () => {
   it("parses expo doctor profile", () => {

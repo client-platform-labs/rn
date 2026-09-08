@@ -3,11 +3,11 @@ import path from "node:path";
 
 import {
   computeFingerprint,
-  defaultGreenfieldFingerprint,
   type JsUpdateCandidate,
   type ProjectManifest,
   type RuntimeFingerprint,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
+import { defaultGreenfieldFingerprint } from "@client-platform/rn-engine";
 
 import { ensureDeliveryDir } from "./candidate-store.js";
 import type { CandidateMetadata } from "./types.js";

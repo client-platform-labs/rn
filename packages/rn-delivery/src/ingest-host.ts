@@ -4,7 +4,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import { computeFingerprint } from "@client-platform/rn-core";
+import { computeFingerprint } from "@client-platform/core";
 
 import {
   buildCandidateMetadata,

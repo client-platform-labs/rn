@@ -6,12 +6,14 @@ import path from "node:path";
 
 import {
   computeFingerprint,
+  loadProjectManifest,
+  type InteropConfig,
+} from "@client-platform/core";
+import {
   evaluateRuntimeVersionFingerprintNote,
   evaluateSdkRnDrift,
-  loadProjectManifest,
   snapshotExpoPackageJson,
-  type InteropConfig,
-} from "@client-platform/rn-core";
+} from "@client-platform/rn-engine";
 
 export type ExpoDoctorCheck = {
   id: string;

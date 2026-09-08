@@ -4,8 +4,8 @@
  * `OtaNativeAdapter`, and signature verification runs through rn-core's real
  * Ed25519 gate (ADR-017).
  */
-import { gateBundleLoad } from "@client-platform/rn-core/ota";
-import type { JsUpdateCandidate } from "@client-platform/rn-core/ota";
+import { gateBundleLoad } from "@client-platform/core/ota";
+import type { JsUpdateCandidate } from "@client-platform/core/ota";
 
 import { readHostContextFromSidecar } from "./host-context.js";
 import { assertModuleId, DEFAULT_MODULE_ID, moduleSlotRel } from "./slot-paths.js";
