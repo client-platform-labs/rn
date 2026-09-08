@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { validateAttributionRecord } from "../dist/attribution-contract.js";
-import { createQualitySignal } from "../dist/observability.js";
-import { evaluateQualityPromoteGate } from "../dist/quality-promote-gate.js";
+import { validateAttributionRecord } from "../dist/index.js";
+import { createQualitySignal } from "../dist/index.js";
+import { evaluateQualityPromoteGate } from "../dist/index.js";
 
 const DIGEST =
   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";

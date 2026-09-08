@@ -10,14 +10,14 @@ import {
   presentFallbackUi,
   recordDownloadAttempt,
   verifyArtifactDigest,
-} from "../dist/fallback-runtime.js";
-import { selectFallbackSlot } from "../dist/selector.js";
+} from "../dist/index.js";
+import { selectFallbackSlot } from "../dist/index.js";
 import type {
   HostSelectorContext,
   JsUpdateCandidate,
   ModuleSlots,
   RuntimeFingerprint,
-} from "../dist/types.js";
+} from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
   rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",

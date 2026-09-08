@@ -6,8 +6,8 @@ import {
   evaluateSdkRnDrift,
   snapshotExpoPackageJson,
   validateExpoInteropConfig,
-} from "../dist/expo-interop.js";
-import { validateManifestText } from "../dist/manifest.js";
+} from "../dist/index.js";
+import { validateManifestText } from "../dist/index.js";
 
 describe("expo interop manifest", () => {
   it("accepts optional interop.expo block", () => {

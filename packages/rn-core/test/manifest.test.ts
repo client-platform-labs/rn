@@ -9,8 +9,8 @@ import {
   loadProjectManifest,
   renderDefaultManifestJsonc,
   validateManifestText,
-} from "../dist/manifest.js";
-import { buildRnExactTuple } from "../dist/greenfield.js";
+} from "../dist/index.js";
+import { buildRnExactTuple } from "../dist/index.js";
 
 const fixtures: string[] = [];
 

@@ -8,7 +8,7 @@ import {
   resolveDevSessionProtocolVersion,
   resolveEnv,
   DEV_SESSION_PROTOCOL_VERSION,
-} from "../src/env.ts";
+} from "../dist/index.js";
 
 describe("resolveEnv cascade", () => {
   const config = defaultDualModuleDevSession();

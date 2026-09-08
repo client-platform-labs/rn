@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { defaultFinanceComplianceProfile } from "../dist/compliance-profile.js";
-import { evaluateGovernancePromoteGate } from "../dist/governance-promote-gate.js";
+import { defaultFinanceComplianceProfile } from "../dist/index.js";
+import { evaluateGovernancePromoteGate } from "../dist/index.js";
 
 describe("governance-promote-gate", () => {
   it("blocks expired exception", () => {

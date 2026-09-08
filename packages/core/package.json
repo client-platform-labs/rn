@@ -1,9 +1,9 @@
 {
-  "name": "@client-platform/rn-core",
+  "name": "@client-platform/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Legacy bridge: re-exports @client-platform/core + @client-platform/rn-engine (ADR-022 expand)",
+  "description": "Engine-agnostic contracts, gates, discovery (ADR-022)",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,7 +20,9 @@
     "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
-    "@client-platform/core": "workspace:*",
-    "@client-platform/rn-engine": "workspace:*"
+    "@noble/ed25519": "^2.3.0",
+    "@noble/hashes": "^2.4.0",
+    "ajv": "^8.20.0",
+    "jsonc-parser": "^3.3.1"
   }
 }

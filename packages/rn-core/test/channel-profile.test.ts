@@ -4,7 +4,7 @@ import {
   defaultChinaChannelProfiles,
   isJsBlockedForChannel,
   validateChannelProfileSet,
-} from "../dist/channel-profile.js";
+} from "../dist/index.js";
 
 describe("channel-profile", () => {
   it("default China set structurally ok", () => {

@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildBareBrownfieldAdvisorStub,
   validateMigrationDryRunReport,
-} from "../dist/migration-dry-run.js";
+} from "../dist/index.js";
 
 const expoFixture = {
   dryRun: true as const,

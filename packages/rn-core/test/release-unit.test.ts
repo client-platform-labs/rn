@@ -7,7 +7,7 @@ import {
   releaseUnitFromCandidate,
   validateModuleProductIsolation,
   validateReleaseUnit,
-} from "../dist/release-unit.js";
+} from "../dist/index.js";
 
 describe("release-unit", () => {
   it("formats and parses stable key", () => {

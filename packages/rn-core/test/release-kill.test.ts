@@ -6,7 +6,7 @@ import {
   collectBlockedUpdateIds,
   KillPauseError,
   normalizeKillInput,
-} from "../dist/release-kill.js";
+} from "../dist/index.js";
 
 describe("release-kill", () => {
   it("collectBlockedUpdateIds merges kills and digest blocks", () => {

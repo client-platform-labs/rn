@@ -1,8 +1,8 @@
 import {
   DEFAULT_JS_ARTIFACT_MAX_PROFILES,
-  RN_GREENFIELD_MAJOR_MINOR,
   type RuntimeFingerprint,
-} from "./types.js";
+} from "@client-platform/core";
+import { RN_GREENFIELD_MAJOR_MINOR } from "./constants.js";
 
 /** Suffix locked by ticket 11 for Greenfield `rnExactTuple`. */
 export const RN_EXACT_TUPLE_SUFFIX = "+hermes-v1+newarch+codegen-locked";

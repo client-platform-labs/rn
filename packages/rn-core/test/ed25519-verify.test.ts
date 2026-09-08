@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { generateKeyPairSync, sign as nodeSign } from "node:crypto";
 
-import { verifyEd25519Seal, verifyRevocationSeal } from "../dist/ed25519-verify.js";
+import { verifyEd25519Seal, verifyRevocationSeal } from "../dist/index.js";
 
 function rawPubHex() {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");

@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 import { rmSync } from "node:fs";
 
-import { discoverPlugins } from "../dist/discover.js";
+import { discoverPlugins } from "../dist/index.js";
 
 const fixtures: string[] = [];
 

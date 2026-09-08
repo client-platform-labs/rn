@@ -1,0 +1,21 @@
+{
+  "name": "@client-platform/rn-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React Native engine adapter: fingerprint dims, version constants, build backend, host binding (ADR-022)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@client-platform/core": "workspace:*"
+  }
+}

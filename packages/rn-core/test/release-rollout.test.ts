@@ -10,7 +10,7 @@ import {
   RolloutError,
   startRolloutState,
   tickRolloutState,
-} from "../dist/release-rollout.js";
+} from "../dist/index.js";
 
 describe("release-rollout", () => {
   it("default steps start at 1% canary", () => {

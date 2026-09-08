@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createQualitySignal } from "../dist/observability.js";
+import { createQualitySignal } from "../dist/index.js";
 import {
   evaluateQualityPromoteGate,
   isPromoteBlockingSignalKind,
   qualitySignalMatchesCandidate,
-} from "../dist/quality-promote-gate.js";
+} from "../dist/index.js";
 
 describe("quality promote gate", () => {
   it("blocks promote on matching crash signal", () => {

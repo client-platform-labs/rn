@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { evaluateSbomPromoteGate } from "../dist/sbom-promote-gate.js";
+import { evaluateSbomPromoteGate } from "../dist/index.js";
 
 const DIGEST =
   "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";

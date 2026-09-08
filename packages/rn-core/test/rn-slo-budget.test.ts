@@ -7,7 +7,7 @@ import {
   evaluateRnSloForRollout,
   missingRnSloKeys,
   rnSloUpperBoundThresholds,
-} from "../dist/rn-slo-budget.js";
+} from "../dist/index.js";
 
 describe("rn-slo-budget", () => {
   const profile = defaultRnSloProfile();

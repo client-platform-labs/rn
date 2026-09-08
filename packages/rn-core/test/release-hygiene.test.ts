@@ -8,7 +8,7 @@ import {
   evaluateReleaseSourceHygiene,
   releaseSourceHygieneOk,
   scanApkReleaseHygiene,
-} from "../dist/release-hygiene.js";
+} from "../dist/index.js";
 
 describe("release source hygiene", () => {
   it("passes on a clean project tree", () => {

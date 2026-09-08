@@ -7,23 +7,13 @@ import {
 } from "jsonc-parser";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 
-import {
-  buildRnExactTuple,
-  defaultCompatibilityProfileId,
-  defaultGreenfieldFingerprint,
-  defaultReleaseId,
-} from "./greenfield.js";
 import { projectManifestSchema } from "./schema.js";
-import { validateExpoInteropConfig } from "./expo-interop.js";
 import {
-  DEFAULT_JS_ARTIFACT_MAX_PROFILES,
   MANIFEST_FILENAME,
   MANIFEST_SCHEMA_VERSION,
-  RN_GREENFIELD_INIT_VERSION,
   type LoadManifestResult,
   type ManifestValidationResult,
   type ProjectManifest,
-  type RuntimeFingerprint,
 } from "./types.js";
 
 const ajv = new Ajv2020({ allErrors: true, useDefaults: true, strict: true });
@@ -112,13 +102,6 @@ export function validateManifestText(text: string): ManifestValidationResult {
     return { ok: false, errors: spineErrors };
   }
 
-  const interopErrors = validateExpoInteropConfig(
-    (migrated as ProjectManifest).interop,
-  );
-  if (interopErrors.length > 0) {
-    return { ok: false, errors: interopErrors };
-  }
-
   return { ok: true, manifest: normalize(migrated as ProjectManifest) };
 }
 
@@ -184,43 +167,4 @@ export function findManifestRoot(cwd: string): string | undefined {
     }
     dir = parent;
   }
-}
-
-export interface RenderManifestOptions {
-  rnVersion?: string;
-  releaseId?: string;
-  fingerprint?: RuntimeFingerprint;
-}
-
-/** Render schemaVersion 2 Greenfield manifest with identity spine. */
-export function renderDefaultManifestJsonc(
-  options: RenderManifestOptions = {},
-): string {
-  const rnVersion = options.rnVersion ?? RN_GREENFIELD_INIT_VERSION;
-  const rnExactTuple = buildRnExactTuple(rnVersion);
-  const fingerprint =
-    options.fingerprint ?? defaultGreenfieldFingerprint(rnExactTuple);
-  const releaseId = options.releaseId ?? defaultReleaseId(rnVersion);
-  const profileId = defaultCompatibilityProfileId(rnExactTuple);
-
-  const body = {
-    schemaVersion: MANIFEST_SCHEMA_VERSION,
-    product: "rn",
-    targets: ["ios", "android"],
-    plugins: [] as string[],
-    release_id: releaseId,
-    artifact_line: "pure-rn-greenfield",
-    artifact_kind: "app-host" as const,
-    runtime_fingerprint: fingerprint,
-    capability_set: [] as string[],
-    compatibility_profile_id: profileId,
-    host_support_window: ["production", "previous"],
-    js_artifact_matrix: {
-      max_profiles: DEFAULT_JS_ARTIFACT_MAX_PROFILES,
-    },
-  };
-
-  return `// Client Platform project manifest (rn product) — Greenfield schemaVersion ${MANIFEST_SCHEMA_VERSION}
-${JSON.stringify(body, null, 2)}
-`;
 }

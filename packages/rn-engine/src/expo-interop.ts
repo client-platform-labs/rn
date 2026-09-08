@@ -3,7 +3,7 @@
  * No default `expo` dependency — detection inputs are caller-supplied.
  */
 
-import type { ExpoInteropConfig, InteropConfig } from "./types.js";
+import type { ExpoInteropConfig, InteropConfig } from "@client-platform/core";
 
 export type { ExpoInteropConfig, InteropConfig };
 

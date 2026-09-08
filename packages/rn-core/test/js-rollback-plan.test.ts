@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { planJsRollback } from "../dist/js-rollback-plan.js";
+import { planJsRollback } from "../dist/index.js";
 import type {
   HostSelectorContext,
   JsUpdateCandidate,
   ModuleSlots,
   RuntimeFingerprint,
-} from "../dist/types.js";
+} from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
   rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",

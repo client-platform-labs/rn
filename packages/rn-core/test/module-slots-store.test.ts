@@ -7,8 +7,8 @@ import { describe, it } from "node:test";
 import {
   loadModuleSlots,
   saveModuleSlots,
-} from "../dist/module-slots-store.js";
-import type { JsUpdateCandidate, ModuleSlots, RuntimeFingerprint } from "../dist/types.js";
+} from "../dist/index.js";
+import type { JsUpdateCandidate, ModuleSlots, RuntimeFingerprint } from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
   rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",

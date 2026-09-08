@@ -65,12 +65,6 @@ export interface RuntimeFingerprint {
 /** Current Greenfield project contract version (identity spine required). */
 export const MANIFEST_SCHEMA_VERSION = 2;
 
-/** Greenfield RN train major.minor (ticket 11). Exact patch resolved at init. */
-export const RN_GREENFIELD_MAJOR_MINOR = "0.87";
-
-/** Pinned Community CLI / template train for `rn init` orchestration. */
-export const RN_GREENFIELD_INIT_VERSION = "0.87.0";
-
 /** Optional cross-ecosystem interop blocks (ADR-003). */
 export interface ExpoInteropConfig {
   sdkVersion?: string;

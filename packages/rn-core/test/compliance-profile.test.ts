@@ -5,7 +5,7 @@ import {
   defaultFinanceComplianceProfile,
   evaluateExceptionLedger,
   validateComplianceProfile,
-} from "../dist/compliance-profile.js";
+} from "../dist/index.js";
 
 describe("compliance-profile", () => {
   it("default finance profile dual-lands", () => {

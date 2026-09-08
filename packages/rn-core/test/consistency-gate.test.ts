@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { evaluateConsistencyGate } from "../src/consistency-gate.ts";
+import { evaluateConsistencyGate } from "../dist/index.js";
 
 describe("consistency-gate", () => {
   it("passes when ios+android digests match", () => {

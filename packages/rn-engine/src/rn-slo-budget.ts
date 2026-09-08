@@ -4,7 +4,7 @@
  * No real Prometheus backends — contract + evaluate only.
  */
 
-import { evaluateSliOk, type SliSnapshot } from "./release-rollout.js";
+import { evaluateSliOk, type SliSnapshot } from "@client-platform/core";
 
 /** P13 RN SLO metric keys (availability + perf proxies). */
 export type RnSloMetric =

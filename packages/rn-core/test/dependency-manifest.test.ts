@@ -6,16 +6,16 @@ import {
   evaluatePublishDependencyGate,
   evaluateRuntimeCompositionGate,
   versionGte,
-} from "../dist/dependency-manifest.js";
+} from "../dist/index.js";
 import type {
   BundleDependencyEdge,
   DependencyRegistryEntry,
-} from "../dist/dependency-manifest.js";
+} from "../dist/index.js";
 import type {
   HostSelectorContext,
   JsUpdateCandidate,
   RuntimeFingerprint,
-} from "../dist/types.js";
+} from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
   rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",

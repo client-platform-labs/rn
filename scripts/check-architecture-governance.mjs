@@ -41,9 +41,9 @@ const FORBIDDEN_PRODUCT_PATTERNS = [
  */
 const DEPENDENCY_DAG = {
   core: [],
-  "rn-core": [],
-  "rn-engine": ["core", "rn-core"],
-  "shell-core": ["core", "rn-core"],
+  "rn-core": ["core", "rn-engine"],
+  "rn-engine": ["core"],
+  "shell-core": ["core"],
   rn: ["core", "rn-core", "rn-engine"],
   ship: ["core", "rn-core", "rn-engine"],
   "rn-delivery": ["core", "rn-core", "rn-engine"],

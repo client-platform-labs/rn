@@ -5,8 +5,8 @@ import {
   computeFingerprint,
   fingerprintsEqual,
   validateSupportWindow,
-} from "../dist/fingerprint.js";
-import type { RuntimeFingerprint } from "../dist/types.js";
+} from "../dist/index.js";
+import type { RuntimeFingerprint } from "../dist/index.js";
 
 const baseInput: RuntimeFingerprint = {
   rnExactTuple: "0.86.2+hermes-bundled+codegen-locked",

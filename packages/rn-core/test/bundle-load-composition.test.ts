@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { gateBundleLoad } from "../dist/bundle-load-gate.js";
+import { gateBundleLoad } from "../dist/index.js";
 import type {
   HostSelectorContext,
   JsUpdateCandidate,
   RuntimeFingerprint,
-} from "../dist/types.js";
+} from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
   rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",
