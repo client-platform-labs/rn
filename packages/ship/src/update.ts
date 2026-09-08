@@ -53,8 +53,15 @@ export function resolveModuleRoot(
       const mod = req(resolverPath) as {
         load?: () => { resolver?: { extraNodeModules?: Record<string, string> } };
       };
-      const mapped = mod.load?.()?.resolver?.extraNodeModules?.[`@tiangong/${moduleId}`];
-      if (mapped && existsSync(mapped)) return mapped;
+      const extra = mod.load?.()?.resolver?.extraNodeModules ?? {};
+      for (const [pkgName, pkgPath] of Object.entries(extra)) {
+        const segment = pkgName.includes("/")
+          ? pkgName.slice(pkgName.lastIndexOf("/") + 1)
+          : pkgName;
+        if (segment === moduleId && existsSync(pkgPath)) {
+          return pkgPath;
+        }
+      }
     } catch {
       /* fall through to in-repo */
     }

@@ -37,6 +37,34 @@ describe("moduleEntry (工业解析：host-resolver 映射 + 自描述 entry)", 
     }
   });
 
+  it("resolves arbitrary scoped (non-tiangong) and unscoped package names", () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "ship-entry-"));
+    try {
+      const acmeDir = path.join(root, "acme-checkout");
+      const plainDir = path.join(root, "plain-watchlist");
+      mkdirSync(acmeDir, { recursive: true });
+      mkdirSync(plainDir, { recursive: true });
+      writeFileSync(path.join(acmeDir, "index.ts"), "export {};\n", "utf8");
+      writeFileSync(path.join(plainDir, "index.ts"), "export {};\n", "utf8");
+      const hostDir = path.join(root, "host");
+      mkdirSync(path.join(hostDir, ".rn", "metro"), { recursive: true });
+      writeFileSync(
+        path.join(hostDir, ".rn", "metro", "host-resolver.cjs"),
+        `module.exports = { load: () => ({ resolver: { extraNodeModules: {
+          "@acme/checkout": ${JSON.stringify(acmeDir)},
+          "watchlist": ${JSON.stringify(plainDir)},
+          "react": "${path.join(hostDir, "node_modules", "react")}",
+        } } }) };\n`,
+        "utf8",
+      );
+      assert.equal(resolveModuleRoot(hostDir, "checkout"), acmeDir);
+      assert.equal(resolveModuleRoot(hostDir, "watchlist"), plainDir);
+      assert.equal(resolveModuleRoot(hostDir, "react"), undefined); // singleton, not a module id
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("falls back to package.json main, then index", () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "ship-entry-"));
     try {
