@@ -101,6 +101,27 @@ if (existsSync(mainApp)) {
       errors.push("PackageList(this).packages not found in MainApplication.kt");
     }
   }
+
+  // 3b) wire OTA bundle path resolution: MainApplication must load the OTA bundle
+  //     on reload (resolveJsBundleFilePath → prefs → installed bundle or baseline).
+  const modImport = `import ${appId}.ota.TiangongOtaModule`;
+  if (!src.includes(modImport)) {
+    const decl = src.match(/^package\s+([\w.]+);?$/m);
+    if (decl) {
+      const nextImport = src.indexOf("\nimport ");
+      const insertAt = nextImport >= 0 ? nextImport + 1 : src.indexOf(decl[0]) + decl[0].length;
+      src = src.slice(0, insertAt) + modImport + "\n" + src.slice(insertAt);
+    }
+  }
+  if (!src.includes("resolveJsBundleFilePath(applicationContext")) {
+    src = src.replace(
+      /(getDefaultReactHost\()([\s\S]*?)(context = applicationContext,)/,
+      (_, head, mid, ctx) =>
+        `val jsBundleFilePath = TiangongOtaModule.resolveJsBundleFilePath(applicationContext, BuildConfig.DEBUG)\n` +
+          `${head}jsBundleFilePath = jsBundleFilePath,${mid}${ctx}`,
+    );
+  }
+
   if (!dryRun && !errors.length) writeFileSync(mainApp, src, "utf8");
   sh("patch MainApplication.kt: register TiangongOtaPackage");
 }
