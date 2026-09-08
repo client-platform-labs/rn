@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import {
@@ -26,24 +27,78 @@ import {
   sha256File,
 } from "./util.js";
 
-function moduleEntry(projectRoot: string, moduleId: string): string {
-  const candidates = [
-    // in-repo module workspace (ADR-005 topology B)
-    path.join(projectRoot, "modules", moduleId, "index.js"),
-    path.join(projectRoot, "modules", moduleId, "index.ts"),
-    // sibling business repo (industrial topology, resolved as @tiangong/<id>)
-    path.resolve(projectRoot, "..", moduleId, "index.js"),
-    path.resolve(projectRoot, "..", moduleId, "index.ts"),
-    path.resolve(projectRoot, "..", moduleId, "entries", "host-surface.js"),
-  ];
-  const found = candidates.find((p) => existsSync(p));
-  if (!found) {
+/** Read a JSON(C) file leniently; returns null on any failure. */
+function readJson(file: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a business module's root directory.
+ * Single source of truth = the generated host-resolver mapping (`@tiangong/<id>`),
+ * which `rn module register` writes from the registered module list. Falls back
+ * to the legacy in-repo `modules/<id>` workspace. No hardcoded sibling paths.
+ */
+export function resolveModuleRoot(
+  projectRoot: string,
+  moduleId: string,
+): string | undefined {
+  const resolverPath = path.join(projectRoot, ".rn", "metro", "host-resolver.cjs");
+  if (existsSync(resolverPath)) {
+    try {
+      const req = createRequire(import.meta.url);
+      const mod = req(resolverPath) as {
+        load?: () => { resolver?: { extraNodeModules?: Record<string, string> } };
+      };
+      const mapped = mod.load?.()?.resolver?.extraNodeModules?.[`@tiangong/${moduleId}`];
+      if (mapped && existsSync(mapped)) return mapped;
+    } catch {
+      /* fall through to in-repo */
+    }
+  }
+  const inRepo = path.join(projectRoot, "modules", moduleId);
+  return existsSync(inRepo) ? inRepo : undefined;
+}
+
+/**
+ * Resolve the module's declared entry (without extension):
+ * 1. `client-platform.module.jsonc` `entry` field (module self-descriptor);
+ * 2. `package.json` `main`;
+ * 3. `index`.
+ */
+export function resolveEntryBase(moduleRoot: string): string {
+  const descriptor = readJson(path.join(moduleRoot, "client-platform.module.jsonc"));
+  const declared = descriptor?.["entry"];
+  if (typeof declared === "string" && declared.trim()) {
+    return declared.trim().replace(/\.(js|ts|tsx)$/, "");
+  }
+  const pkg = readJson(path.join(moduleRoot, "package.json"));
+  const main = pkg?.["main"];
+  if (typeof main === "string" && main.trim()) {
+    return main.trim().replace(/\.(js|ts|tsx)$/, "");
+  }
+  return "index";
+}
+
+export function moduleEntry(projectRoot: string, moduleId: string): string {
+  const root = resolveModuleRoot(projectRoot, moduleId);
+  if (!root) {
     throw new DeliveryError(
-      `module entry missing for "${moduleId}" — checked modules/${moduleId}/index.{js,ts} and ../${moduleId}/index.{js,ts}`,
+      `module "${moduleId}" not registered — run rn module register (writes .rn/metro/host-resolver.cjs @tiangong/<id> mapping)`,
       EXIT_FAIL,
     );
   }
-  return found;
+  const base = path.join(root, resolveEntryBase(root));
+  for (const ext of [".js", ".ts", ".tsx"]) {
+    if (existsSync(base + ext)) return base + ext;
+  }
+  throw new DeliveryError(
+    `module entry missing for "${moduleId}" — no ${base}.{js,ts,tsx}`,
+    EXIT_FAIL,
+  );
 }
 
 function readRnVersion(projectRoot: string): string {

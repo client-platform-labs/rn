@@ -1,4 +1,5 @@
 import path from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   computeFingerprint,
@@ -18,6 +19,25 @@ import { CliError, EXIT_FAIL } from "../errors.js";
 import { defaultInstallHome } from "../install-home.js";
 import type { CliLogger } from "../logger.js";
 import { probeMetroBridge } from "../android-dev-bridge.js";
+
+/**
+ * ADR-022 migration detection: a 1.x manifest has `runtime_fingerprint.rnExactTuple`
+ * at the top level and no `engine` sub-object. Detected so `rn doctor` can give a
+ * clear migration hint instead of a generic schema failure.
+ */
+export function detectLegacyFingerprint(manifestRoot: string): boolean {
+  const file = path.join(manifestRoot, MANIFEST_FILENAME);
+  if (!existsSync(file)) return false;
+  try {
+    const doc = JSON.parse(readFileSync(file, "utf8")) as {
+      runtime_fingerprint?: Record<string, unknown>;
+    };
+    const fp = doc.runtime_fingerprint;
+    return Boolean(fp && "rnExactTuple" in fp && !("engine" in fp));
+  } catch {
+    return false;
+  }
+}
 import { probeAndroidHost } from "../host-env.js";
 import { loadDevSessionConfig } from "../dev-session-config.js";
 import {
@@ -156,6 +176,12 @@ export async function runDoctor(options: {
     } else if (loaded.code === "invalid") {
       manifest = { present: true, errors: loaded.errors };
       issues.push(`invalid ${MANIFEST_FILENAME}`);
+      // ADR-022: 1.x fingerprint (top-level rnExactTuple, no engine sub-object) needs migration.
+      if (detectLegacyFingerprint(manifestRoot)) {
+        issues.push(
+          "legacy 1.x fingerprint detected (runtime_fingerprint.rnExactTuple) — migrate to engine sub-object (ADR-022)",
+        );
+      }
     }
   }
 
