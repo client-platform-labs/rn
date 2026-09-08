@@ -79,7 +79,7 @@ GF L1 ──► GF L2 + L3 ──► BF L2 + L3 (same protocol, native shell)
 
 ### Phase 3 — Both to L4 (enterprise promotable per module)
 
-1. `rn-delivery`: real sign + candidate metadata for one `business_module`
+1. `rn-delivery`: real sign + candidate metadata for one `business_module` (ADR-017: `pem:ed25519:` seal against baked pubkeys; `digest-stub`/HMAC refused in release — `bundle-load-gate.ts` fail-closed)
 2. Control plane: promote + block one update (multi-team drill)
 3. A5: client selector loads signed bundle on device (GF app + BF host)
 
