@@ -26,7 +26,6 @@ export type JsUpdateSidecar = {
   candidate: JsUpdateCandidate;
   host_context: {
     artifact_line: string;
-    hbcBytecodeVersion: number;
     runtime_fingerprint: RuntimeFingerprint;
   };
 };
@@ -51,7 +50,6 @@ export function buildJsUpdateCandidate(options: {
     business_module: options.businessModule,
     update_id: options.updateId,
     runtime_fingerprint: options.fingerprint,
-    hbcBytecodeVersion: options.fingerprint.hbcBytecodeVersion,
     required_capabilities: [],
     target_artifact_lines: [options.artifactLine ?? "pure-rn-greenfield"],
     release_gate: "js-standard",
@@ -87,7 +85,6 @@ export function writeJsUpdateSidecar(
     }),
     host_context: {
       artifact_line: input.metadata.artifact_line ?? "pure-rn-greenfield",
-      hbcBytecodeVersion: input.fingerprint.hbcBytecodeVersion,
       runtime_fingerprint: input.fingerprint,
     },
   };

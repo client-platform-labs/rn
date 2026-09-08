@@ -1,6 +1,11 @@
 export const packageName = "@client-platform/rn-engine" as const;
 
 export {
+  buildRnEngineFingerprint,
+  type RnEngineFingerprint,
+} from "./engine.js";
+
+export {
   RN_GREENFIELD_INIT_VERSION,
   RN_GREENFIELD_MAJOR_MINOR,
 } from "./constants.js";

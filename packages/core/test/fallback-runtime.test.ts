@@ -20,15 +20,17 @@ import type {
 } from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
-  rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",
-  hermesVmIdentity: "hermes-v1@compiler-id",
-  hbcBytecodeVersion: 96,
-  newArchFlags: {
+  engine: {
+      id: "react-native",
+      version: "0.87.0+hermes-v1+newarch+codegen-locked",
+      hermesVmIdentity: "hermes-v1@compiler-id",
+      hbcBytecodeVersion: 96,
+      newArchFlags: {
     bridgeless: true,
     fabric: true,
     turboModules: true,
   },
-  nativeAbiSurfaceDigest: "sha256:abi-surface-sample",
+    }, nativeAbiSurfaceDigest: "sha256:abi-surface-sample",
 };
 
 const host: HostSelectorContext = {

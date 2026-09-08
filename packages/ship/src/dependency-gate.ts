@@ -107,7 +107,6 @@ function toJsCandidate(
     business_module: candidate.business_module ?? "main",
     update_id: candidate.update_id ?? candidate.digest.slice(0, 16),
     runtime_fingerprint: fp,
-    hbcBytecodeVersion: fp.hbcBytecodeVersion,
     required_capabilities: [],
     target_artifact_lines: [
       candidate.artifact_line ??
@@ -134,8 +133,6 @@ function toHostContext(
       candidate.artifact_line ??
       sidecar?.host_context.artifact_line ??
       "pure-rn-greenfield",
-    hbcBytecodeVersion:
-      sidecar?.host_context.hbcBytecodeVersion ?? fp.hbcBytecodeVersion,
     channel_js_allowed: true,
   };
 }

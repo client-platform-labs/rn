@@ -9,31 +9,36 @@ import {
 import type { RuntimeFingerprint } from "../dist/index.js";
 
 const baseInput: RuntimeFingerprint = {
-  rnExactTuple: "0.86.2+hermes-bundled+codegen-locked",
-  hermesVmIdentity: "hermes-v1@compiler-id",
-  hbcBytecodeVersion: 96,
-  newArchFlags: {
-    bridgeless: true,
-    fabric: true,
-    turboModules: true,
+  engine: {
+    id: "react-native",
+    version: "0.86.2+hermes-bundled+codegen-locked",
+    hermesVmIdentity: "hermes-v1@compiler-id",
+    hbcBytecodeVersion: 96,
+    newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
   },
   nativeAbiSurfaceDigest: "sha256:abi-surface-sample",
 };
 
 describe("computeFingerprint", () => {
-  it("produces a stable digest regardless of newArchFlags key insertion order", () => {
+  it("produces a stable digest regardless of engine newArchFlags key order", () => {
     const a = computeFingerprint({
       ...baseInput,
-      newArchFlags: { fabric: true, turboModules: true, bridgeless: true },
+      engine: {
+        ...baseInput.engine,
+        newArchFlags: { fabric: true, turboModules: true, bridgeless: true },
+      },
     });
     const b = computeFingerprint({
       ...baseInput,
-      newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
+      engine: {
+        ...baseInput.engine,
+        newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
+      },
     });
 
     assert.equal(a.digest, b.digest);
     assert.match(a.digest, /^[a-f0-9]{64}$/);
-    assert.deepEqual(a.fingerprint.newArchFlags, {
+    assert.deepEqual(a.fingerprint.engine.newArchFlags, {
       bridgeless: true,
       fabric: true,
       turboModules: true,
@@ -62,47 +67,22 @@ describe("fingerprintsEqual", () => {
     assert.equal(fingerprintsEqual(left.fingerprint, right.fingerprint), true);
   });
 
-  it("returns false when a required field differs", () => {
+  it("returns false when engine hbcBytecodeVersion differs", () => {
     const left = computeFingerprint(baseInput);
     const right = computeFingerprint({
       ...baseInput,
-      hbcBytecodeVersion: 97,
+      engine: { ...baseInput.engine, hbcBytecodeVersion: 97 },
     });
     assert.equal(fingerprintsEqual(left, right), false);
   });
-});
 
-describe("engine sub-object (ADR-022)", () => {
-  it("legacy fingerprint without engine keeps digest identical", () => {
-    const a = computeFingerprint(baseInput);
-    const b = computeFingerprint({ ...baseInput });
-    assert.equal(a.digest, b.digest);
-  });
-
-  it("engine sub-object participates in the digest", () => {
-    const withEngine = computeFingerprint({
+  it("returns false when engine id differs", () => {
+    const left = computeFingerprint(baseInput);
+    const right = computeFingerprint({
       ...baseInput,
-      engine: { id: "react-native", version: "0.86.2", hbc: 96 },
+      engine: { ...baseInput.engine, id: "flutter" },
     });
-    const withoutEngine = computeFingerprint(baseInput);
-    assert.notEqual(withEngine.digest, withoutEngine.digest);
-    assert.deepEqual(withEngine.fingerprint.engine, {
-      id: "react-native",
-      version: "0.86.2",
-      hbc: 96,
-    });
-  });
-
-  it("engine sub-object key order does not churn the digest", () => {
-    const a = computeFingerprint({
-      ...baseInput,
-      engine: { id: "react-native", version: "0.86.2", hbc: 96 },
-    });
-    const b = computeFingerprint({
-      ...baseInput,
-      engine: { hbc: 96, id: "react-native", version: "0.86.2" },
-    });
-    assert.equal(a.digest, b.digest);
+    assert.equal(fingerprintsEqual(left, right), false);
   });
 });
 

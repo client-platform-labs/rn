@@ -38,12 +38,10 @@ export type ArtifactKind =
   | "rn-module"
   | "js-update";
 
-/** New Architecture / runtime switch surface inside a fingerprint. */
-export type NewArchFlags = Readonly<Record<string, unknown>>;
-
 /**
- * Engine adapter identity (ADR-022).
- * Generic shape in core; rn-engine fills RN dims (rnExactTuple/hermes/hbc/newArch).
+ * Engine adapter identity (ADR-022/023).
+ * REQUIRED in the fingerprint. Generic shape in core; rn-engine fills RN dims
+ * (rnExactTuple / hermesVmIdentity / hbcBytecodeVersion / newArchFlags).
  */
 export interface EngineFingerprint {
   id: string;
@@ -52,20 +50,14 @@ export interface EngineFingerprint {
 }
 
 /**
- * Shell-executable runtime surface fingerprint.
- * Field names align with blueprint appendix + reference schema stub.
- * `engine` is the ADR-022 sub-object; when present it participates in the digest.
+ * Shell-executable runtime surface fingerprint (2.0 — ADR-022 contract).
+ * Engine-specific dims live in `engine`; core keeps only engine-agnostic dims.
  */
 export interface RuntimeFingerprint {
-  rnExactTuple: string;
-  hermesVmIdentity: string;
-  hbcBytecodeVersion: number;
-  newArchFlags: NewArchFlags;
+  engine: EngineFingerprint;
   nativeAbiSurfaceDigest: string;
   /** Recommended: official capability native implementation version locks. */
   officialCapabilityNativeLocks?: string[];
-  /** Optional engine sub-object (ADR-022). */
-  engine?: EngineFingerprint;
 }
 
 /** Current Greenfield project contract version (identity spine required). */
@@ -117,14 +109,10 @@ export type LoadManifestResult =
   | { ok: true; path: string; manifest: ProjectManifest }
   | { ok: false; path: string; code: "not-found" | "invalid"; errors: string[] };
 
-/** Required fields that participate in digest canonicalization. */
+/** Required fields that participate in digest canonicalization (2.0). */
 export type RuntimeFingerprintRequired = Pick<
   RuntimeFingerprint,
-  | "rnExactTuple"
-  | "hermesVmIdentity"
-  | "hbcBytecodeVersion"
-  | "newArchFlags"
-  | "nativeAbiSurfaceDigest"
+  "engine" | "nativeAbiSurfaceDigest"
 >;
 
 export interface JsArtifactMatrix {
@@ -185,7 +173,6 @@ export interface JsUpdateCandidate {
   business_module: string;
   update_id: string;
   runtime_fingerprint: RuntimeFingerprint;
-  hbcBytecodeVersion: number;
   required_capabilities: string[];
   target_artifact_lines: string[];
   channel?: string;
@@ -200,8 +187,6 @@ export interface HostSelectorContext {
   runtime_fingerprint: RuntimeFingerprint;
   capability_set: readonly string[];
   artifact_line: string;
-  /** Host Hermes HBC bytecode version (must match candidate). */
-  hbcBytecodeVersion: number;
   host_support_window?: readonly string[];
   /** When set with host_support_window, must be inside the window (P1). */
   profile_label?: string;

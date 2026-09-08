@@ -3,6 +3,7 @@ import {
   type RuntimeFingerprint,
 } from "@client-platform/core";
 import { RN_GREENFIELD_MAJOR_MINOR } from "./constants.js";
+import { buildRnEngineFingerprint } from "./engine.js";
 
 /** Suffix locked by ticket 11 for Greenfield `rnExactTuple`. */
 export const RN_EXACT_TUPLE_SUFFIX = "+hermes-v1+newarch+codegen-locked";
@@ -24,21 +25,14 @@ export function isGreenfieldRnTrain(rnVersion: string): boolean {
 }
 
 /**
- * Placeholder fingerprint inputs for a fresh 0.87 Greenfield host.
- * Exact HBC / ABI digests are refined when native codegen artifacts exist.
+ * Placeholder fingerprint inputs for a fresh 0.87 Greenfield host (ADR-022 2.0).
+ * RN dims live in the `engine` sub-object; ABI digest is refined later.
  */
 export function defaultGreenfieldFingerprint(
   rnExactTuple: string,
 ): RuntimeFingerprint {
   return {
-    rnExactTuple,
-    hermesVmIdentity: "hermes-v1",
-    hbcBytecodeVersion: 96,
-    newArchFlags: {
-      bridgeless: true,
-      fabric: true,
-      turboModules: true,
-    },
+    engine: buildRnEngineFingerprint(rnExactTuple),
     nativeAbiSurfaceDigest: "pending:codegen-locked",
   };
 }

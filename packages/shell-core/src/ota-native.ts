@@ -15,7 +15,6 @@ export type OtaSidecar = {
   candidate?: JsUpdateCandidate;
   host_context?: {
     artifact_line?: string;
-    hbcBytecodeVersion?: number;
     runtime_fingerprint?: unknown;
   };
   business_module?: string;

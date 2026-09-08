@@ -11,11 +11,13 @@ import {
 import type { OtaNativeAdapter, OtaSidecar } from "../dist/index.js";
 
 const fingerprint = {
-  rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",
-  hermesVmIdentity: "hermes-v1@compiler-id",
-  hbcBytecodeVersion: 96,
-  newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
-  nativeAbiSurfaceDigest: "sha256:abi",
+  engine: {
+      id: "react-native",
+      version: "0.87.0+hermes-v1+newarch+codegen-locked",
+      hermesVmIdentity: "hermes-v1@compiler-id",
+      hbcBytecodeVersion: 96,
+      newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
+    }, nativeAbiSurfaceDigest: "sha256:abi",
 };
 
 const hostContext = {

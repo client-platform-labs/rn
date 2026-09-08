@@ -131,7 +131,7 @@ export async function runDoctor(options: {
       let fingerprintDigest: string | undefined;
       if (fp) {
         fingerprintDigest = computeFingerprint(fp).digest;
-        const tuple = fp.rnExactTuple;
+        const tuple = fp.engine.version;
         const trainVersion = tuple.split("+")[0] ?? "";
         if (!isGreenfieldRnTrain(trainVersion)) {
           issues.push(
@@ -148,9 +148,9 @@ export async function runDoctor(options: {
       manifest = {
         present: true,
         schemaVersion: loaded.manifest.schemaVersion,
-        rnExactTuple: fp?.rnExactTuple,
-        newArch: fp?.rnExactTuple.includes("newarch") ?? true,
-        hermesV1: fp?.rnExactTuple.includes("hermes-v1") ?? true,
+        rnExactTuple: fp?.engine.version,
+        newArch: fp?.engine.version.includes("newarch") ?? true,
+        hermesV1: fp?.engine.version.includes("hermes-v1") ?? true,
         fingerprintDigest,
       };
     } else if (loaded.code === "invalid") {

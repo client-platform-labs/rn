@@ -52,7 +52,7 @@ describe("validateManifestText", () => {
       assert.equal(result.manifest.schemaVersion, 2);
       assert.equal(result.manifest.artifact_kind, "app-host");
       assert.equal(
-        result.manifest.runtime_fingerprint?.rnExactTuple,
+        result.manifest.runtime_fingerprint?.engine.version,
         buildRnExactTuple("0.87.0"),
       );
       assert.deepEqual(result.manifest.host_support_window, [

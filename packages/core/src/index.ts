@@ -22,7 +22,6 @@ export type {
   Logger,
   ManifestValidationResult,
   ModuleSlots,
-  NewArchFlags,
   PluginKind,
   PluginRecord,
   PluginRegisterContext,

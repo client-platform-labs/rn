@@ -67,13 +67,6 @@ export function gateJsCandidate(
     );
   }
 
-  if (candidate.hbcBytecodeVersion !== host.hbcBytecodeVersion) {
-    return block(
-      "BLOCKED_INCOMPATIBLE",
-      `hbcBytecodeVersion ${candidate.hbcBytecodeVersion} != host ${host.hbcBytecodeVersion}`,
-    );
-  }
-
   if (
     !fingerprintsEqual(
       candidate.runtime_fingerprint,
@@ -82,7 +75,7 @@ export function gateJsCandidate(
   ) {
     return block(
       "BLOCKED_INCOMPATIBLE",
-      "runtime_fingerprint mismatch with host",
+      "engine/fingerprint mismatch with host",
     );
   }
 

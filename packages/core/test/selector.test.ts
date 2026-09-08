@@ -15,13 +15,12 @@ import type {
 } from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
-  rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",
-  hermesVmIdentity: "hermes-v1@compiler-id",
-  hbcBytecodeVersion: 96,
-  newArchFlags: {
-    bridgeless: true,
-    fabric: true,
-    turboModules: true,
+  engine: {
+    id: "react-native",
+    version: "0.87.0+hermes-v1+newarch+codegen-locked",
+    hermesVmIdentity: "hermes-v1@compiler-id",
+    hbcBytecodeVersion: 96,
+    newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
   },
   nativeAbiSurfaceDigest: "sha256:abi-surface-sample",
 };
@@ -30,7 +29,6 @@ const host: HostSelectorContext = {
   runtime_fingerprint: fingerprint,
   capability_set: ["capability.camera@1.2.0", "capability.network@l0"],
   artifact_line: "android-cn-huawei",
-  hbcBytecodeVersion: 96,
   host_support_window: ["production", "previous"],
   profile_label: "production",
   channel_js_allowed: true,
@@ -43,7 +41,6 @@ function candidate(
   return {
     business_module: "checkout",
     runtime_fingerprint: fingerprint,
-    hbcBytecodeVersion: 96,
     required_capabilities: ["capability.camera@1.2.0"],
     target_artifact_lines: ["android-cn-huawei", "android-cn-xiaomi"],
     release_gate: "js-standard",
@@ -71,15 +68,21 @@ describe("gateJsCandidate", () => {
     assert.equal(result.ok, true);
   });
 
-  it("blocks HBC mismatch as BLOCKED_INCOMPATIBLE", () => {
+  it("blocks engine mismatch as BLOCKED_INCOMPATIBLE", () => {
     const result = gateJsCandidate(
-      candidate({ update_id: "u-bad-hbc", hbcBytecodeVersion: 97 }),
+      candidate({
+        update_id: "u-bad-hbc",
+        runtime_fingerprint: {
+          ...fingerprint,
+          engine: { ...fingerprint.engine, hbcBytecodeVersion: 97 },
+        },
+      }),
       host,
     );
     assert.equal(result.ok, false);
     if (!result.ok) {
       assert.equal(result.reason, "BLOCKED_INCOMPATIBLE");
-      assert.match(result.detail, /hbcBytecodeVersion/);
+      assert.match(result.detail, /engine/);
     }
   });
 
@@ -97,7 +100,7 @@ describe("gateJsCandidate", () => {
     assert.equal(result.ok, false);
     if (!result.ok) {
       assert.equal(result.reason, "BLOCKED_INCOMPATIBLE");
-      assert.match(result.detail, /runtime_fingerprint/);
+      assert.match(result.detail, /fingerprint/);
     }
   });
 
@@ -193,7 +196,10 @@ describe("selectFallbackSlot", () => {
       business_module: "checkout",
       active: candidate({
         update_id: "n-bad",
-        hbcBytecodeVersion: 97,
+        runtime_fingerprint: {
+          ...fingerprint,
+          engine: { ...fingerprint.engine, hbcBytecodeVersion: 97 },
+        },
       }),
       previous: candidate({ update_id: "n-1" }),
       baseline: candidate({ update_id: "baseline" }),
@@ -237,7 +243,10 @@ describe("selectFallbackSlot", () => {
       previous: null,
       baseline: candidate({
         update_id: "baseline",
-        hbcBytecodeVersion: 1,
+        runtime_fingerprint: {
+          ...fingerprint,
+          engine: { ...fingerprint.engine, hbcBytecodeVersion: 1 },
+        },
       }),
     };
     const result = selectFallbackSlot(slots, host);

@@ -26,19 +26,9 @@ export const projectManifestSchema = {
     },
     runtime_fingerprint: {
       type: "object",
-      required: [
-        "rnExactTuple",
-        "hermesVmIdentity",
-        "hbcBytecodeVersion",
-        "newArchFlags",
-        "nativeAbiSurfaceDigest",
-      ],
+      required: ["engine", "nativeAbiSurfaceDigest"],
       additionalProperties: true,
       properties: {
-        rnExactTuple: { type: "string", minLength: 1 },
-        hermesVmIdentity: { type: "string", minLength: 1 },
-        hbcBytecodeVersion: { type: "integer" },
-        newArchFlags: { type: "object" },
         nativeAbiSurfaceDigest: { type: "string", minLength: 1 },
         officialCapabilityNativeLocks: {
           type: "array",
@@ -94,10 +84,6 @@ export const projectManifestSchema = {
 } as const;
 
 const runtimeFingerprintProperties = {
-  rnExactTuple: { type: "string", minLength: 1 },
-  hermesVmIdentity: { type: "string", minLength: 1 },
-  hbcBytecodeVersion: { type: "integer" },
-  newArchFlags: { type: "object" },
   nativeAbiSurfaceDigest: { type: "string", minLength: 1 },
   officialCapabilityNativeLocks: {
     type: "array",
@@ -116,13 +102,7 @@ const runtimeFingerprintProperties = {
 
 const runtimeFingerprintObjectSchema = {
   type: "object",
-  required: [
-    "rnExactTuple",
-    "hermesVmIdentity",
-    "hbcBytecodeVersion",
-    "newArchFlags",
-    "nativeAbiSurfaceDigest",
-  ],
+  required: ["engine", "nativeAbiSurfaceDigest"],
   properties: runtimeFingerprintProperties,
   additionalProperties: false,
 } as const;
@@ -133,7 +113,6 @@ const jsUpdateCandidateBody = {
     "business_module",
     "update_id",
     "runtime_fingerprint",
-    "hbcBytecodeVersion",
     "required_capabilities",
     "target_artifact_lines",
   ],
@@ -141,7 +120,6 @@ const jsUpdateCandidateBody = {
     business_module: { type: "string", minLength: 1 },
     update_id: { type: "string", minLength: 1 },
     runtime_fingerprint: runtimeFingerprintObjectSchema,
-    hbcBytecodeVersion: { type: "integer" },
     required_capabilities: {
       type: "array",
       items: { type: "string" },
@@ -204,13 +182,11 @@ export const jsSelectorHostSchema = {
     "runtime_fingerprint",
     "capability_set",
     "artifact_line",
-    "hbcBytecodeVersion",
   ],
   properties: {
     runtime_fingerprint: runtimeFingerprintObjectSchema,
     capability_set: { type: "array", items: { type: "string" } },
     artifact_line: { type: "string", minLength: 1 },
-    hbcBytecodeVersion: { type: "integer" },
     host_support_window: {
       type: "array",
       items: { type: "string", minLength: 1 },
@@ -236,22 +212,8 @@ export const runtimeFingerprintSchema = {
   $id: "https://client-platform.local/rn/runtime-fingerprint.schema.json",
   title: "RuntimeFingerprint",
   type: "object",
-  required: [
-    "rnExactTuple",
-    "hermesVmIdentity",
-    "hbcBytecodeVersion",
-    "newArchFlags",
-    "nativeAbiSurfaceDigest",
-  ],
+  required: ["engine", "nativeAbiSurfaceDigest"],
   properties: {
-    rnExactTuple: { type: "string" },
-    hermesVmIdentity: { type: "string" },
-    hbcBytecodeVersion: {
-      type: "integer",
-      description:
-        "Not interchangeable with RN or Hermes package version",
-    },
-    newArchFlags: { type: "object" },
     nativeAbiSurfaceDigest: {
       type: "string",
       description: "Codegen/TurboModule/Fabric native ABI surface hash",

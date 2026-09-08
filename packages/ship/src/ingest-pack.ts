@@ -60,7 +60,7 @@ export async function runIngestPack(options: {
   const profile: DeliveryProfile = options.profile ?? "release";
   const { releaseId, manifest } = loadManifestOrEmpty(projectRoot);
   const rnVersion =
-    manifest?.runtime_fingerprint?.rnExactTuple?.match(/^[\d.]+/)?.[0] ??
+    manifest?.runtime_fingerprint?.engine?.version?.match(/^[\d.]+/)?.[0] ??
     "0.87.0";
   const fingerprint = resolveRuntimeFingerprint(manifest, rnVersion);
 

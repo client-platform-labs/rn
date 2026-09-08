@@ -10,13 +10,12 @@ import type {
 } from "../dist/index.js";
 
 const fingerprint: RuntimeFingerprint = {
-  rnExactTuple: "0.87.0+hermes-v1+newarch+codegen-locked",
-  hermesVmIdentity: "hermes-v1@compiler-id",
-  hbcBytecodeVersion: 96,
-  newArchFlags: {
-    bridgeless: true,
-    fabric: true,
-    turboModules: true,
+  engine: {
+    id: "react-native",
+    version: "0.87.0+hermes-v1+newarch+codegen-locked",
+    hermesVmIdentity: "hermes-v1@compiler-id",
+    hbcBytecodeVersion: 96,
+    newArchFlags: { bridgeless: true, fabric: true, turboModules: true },
   },
   nativeAbiSurfaceDigest: "sha256:abi-surface-sample",
 };
@@ -25,7 +24,6 @@ const host: HostSelectorContext = {
   runtime_fingerprint: fingerprint,
   capability_set: ["capability.camera@1.2.0"],
   artifact_line: "android-cn-huawei",
-  hbcBytecodeVersion: 96,
   channel_js_allowed: true,
 };
 
@@ -35,7 +33,6 @@ function candidate(
   return {
     business_module: "checkout",
     runtime_fingerprint: fingerprint,
-    hbcBytecodeVersion: 96,
     required_capabilities: [],
     target_artifact_lines: ["android-cn-huawei"],
     release_gate: "js-standard",
@@ -56,7 +53,13 @@ describe("planJsRollback", () => {
   });
 
   it("falls back when target incompatible", () => {
-    const bad = candidate({ update_id: "u-bad", hbcBytecodeVersion: 99 });
+    const bad = candidate({
+      update_id: "u-bad",
+      runtime_fingerprint: {
+        ...fingerprint,
+        engine: { ...fingerprint.engine, hbcBytecodeVersion: 99 },
+      },
+    });
     const base = candidate({ update_id: "u-base" });
     const slots: ModuleSlots = {
       business_module: "checkout",
@@ -92,12 +95,11 @@ describe("planJsRollback", () => {
   it("FORWARD_FIX when no compatible slot", () => {
     const badFp: RuntimeFingerprint = {
       ...fingerprint,
-      rnExactTuple: "0.99.0+other",
+      engine: { ...fingerprint.engine, version: "0.99.0+other" },
     };
     const badHost: HostSelectorContext = {
       ...host,
       runtime_fingerprint: badFp,
-      hbcBytecodeVersion: 96,
     };
     // host fingerprint differs from all candidates → all BLOCKED_INCOMPATIBLE
     const target = candidate({ update_id: "u-t" });

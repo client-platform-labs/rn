@@ -5,57 +5,48 @@ import {
   DEFAULT_JS_ARTIFACT_MAX_PROFILES,
   type ComputedFingerprint,
   type EngineFingerprint,
-  type NewArchFlags,
   type RuntimeFingerprint,
   type RuntimeFingerprintRequired,
   type SupportWindowValidationResult,
 } from "./types.js";
 
-/** Stable key order for legacy required fields in canonical JSON / digests. */
+/** Stable key order for required fields in canonical JSON / digests (2.0). */
 export const RUNTIME_FINGERPRINT_REQUIRED_KEYS = [
-  "rnExactTuple",
-  "hermesVmIdentity",
-  "hbcBytecodeVersion",
-  "newArchFlags",
+  "engine",
   "nativeAbiSurfaceDigest",
 ] as const satisfies ReadonlyArray<keyof RuntimeFingerprintRequired>;
 
-function sortObjectKeys(value: NewArchFlags): NewArchFlags {
-  const sorted: Record<string, unknown> = {};
-  for (const key of Object.keys(value).sort()) {
-    sorted[key] = value[key];
+/** Deep-sort object keys for canonical stability (ADR-022 engine sub-object). */
+function sortDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortDeep);
   }
-  return sorted;
+  if (value !== null && typeof value === "object") {
+    const src = value as Record<string, unknown>;
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(src).sort()) {
+      sorted[key] = sortDeep(src[key]);
+    }
+    return sorted;
+  }
+  return value;
 }
 
-/** Stable key order for the engine sub-object (ADR-022) when present. */
 function sortEngineFingerprint(value: EngineFingerprint): EngineFingerprint {
-  const sorted: Record<string, unknown> = {};
-  for (const key of Object.keys(value).sort()) {
-    sorted[key] = value[key];
-  }
-  return sorted as EngineFingerprint;
+  return sortDeep(value) as EngineFingerprint;
 }
 
 /**
  * Build the canonical payload for hashing with stable key order.
- * ADR-022: when `engine` is present it participates in the digest;
- * legacy fingerprints (no `engine`) digest exactly as before.
+ * 2.0: engine sub-object + native ABI surface digest.
  */
 export function toCanonicalFingerprintPayload(
   input: RuntimeFingerprint,
 ): Record<string, unknown> {
-  const out: Record<string, unknown> = {
-    rnExactTuple: input.rnExactTuple,
-    hermesVmIdentity: input.hermesVmIdentity,
-    hbcBytecodeVersion: input.hbcBytecodeVersion,
-    newArchFlags: sortObjectKeys(input.newArchFlags),
+  return {
+    engine: sortEngineFingerprint(input.engine),
     nativeAbiSurfaceDigest: input.nativeAbiSurfaceDigest,
   };
-  if (input.engine !== undefined) {
-    out.engine = sortEngineFingerprint(input.engine);
-  }
-  return out;
 }
 
 export function digestRuntimeFingerprint(input: RuntimeFingerprint): string {
@@ -69,9 +60,12 @@ function requiredFieldsEqual(
   a: RuntimeFingerprint,
   b: RuntimeFingerprint,
 ): boolean {
-  const left = toCanonicalFingerprintPayload(a);
-  const right = toCanonicalFingerprintPayload(b);
-  return JSON.stringify(left) === JSON.stringify(right);
+  return (
+    toCanonicalFingerprintPayload(a).nativeAbiSurfaceDigest ===
+      toCanonicalFingerprintPayload(b).nativeAbiSurfaceDigest &&
+    JSON.stringify(toCanonicalFingerprintPayload(a).engine) ===
+      JSON.stringify(toCanonicalFingerprintPayload(b).engine)
+  );
 }
 
 /**
@@ -83,19 +77,13 @@ export function computeFingerprint(
   input: RuntimeFingerprint,
 ): ComputedFingerprint {
   const fingerprint: RuntimeFingerprint = {
-    rnExactTuple: input.rnExactTuple,
-    hermesVmIdentity: input.hermesVmIdentity,
-    hbcBytecodeVersion: input.hbcBytecodeVersion,
-    newArchFlags: sortObjectKeys(input.newArchFlags),
+    engine: sortEngineFingerprint(input.engine),
     nativeAbiSurfaceDigest: input.nativeAbiSurfaceDigest,
   };
   if (input.officialCapabilityNativeLocks !== undefined) {
     fingerprint.officialCapabilityNativeLocks = [
       ...input.officialCapabilityNativeLocks,
     ];
-  }
-  if (input.engine !== undefined) {
-    fingerprint.engine = sortEngineFingerprint(input.engine);
   }
   return {
     fingerprint,

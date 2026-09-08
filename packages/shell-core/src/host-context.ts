@@ -13,6 +13,5 @@ export function readHostContextFromSidecar(
     runtime_fingerprint: hc.runtime_fingerprint,
     capability_set: hc.capability_set ?? [],
     artifact_line: hc.artifact_line,
-    hbcBytecodeVersion: hc.hbcBytecodeVersion,
   };
 }

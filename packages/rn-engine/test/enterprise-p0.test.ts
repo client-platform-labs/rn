@@ -70,7 +70,6 @@ describe("ADR-008 P0 contracts", () => {
       business_module: "main",
       update_id: "u1",
       runtime_fingerprint: fp,
-      hbcBytecodeVersion: fp.hbcBytecodeVersion,
       required_capabilities: [] as string[],
       target_artifact_lines: ["android"],
       release_gate: "js-standard" as const,
@@ -79,7 +78,6 @@ describe("ADR-008 P0 contracts", () => {
       runtime_fingerprint: fp,
       capability_set: [] as string[],
       artifact_line: "android",
-      hbcBytecodeVersion: fp.hbcBytecodeVersion,
     };
     const denied = gateBundleLoad({ candidate }, host);
     assert.equal(denied.ok, false);
