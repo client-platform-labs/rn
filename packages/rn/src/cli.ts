@@ -12,7 +12,7 @@ import { runDoctor } from "./commands/doctor.js";
 import { parseDoctorProfile } from "./brownfield-doctor.js";
 import { runHostAndroid } from "./commands/host-android.js";
 import { runInit, parseInitStarter } from "./commands/init.js";
-import { runModuleInit, runModuleLink } from "./commands/module.js";
+import { runModuleInit, runModuleLink, runModuleRegister } from "./commands/module.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runPluginList } from "./commands/plugin.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
@@ -238,6 +238,19 @@ export async function run(argv = process.argv): Promise<number> {
         });
       },
     );
+  moduleCmd
+    .command("register")
+    .description(
+      "Regenerate shell/generated-registrations.ts from registered modules (ADR-021/D2)",
+    )
+    .option("--dry-run", "print plan without changes")
+    .action(async (opts: { dryRun?: boolean }) => {
+      await runModuleRegister({
+        cwd: process.cwd(),
+        logger: loggerFromArgv(argv),
+        dryRun: Boolean(opts.dryRun),
+      });
+    });
 
   const demoCmd = program
     .command("demo")

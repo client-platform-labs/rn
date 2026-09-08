@@ -11,7 +11,9 @@ import {
   MODULES_DIR,
   moduleWorkspaceRoot,
   scaffoldModuleWorkspace,
+  writeModuleRegistry,
 } from "../module-workspace.js";
+import { loadDevSessionConfig } from "../dev-session-config.js";
 
 const MODULE_ID_RE = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -118,5 +120,34 @@ export async function runModuleLink(options: {
   const port = config.modules[options.moduleId]?.metroPort;
   options.logger.writeHuman(
     `Linked ${options.moduleId} → Metro :${port} (entry=${config.modules[options.moduleId]?.entry})`,
+  );
+}
+
+/** `rn module register` — regenerate the shell's generated registry (ADR-021/D2). */
+export async function runModuleRegister(options: {
+  cwd: string;
+  logger: CliLogger;
+  dryRun?: boolean;
+}): Promise<void> {
+  const projectRoot = path.resolve(options.cwd);
+  assertRnProject(projectRoot);
+  const config = loadDevSessionConfig(projectRoot);
+  const moduleIds = config ? Object.keys(config.modules) : [];
+  if (moduleIds.length === 0) {
+    throw new CliError(
+      "no business modules registered — run rn module init <id> first",
+      EXIT_FAIL,
+    );
+  }
+  if (options.dryRun) {
+    options.logger.writeHuman("module register plan (dry-run):");
+    for (const id of moduleIds) {
+      options.logger.writeHuman(`  register: ${id}`);
+    }
+    return;
+  }
+  const file = writeModuleRegistry(projectRoot, moduleIds);
+  options.logger.writeHuman(
+    `Wrote generated registry: ${path.relative(projectRoot, file)}`,
   );
 }
