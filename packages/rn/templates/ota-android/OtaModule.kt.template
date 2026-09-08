@@ -24,10 +24,10 @@ import java.io.File
  * - installed_update_id_<module>: last activated update (skip re-pull, ADR-014)
  * - startup_failures_<module>: crash-loop counter (roll back to baseline)
  */
-class TiangongOtaModule(private val ctx: ReactApplicationContext) :
+class OtaModule(private val ctx: ReactApplicationContext) :
   ReactContextBaseJavaModule(ctx) {
 
-  override fun getName(): String = "TiangongOta"
+  override fun getName(): String = "Ota"
 
   // ── release observability bridge (JS console is silent in release) ──
   @ReactMethod

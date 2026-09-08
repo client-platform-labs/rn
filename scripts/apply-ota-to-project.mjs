@@ -3,9 +3,9 @@
  * G7 — 给一个 `rn init` 后的 Greenfield 工程接上 on-device OTA 能力（产品化 onboarding v1）。
  *
  * 做四件事（均可逆、可重跑）：
- *  1. 拷贝 `ota-android` 原生模板（TiangongOtaModule.kt + TiangongOtaPackage.kt）到
+ *  1. 拷贝 `ota-android` 原生模板（OtaModule.kt + OtaPackage.kt）到
  *     `android/app/src/main/java/<applicationId>/ota/`；
- *  2. 补 MainApplication.kt：注册 TiangongOtaPackage（PackageList.apply{add}）；
+ *  2. 补 MainApplication.kt：注册 OtaPackage（PackageList.apply{add}）；
  *  3. 加依赖 `@client-platform/shell-core`（device-safe OTA 客户端）+ `@client-platform/rn-core`；
  *  4. 写入 `ReleaseOtaBoot` 接线参考 + README 指针（不自动改业务 App，避免覆盖业务启动逻辑）。
  *
@@ -53,7 +53,7 @@ const pkgPath = appId
   : null;
 const templatesDir = path.join(repoRoot, "packages/rn/templates/ota-android");
 if (pkgPath && existsSync(templatesDir)) {
-  for (const name of ["TiangongOtaModule.kt.template", "TiangongOtaPackage.kt.template"]) {
+  for (const name of ["OtaModule.kt.template", "OtaPackage.kt.template"]) {
     const src = path.join(templatesDir, name);
     const out = path.join(pkgPath, name.replace(".template", ""));
     if (!dryRun) {
@@ -74,7 +74,7 @@ const mainApp = path.join(projectRoot, "android/app/src/main/java", ...(appId ? 
 if (!existsSync(mainApp)) errors.push(`MainApplication.kt not found at ${mainApp}`);
 if (existsSync(mainApp)) {
   let src = readFileSync(mainApp, "utf8");
-  const pkgImport = `import ${appId}.ota.TiangongOtaPackage`;
+  const pkgImport = `import ${appId}.ota.OtaPackage`;
   if (!src.includes(pkgImport)) {
     const decl = src.match(/^package\s+([\w.]+);?$/m);
     if (!decl) {
@@ -85,17 +85,17 @@ if (existsSync(mainApp)) {
       src = src.slice(0, insertAt) + pkgImport + "\n" + src.slice(insertAt);
     }
   }
-  if (!src.includes("add(TiangongOtaPackage())")) {
+  if (!src.includes("add(OtaPackage())")) {
     if (src.includes("PackageList(this).packages.apply")) {
       // idempotent: append add(...) inside an existing apply block
       src = src.replace(
         /(PackageList\(this\)\.packages\.apply\s*\{)([^}]*)(\})/,
-        (_, pre, body, post) => `${pre}${body} add(TiangongOtaPackage())${post}`,
+        (_, pre, body, post) => `${pre}${body} add(OtaPackage())${post}`,
       );
     } else if (src.includes("PackageList(this).packages")) {
       src = src.replace(
         "PackageList(this).packages",
-        "PackageList(this).packages.apply { add(TiangongOtaPackage()) }",
+        "PackageList(this).packages.apply { add(OtaPackage()) }",
       );
     } else {
       errors.push("PackageList(this).packages not found in MainApplication.kt");
@@ -104,7 +104,7 @@ if (existsSync(mainApp)) {
 
   // 3b) wire OTA bundle path resolution: MainApplication must load the OTA bundle
   //     on reload (resolveJsBundleFilePath → prefs → installed bundle or baseline).
-  const modImport = `import ${appId}.ota.TiangongOtaModule`;
+  const modImport = `import ${appId}.ota.OtaModule`;
   if (!src.includes(modImport)) {
     const decl = src.match(/^package\s+([\w.]+);?$/m);
     if (decl) {
@@ -117,13 +117,13 @@ if (existsSync(mainApp)) {
     src = src.replace(
       /(getDefaultReactHost\()([\s\S]*?)(context = applicationContext,)/,
       (_, head, mid, ctx) =>
-        `val jsBundleFilePath = TiangongOtaModule.resolveJsBundleFilePath(applicationContext, BuildConfig.DEBUG)\n` +
+        `val jsBundleFilePath = OtaModule.resolveJsBundleFilePath(applicationContext, BuildConfig.DEBUG)\n` +
           `${head}jsBundleFilePath = jsBundleFilePath,${mid}${ctx}`,
     );
   }
 
   if (!dryRun && !errors.length) writeFileSync(mainApp, src, "utf8");
-  sh("patch MainApplication.kt: register TiangongOtaPackage");
+  sh("patch MainApplication.kt: register OtaPackage");
 }
 
 // 4) add deps to package.json
@@ -155,7 +155,7 @@ if (!dryRun) {
       `- 原生适配器已拷入 \`android/app/src/main/java/${appId}/ota/\`（Module + Package 骨架，设备 e2e HITL）。\n` +
       `- JS 侧用 \`@client-platform/shell-core\` 的 \`createOtaClient\` + \`pullOtaUpdate\`，参考\n` +
       `  \`packages/rn/templates/greenfield-ota/ReleaseOtaBoot.tsx\`（公钥缓存 → crash-loop → pull）。\n` +
-      `- 烘焙公钥：在 \`TiangongOtaModule.getOtaPublicKeys()\` 返回（\`Arguments.createArray()\`，勿用 arrayOf）。\n` +
+      `- 烘焙公钥：在 \`OtaModule.getOtaPublicKeys()\` 返回（\`Arguments.createArray()\`，勿用 arrayOf）。\n` +
       `- 信任边界（ADR-017）：验签在随 APK 的 embedded shell-core 包，绝不用 OTA 下来的 JS 验 OTA 包。\n`,
     "utf8",
   );

@@ -26,7 +26,7 @@ export type OtaSidecar = {
 };
 
 /**
- * Native adapter (Kotlin `TiangongOta` module and friends). The host supplies
+ * Native adapter (Kotlin `Ota` module and friends). The host supplies
  * this; shell-core is platform-agnostic and unit-testable in Node.
  */
 export interface OtaNativeAdapter {

@@ -7,8 +7,8 @@
 
 `@client-platform/shell-core` 的 `OtaNativeAdapter` 契约的 Android 原生实现，
 供 Greenfield 与 Brownfield 宿主共用。Greenfield `rn init` 后按本模板补一个
-`TiangongOtaModule` 并注册到 TurboModule / 老式 NativeModules 桥，再把
-`NativeModules.TiangongOta` 作为 adapter 注入 `createOtaClient(native)`。
+`OtaModule` 并注册到 TurboModule / 老式 NativeModules 桥，再把
+`NativeModules.Ota` 作为 adapter 注入 `createOtaClient(native)`。
 
 ## 必须遵守的信任边界（ADR-017 / ADR-018）
 

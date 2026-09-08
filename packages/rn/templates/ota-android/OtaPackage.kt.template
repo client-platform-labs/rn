@@ -9,10 +9,10 @@ import com.facebook.react.uimanager.ViewManager
  * Registers the on-device OTA native adapter (shell-core `OtaNativeAdapter`).
  * Skeleton — device e2e HITL pending (G0/G7).
  */
-class TiangongOtaPackage : ReactPackage {
+class OtaPackage : ReactPackage {
   override fun createNativeModules(
     reactContext: ReactApplicationContext,
-  ): List<NativeModule> = listOf(TiangongOtaModule(reactContext))
+  ): List<NativeModule> = listOf(OtaModule(reactContext))
 
   override fun createViewManagers(
     reactContext: ReactApplicationContext,
