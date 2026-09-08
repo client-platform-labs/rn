@@ -37,7 +37,7 @@ describe("moduleEntry (工业解析：host-resolver 映射 + 自描述 entry)", 
     }
   });
 
-  it("resolves arbitrary scoped (non-tiangong) and unscoped package names", () => {
+  it("resolves arbitrary scoped (non-tiangong) and unscoped package names by business_module", () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "ship-entry-"));
     try {
       const acmeDir = path.join(root, "acme-checkout");
@@ -46,6 +46,17 @@ describe("moduleEntry (工业解析：host-resolver 映射 + 自描述 entry)", 
       mkdirSync(plainDir, { recursive: true });
       writeFileSync(path.join(acmeDir, "index.ts"), "export {};\n", "utf8");
       writeFileSync(path.join(plainDir, "index.ts"), "export {};\n", "utf8");
+      // package name 段与 business_module 故意不同，验证以 business_module 为准
+      writeFileSync(
+        path.join(acmeDir, "client-platform.module.jsonc"),
+        JSON.stringify({ business_module: "checkout" }),
+        "utf8",
+      );
+      writeFileSync(
+        path.join(plainDir, "client-platform.module.jsonc"),
+        JSON.stringify({ business_module: "watchlist" }),
+        "utf8",
+      );
       const hostDir = path.join(root, "host");
       mkdirSync(path.join(hostDir, ".rn", "metro"), { recursive: true });
       writeFileSync(
@@ -59,7 +70,8 @@ describe("moduleEntry (工业解析：host-resolver 映射 + 自描述 entry)", 
       );
       assert.equal(resolveModuleRoot(hostDir, "checkout"), acmeDir);
       assert.equal(resolveModuleRoot(hostDir, "watchlist"), plainDir);
-      assert.equal(resolveModuleRoot(hostDir, "react"), undefined); // singleton, not a module id
+      // 单例（无 client-platform.module.jsonc）不会被误认为业务模块
+      assert.equal(resolveModuleRoot(hostDir, "react"), undefined);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

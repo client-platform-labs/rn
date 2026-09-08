@@ -42,6 +42,14 @@ function readJson(file: string): Record<string, unknown> | null {
  * which `rn module register` writes from the registered module list. Falls back
  * to the legacy in-repo `modules/<id>` workspace. No hardcoded sibling paths.
  */
+/**
+ * Resolve a business module's root directory.
+ * Authoritative identity = the module's self-descriptor `client-platform.module.jsonc`
+ * `business_module` field (the same id used in OTA sidecars / slots). We match that,
+ * not the package-name segment, so singletons (react / react-native) and any
+ * scope (`@acme/checkout`, `@tiangong/desk`, unscoped `watchlist`) are unambiguous.
+ * Falls back to the legacy in-repo `modules/<id>` workspace.
+ */
 export function resolveModuleRoot(
   projectRoot: string,
   moduleId: string,
@@ -54,11 +62,12 @@ export function resolveModuleRoot(
         load?: () => { resolver?: { extraNodeModules?: Record<string, string> } };
       };
       const extra = mod.load?.()?.resolver?.extraNodeModules ?? {};
-      for (const [pkgName, pkgPath] of Object.entries(extra)) {
-        const segment = pkgName.includes("/")
-          ? pkgName.slice(pkgName.lastIndexOf("/") + 1)
-          : pkgName;
-        if (segment === moduleId && existsSync(pkgPath)) {
+      for (const pkgPath of Object.values(extra)) {
+        if (!existsSync(pkgPath)) continue;
+        const descriptor = readJson(
+          path.join(pkgPath, "client-platform.module.jsonc"),
+        );
+        if (descriptor?.["business_module"] === moduleId) {
           return pkgPath;
         }
       }
@@ -67,7 +76,13 @@ export function resolveModuleRoot(
     }
   }
   const inRepo = path.join(projectRoot, "modules", moduleId);
-  return existsSync(inRepo) ? inRepo : undefined;
+  if (existsSync(inRepo)) {
+    const descriptor = readJson(path.join(inRepo, "client-platform.module.jsonc"));
+    if (!descriptor || descriptor["business_module"] === moduleId) {
+      return inRepo;
+    }
+  }
+  return undefined;
 }
 
 /**
