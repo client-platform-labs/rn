@@ -6,6 +6,6 @@ Pick by **role**, not by Greenfield vs Brownfield product name.
 |----------|------|
 | **Business module developer** (JS/RN in `modules/<id>`) | [module-developer.md](./module-developer.md) — **no GF/BF in daily workflow** |
 | **Shell / host engineer** (app-host, native embed, store package) | [shell-team-cheatsheet.md](./shell-team-cheatsheet.md) · [host-integration.md](./host-integration.md) · [debug-host.md](./debug-host.md) — GF vs BF **only here** |
-| **Platform / agent** | [afk-hitl-ops.md](./afk-hitl-ops.md) · [cp-web-console.md](./cp-web-console.md) · [map-b-deferred.md](../map-b-deferred.md) · [expo-interop.md](./expo-interop.md) · [enterprise-promotion-gates.md](../agents/enterprise-promotion-gates.md) |
+| **Platform / agent** | [afk-hitl-ops.md](./afk-hitl-ops.md) · [cp-web-console.md](./cp-web-console.md) · [map-b-deferred.md](../map-b-deferred.md) · [expo-interop.md](./expo-interop.md) · [enterprise-promotion-gates.md](../agents/enterprise-promotion-gates.md) · **先看全貌：[deliverables-inventory.md](../deliverables-inventory.md)** |
 
 Legacy entry (A1 smoke): [../a1-greenfield.md](../a1-greenfield.md) → routes here.
