@@ -1,0 +1,23 @@
+import React from "react";
+import { Pressable, Text, View } from "react-native";
+
+export function FailedUI({
+  reason,
+  onUseBaseline,
+}: {
+  reason: string;
+  onUseBaseline: () => void;
+}) {
+  return (
+    <View style={{ flex: 1, backgroundColor: "#F7F6F3", padding: 24, justifyContent: "center" }}>
+      <Text style={{ fontSize: 22, fontWeight: "700", color: "#1A1A1A" }}>无法加载更新</Text>
+      <Text style={{ marginTop: 8, color: "#8A877C" }}>{reason}</Text>
+      <Pressable
+        onPress={onUseBaseline}
+        style={{ marginTop: 24, backgroundColor: "#2F4F4F", padding: 14 }}
+      >
+        <Text style={{ color: "#F7F6F3", fontWeight: "600" }}>使用基线</Text>
+      </Pressable>
+    </View>
+  );
+}

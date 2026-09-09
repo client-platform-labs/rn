@@ -1,0 +1,73 @@
+import React, { useEffect, useState } from "react";
+import { NativeModules } from "react-native";
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
+import { FailedUI } from "./FailedUI";
+import {
+  resolveBaselineSurface,
+  resolveModuleSurface,
+} from "./ModuleRegistry";
+import { DEFAULT_MODULE_ID } from "./ota/slotPaths";
+
+/**
+ * Industrial shell (ADR-021): resolves the active business module by id,
+ * gates OTA updates via @client-platform/core/ota, and renders the surface.
+ * Zero reference-host coupling — module identity comes from the generated
+ * registry (shell/generated-registrations.ts).
+ */
+export function ShellHost({
+  moduleId = DEFAULT_MODULE_ID,
+}: {
+  moduleId?: string;
+}) {
+  const [forceBaseline, setForceBaseline] = useState(false);
+  const [otaSidecar, setOtaSidecar] = useState<unknown>(null);
+  const [bootReady, setBootReady] = useState(__DEV__);
+
+  useEffect(() => {
+    if (__DEV__) return; // dev: baseline only, no OTA
+    let cancelled = false;
+    (async () => {
+      // ADR-017 — pull baked pubkeys from native before verifying any OTA payload.
+      try {
+        const keys = await NativeModules.Ota?.getOtaPublicKeys?.();
+        const keyArr =
+          keys == null ? [] : Array.from(keys as ArrayLike<string>);
+        if (keyArr.length > 0) {
+          (globalThis as unknown as { __CP_OTA_PUBKEYS__?: string[] })[
+            "__CP_OTA_PUBKEYS__"
+          ] = keyArr;
+        }
+      } catch {
+        /* stay empty → fail-closed */
+      }
+      if (!cancelled) setBootReady(true);
+    })().catch(() => {
+      if (!cancelled) setBootReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleId]);
+
+  if (!bootReady) return null;
+
+  const surface = forceBaseline
+    ? resolveBaselineSurface(moduleId)
+    : resolveModuleSurface(moduleId, { otaSidecar: otaSidecar ?? undefined });
+
+  return (
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      {surface.mode === "failed" || !surface.App ? (
+        <FailedUI
+          reason={surface.reason ?? `module=${surface.moduleId} unknown`}
+          onUseBaseline={() => setForceBaseline(true)}
+        />
+      ) : (
+        <surface.App />
+      )}
+    </SafeAreaProvider>
+  );
+}

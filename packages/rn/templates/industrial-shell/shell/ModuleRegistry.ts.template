@@ -1,0 +1,92 @@
+/**
+ * ModuleRegistry (ADR-021/D2): business surfaces by moduleId.
+ * `@*/*` imports live ONLY in the generated registry (shell/generated-registrations.ts),
+ * never hand-written here.
+ */
+import type { ComponentType } from "react";
+import { gateBundleLoad } from "@client-platform/core/ota";
+import { readHostContextFromSidecar } from "./hostContext";
+import { DEFAULT_MODULE_ID, assertModuleId } from "./ota/slotPaths";
+import { ensureGeneratedRegistrations } from "./generated-registrations";
+
+export type SurfaceResolution = {
+  moduleId: string;
+  mode: "baseline" | "ota" | "failed";
+  App: ComponentType<any> | null;
+  updateId?: string;
+  reason?: string;
+};
+
+type ModuleRegistration = {
+  moduleId: string;
+  getApp: () => ComponentType<any>;
+  loadSidecar?: () => any | null;
+};
+
+const registry = new Map<string, ModuleRegistration>();
+
+function loadJson(mod: any): any | null {
+  try {
+    return mod?.default ?? mod ?? null;
+  } catch {
+    return null;
+  }
+}
+export { loadJson };
+
+export function registerModule(reg: ModuleRegistration): void {
+  assertModuleId(reg.moduleId);
+  registry.set(reg.moduleId, reg);
+}
+
+export function ensureDefaultRegistrations(): void {
+  if (registry.size === 0) {
+    ensureGeneratedRegistrations();
+  }
+}
+
+export function listRegisteredModules(): string[] {
+  ensureDefaultRegistrations();
+  return [...registry.keys()];
+}
+
+export function resolveBaselineSurface(
+  moduleId: string = DEFAULT_MODULE_ID,
+): SurfaceResolution {
+  ensureDefaultRegistrations();
+  assertModuleId(moduleId);
+  const reg = registry.get(moduleId);
+  if (!reg) {
+    return { moduleId, mode: "failed", App: null, reason: `unregistered moduleId=${moduleId}` };
+  }
+  return { moduleId, mode: "baseline", App: reg.getApp() };
+}
+
+export function resolveModuleSurface(
+  moduleId: string = DEFAULT_MODULE_ID,
+  opts: { otaSidecar?: unknown } = {},
+): SurfaceResolution {
+  ensureDefaultRegistrations();
+  assertModuleId(moduleId);
+  const reg = registry.get(moduleId);
+  if (!reg) {
+    return { moduleId, mode: "failed", App: null, reason: `unregistered moduleId=${moduleId}` };
+  }
+  const sidecar = opts.otaSidecar ?? reg.loadSidecar?.() ?? null;
+  if (!sidecar) {
+    return { moduleId, mode: "baseline", App: reg.getApp() };
+  }
+  const host = readHostContextFromSidecar(sidecar);
+  if (!host) {
+    return { moduleId, mode: "failed", App: null, reason: "missing host_context in OTA sidecar" };
+  }
+  const load = gateBundleLoad(
+    { candidate: sidecar.candidate, signature: sidecar.signature, expectedDigest: sidecar.digest },
+    host,
+  );
+  if (!load.ok) {
+    return { moduleId, mode: "failed", App: null, reason: load.reason };
+  }
+  const updateId = sidecar.update_id ?? sidecar.candidate?.update_id;
+  return { moduleId, mode: "ota", App: reg.getApp(), updateId };
+}

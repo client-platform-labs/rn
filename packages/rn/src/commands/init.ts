@@ -27,6 +27,7 @@ import {
 import { resolveNpx, runStreaming } from "../process.js";
 import { runDemoAdd } from "./demo.js";
 import { applyTopologyBAfterInit } from "../module-workspace.js";
+import { applyIndustrialShell } from "../industrial-shell.js";
 
 const COMMUNITY_CLI = "@react-native-community/cli@latest";
 
@@ -152,6 +153,8 @@ export async function runInit(options: {
   demo?: boolean;
   /** Default topology-b (ADR-005). Use inline-main for onboarding path A. */
   starter?: InitStarter;
+  /** Apply the industrial shell (ShellHost + ModuleRegistry + OTA gate) after init. */
+  industrial?: boolean;
 }): Promise<void> {
   if (options.isolatedNpmrc && options.npmPolicy) {
     const parsed = parseNpmPolicyKind(options.npmPolicy);
@@ -291,6 +294,12 @@ export async function runInit(options: {
     options.logger.writeHuman(
       `topology B: ${path.relative(cwd, applied.moduleRoot)} + shell ${path.basename(applied.appEntry)}`,
     );
+    if (options.industrial) {
+      applyIndustrialShell(cwd);
+      options.logger.writeHuman(
+        "industrial shell: ShellHost + ModuleRegistry + OTA gate applied (ADR-021)",
+      );
+    }
   } else {
     mkdirSync(path.join(cwd, ".rn"), { recursive: true });
     writeFileSync(

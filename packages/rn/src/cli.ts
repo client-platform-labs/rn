@@ -154,6 +154,10 @@ export async function run(argv = process.argv): Promise<number> {
       'topology-b (default, shell + modules/main) | inline-main (path A onboarding)',
       "topology-b",
     )
+    .option(
+      "--industrial",
+      "apply the industrial shell (ShellHost + ModuleRegistry + OTA gate) after init",
+    )
     .action(
       async (
         directory: string | undefined,
@@ -164,6 +168,7 @@ export async function run(argv = process.argv): Promise<number> {
           npmRegistry?: string;
           demo?: boolean;
           starter?: string;
+          industrial?: boolean;
         },
       ) => {
         let starter;
@@ -185,6 +190,7 @@ export async function run(argv = process.argv): Promise<number> {
           npmRegistry: opts.npmRegistry,
           demo: Boolean(opts.demo),
           starter,
+          industrial: Boolean(opts.industrial),
         });
       },
     );

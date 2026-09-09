@@ -1,0 +1,14 @@
+import type { HostSelectorContext } from "@client-platform/core/ota";
+
+/** Rebuild the host selector context from a sidecar's host_context block. */
+export function readHostContextFromSidecar(
+  sidecar: any,
+): HostSelectorContext | null {
+  const hc = sidecar?.host_context;
+  if (!hc) return null;
+  return {
+    runtime_fingerprint: hc.runtime_fingerprint,
+    capability_set: hc.capability_set ?? [],
+    artifact_line: hc.artifact_line,
+  };
+}

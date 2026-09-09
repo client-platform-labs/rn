@@ -1,0 +1,9 @@
+/**
+ * Industrial shell entry (ADR-021) — mounts ShellHost, not a direct module.
+ */
+import { ShellHost } from "./shell/ShellHost";
+import { DEFAULT_MODULE_ID } from "./shell/ota/slotPaths";
+
+export default function App() {
+  return <ShellHost moduleId={DEFAULT_MODULE_ID} />;
+}
