@@ -6,11 +6,22 @@
 
 | ID | 阶段 | 严重度 | 问题 | 证据 | 影响 | 修复方向（ticket 素材） | 状态 |
 |----|------|--------|------|------|------|------------------------|------|
-| F01 | P0 密钥供应 | S3 | 密钥生成非一等公民：`ship` 无 keygen 动词，仅 `signature.ts` 内部 helper + `ota.md` 文档 `node -e` 一行 | `ship --help` 命令集无 keygen；`signature.ts:98 generateLabEd25519Pem()` | 0→1 必须从外部复制文档命令，无法体现"平台自供应密钥"；对新人/演示不友好 | 新增 `ship keygen`（生成 ed25519 PEM + 公钥 hex，写 `keys/`，权限 600） | 待修复 |
-| F02 | P0 密钥供应 | S3 | 烘焙公钥硬编码：`ota-android/OtaModule.kt.template` `pushString("3c728c98…")`，`apply-ota-to-project.mjs` 不参数化 | 模板第 46 行硬编码 hex；apply-ota 仅写 README 提示 | 每次换密钥都要手改模板；烘焙的未必是签名用的那把 → 设备验签必然失败 | apply-ota 增加 `--pubkey-hex`（或从 keys/ 自动读）；模板改占位符 | 待修复 |
+| F01 | P0 密钥供应 | S3 | 密钥生成非一等公民：`ship` 无 keygen 动词，仅 `signature.ts` 内部 helper + `ota.md` 文档 `node -e` 一行 | `ship --help` 命令集无 keygen；`signature.ts:98 generateLabEd25519Pem()` | 0→1 必须从外部复制文档命令，无法体现"平台自供应密钥"；对新人/演示不友好 | 新增 `ship keygen`（生成 ed25519 PEM + 公钥 hex，写 `keys/`，权限 600）。**自动化边界**：仅自动化 lab/测试密钥链路；生产密钥仍 HITL（ADR-018：离线生成、负责人保管、异地备份、密钥事件不上自动化） | 待修复 |
+| F02 | P0 密钥供应 | S3 | 烘焙公钥硬编码：`ota-android/OtaModule.kt.template` `pushString("3c728c98…")`，`apply-ota-to-project.mjs` 不参数化 | 模板第 46 行硬编码 hex；apply-ota 仅写 README 提示 | 每次换密钥都要手改模板；烘焙的未必是签名用的那把 → 设备验签必然失败 | apply-ota 增加 `--pubkey-hex`（或从 keys/ 自动读）；模板改占位符。**自动化边界**：烘焙可自动，但"用哪把公钥/哪个发布身份"由人（发布负责人）决定 | 待修复 |
 | F03 | P0 工具链 | S2 | `get-rn.sh` 安装/卸载 home（`~/.client-platform/rn`）与签名密钥目录撞车；`--uninstall` 会 `rm -rf` 掉同目录密钥 | `~/.client-platform/rn/` 同时是 repo clone + `lab-sign-key.pem`；`do_uninstall` 直接 `rm -rf $HOME_DIR` | 卸载会误删信任根；安装 home 语义被污染 | 安装 home 改独立路径（如 `~/.local/share/client-platform/rn`）或密钥目录独立（`~/.client-platform/keys`）并在文档/预检中约定 | 待修复 |
 
 ---
+
+## 密钥信任模型边界（供 F01/F02 修复设计引用）
+
+自动化消除的是**非必要体力步骤**，不是信任角色：
+
+| 环节 | Lab/测试密钥（自动化） | 生产密钥（HITL，ADR-017/018） |
+|------|------------------------|------------------------------|
+| 生成 | `ship keygen` 一条命令 | 离线生成、负责人保管、异地备份 |
+| 烘焙 | apply-ota 参数化自动写公钥 | 公钥烘焙可自动；"用哪把"由人定 |
+| 签名注入 | `RN_DELIVERY_SIGN_KEY_FILE` 自动 | 负责人授权注入、批准发布 |
+| 轮换/吊销 | 命令可执行 | 决策上人、可审计（roles-matrix：密钥类事件永远上人） |
 
 ## 演练过程追加（按 Phase 增量记录）
 
