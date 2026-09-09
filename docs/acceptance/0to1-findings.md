@@ -56,7 +56,7 @@
 ### P0 — 环境与密钥供应（进行中）
 
 - 决策 D1：采用方案 A —— 走**现状**如实演示（`node -e` 生成 lab 密钥 → 手动烘焙新公钥），缺口记为 finding（F01/F02），演练后统一开图解决。
-- 决策 D2：0→1 不使用机器上预置的历史密钥（`~/.client-platform/rn/lab-sign-key.pem`），改为**新生成** lab 密钥（`rn-0to1-drill/keys/`）。
-- 记录：新 lab 公钥 hex = `93431af7918536fd567876d2da79d0dfdadaaec56d13a577ad2a312a0322a258`（P4 烘焙用；私钥在 `rn-0to1-drill/keys/lab-sign-key.pem`，600）
+- 决策 D2：0→1 不使用机器上预置的历史密钥（`~/.client-platform/rn/lab-sign-key.pem`），改为**新生成** lab 密钥（`rn-0to1-drill-keys/`，工程外独立目录，保持 init 空目录）。
+- 记录：新 lab 公钥 hex = `93431af7918536fd567876d2da79d0dfdadaaec56d13a577ad2a312a0322a258`（P4 烘焙用；私钥在 `rn-0to1-drill-keys/lab-sign-key.pem`，600）
 
 _（后续阶段发现的问题在此追加，保持本表为主索引。）_
