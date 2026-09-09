@@ -39,7 +39,7 @@ const bins = [
   },
   {
     name: "rn-delivery",
-    packageDir: path.join(repoRoot, "packages/rn-delivery"),
+    packageDir: path.join(repoRoot, "packages/ship"),
     target: path.join(repoRoot, "packages/ship/bin/ship.mjs"),
   },
 ];

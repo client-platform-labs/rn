@@ -23,9 +23,9 @@ importers:
 
   examples/brownfield-host:
     dependencies:
-      '@client-platform/rn-core':
+      '@client-platform/core':
         specifier: workspace:*
-        version: link:../../packages/rn-core
+        version: link:../../packages/core
 
   examples/pure-rn-demo: {}
 
@@ -55,15 +55,6 @@ importers:
       commander:
         specifier: ^15.0.0
         version: 15.0.0
-
-  packages/rn-core:
-    dependencies:
-      '@client-platform/core':
-        specifier: workspace:*
-        version: link:../core
-      '@client-platform/rn-engine':
-        specifier: workspace:*
-        version: link:../rn-engine
 
   packages/rn-engine:
     dependencies:

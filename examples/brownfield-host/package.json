@@ -14,6 +14,6 @@
     "demo": "node --experimental-strip-types ./src/demo.ts"
   },
   "dependencies": {
-    "@client-platform/rn-core": "workspace:*"
+    "@client-platform/core": "workspace:*"
   }
 }

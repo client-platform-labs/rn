@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import {
   createBrownfieldReferenceHost,
   defaultDualModuleDevSession,
-} from "@client-platform/rn-core";
+} from "@client-platform/core";
 
 /**
  * TS-side brownfield reference host demo (map-a/#5).
