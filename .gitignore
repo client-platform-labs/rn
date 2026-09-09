@@ -21,3 +21,6 @@ docs/hitl/*-latest.md
 
 # Scratch agent workspace — temporary, never a deliverable
 .scratch/
+
+# deploy: synced CP state (build-machine artifact, not source)
+deploy/project/

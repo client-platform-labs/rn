@@ -1,0 +1,28 @@
+# Client-platform control plane — Docker Compose.
+#
+# Serves an rn project's delivery state from ./project (bind mount) over the
+# thin CP HTTP API on CP_PORT. deploy.sh seeds ./project from the local
+# project and starts/stops this stack.
+#
+# Overrides:
+#   CP_PORT          host port (default 7430)
+#   CP_IMAGE_TAG     image tag (default local)
+#   RN_CP_TOKEN      bearer token for write endpoints (optional)
+#   RN_CP_TENANTS    comma-separated tenants (optional)
+#   RN_CP_REGISTRY   file (default) | sqlite
+services:
+  cp:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: client-platform/cp:${CP_IMAGE_TAG:-local}
+    ports:
+      - "${CP_PORT:-7430}:7430"
+    environment:
+      RN_CP_PROJECT: /cp/project
+      RN_CP_TOKEN: ${RN_CP_TOKEN:-}
+      RN_CP_TENANTS: ${RN_CP_TENANTS:-}
+      RN_CP_REGISTRY: ${RN_CP_REGISTRY:-file}
+    volumes:
+      - ./project:/cp/project
+    restart: unless-stopped

@@ -1,0 +1,12 @@
+# Root build context for deploy/Dockerfile — keep the context small.
+.git
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+.scratch
+.idea
+.vscode
+*.log
+**/*.tsbuildinfo
+deploy/project

@@ -579,7 +579,10 @@ export function createControlPlane(options: {
           hostHeader ?
             `${proto === "https" ? "https" : "http"}://${hostHeader}`
           : undefined;
-        const manifest = buildDeviceJsUpdateManifest(meta, { baseUrl });
+        const manifest = buildDeviceJsUpdateManifest(meta, {
+          baseUrl,
+          projectRoot,
+        });
         if (!manifest) {
           sendJson(res, 404, {
             error: "sidecar_missing",
