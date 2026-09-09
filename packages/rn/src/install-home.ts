@@ -43,7 +43,7 @@ export function isManagedInstall(home = defaultInstallHome()): boolean {
   }
 }
 
-export function resolveBinSymlinkTarget(name: "rn" | "rn-delivery"): string | null {
+export function resolveBinSymlinkTarget(name: "rn"): string | null {
   const link = path.join(localBinDir(), name);
   try {
     if (!existsSync(link) || !lstatSync(link).isSymbolicLink()) {
