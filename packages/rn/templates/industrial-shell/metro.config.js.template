@@ -1,0 +1,16 @@
+const path = require("node:path");
+const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
+
+const hostRoot = __dirname;
+const resolverPath = path.join(hostRoot, ".rn/metro/host-resolver.cjs");
+
+let hostMetro = {};
+try {
+  hostMetro = require(resolverPath).load();
+} catch {
+  console.warn(
+    "[rn] missing .rn/metro/host-resolver.cjs — run: rn module register or rn dev",
+  );
+}
+
+module.exports = mergeConfig(getDefaultConfig(hostRoot), hostMetro);

@@ -1,6 +1,6 @@
 /**
  * ModuleRegistry (ADR-021/D2): business surfaces by moduleId.
- * `@*/*` imports live ONLY in the generated registry (shell/generated-registrations.ts),
+ * Module-package imports live ONLY in the generated registry (shell/generated-registrations.ts),
  * never hand-written here.
  */
 import type { ComponentType } from "react";

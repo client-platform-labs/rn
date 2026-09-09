@@ -3,7 +3,14 @@
  * industrial shell — ShellHost + ModuleRegistry (consuming the generated
  * registry) + OTA gate. Zero reference-host coupling (no tiangong/hermes).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +28,7 @@ export const INDUSTRIAL_SHELL_FILES = [
   "shell/hostContext.ts.template",
   "shell/FailedUI.tsx.template",
   "shell/ota/slotPaths.ts.template",
+  "metro.config.js.template",
 ] as const;
 
 function renderTemplate(rel: string, defaultModuleId: string): string {
@@ -46,7 +54,8 @@ function defaultModuleIdFromManifest(projectRoot: string): string {
 
 /**
  * Apply the industrial shell to an initialized project.
- * Writes App.tsx (→ ShellHost) + shell/{ShellHost,ModuleRegistry,hostContext,FailedUI,ota/slotPaths}.
+ * Writes App.tsx (→ ShellHost) + shell/{ShellHost,ModuleRegistry,hostContext,FailedUI,ota/slotPaths}
+ * + links the platform packages (core/shell-core/rn-engine) so the shell resolves them.
  */
 export function applyIndustrialShell(projectRoot: string): void {
   if (!existsSync(path.join(projectRoot, "package.json"))) {
@@ -71,4 +80,42 @@ export function applyIndustrialShell(projectRoot: string): void {
       "utf8",
     );
   }
+
+  linkPlatformPackages(projectRoot);
+}
+
+/**
+ * Link the platform packages (core / shell-core / rn-engine) into the project.
+ * Declares them in package.json + symlinks node_modules/@client-platform/* to the
+ * platform workspace (local dev). A distributed platform publishes these instead.
+ */
+function linkPlatformPackages(projectRoot: string): void {
+  const platformRoot =
+    process.env.CLIENT_PLATFORM_ROOT ??
+    path.resolve(projectRoot, "..", "client-platform-labs", "rn");
+  const pkgPath = path.join(projectRoot, "package.json");
+  if (!existsSync(pkgPath)) return;
+  let pkg: Record<string, unknown>;
+  try {
+    pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+  } catch {
+    return;
+  }
+  const deps = (pkg["dependencies"] as Record<string, string>) ?? {};
+  for (const name of ["core", "shell-core", "rn-engine"]) {
+    const scoped = `@client-platform/${name}`;
+    const src = path.join(platformRoot, "packages", name);
+    if (!existsSync(src)) continue;
+    deps[scoped] = deps[scoped] ?? "0.1.0";
+    const dest = path.join(projectRoot, "node_modules", "@client-platform", name);
+    mkdirSync(path.dirname(dest), { recursive: true });
+    try {
+      if (existsSync(dest)) rmSync(dest, { recursive: true, force: true });
+      symlinkSync(src, dest, "dir");
+    } catch {
+      /* symlink may fail on some setups; node_modules install handles it later */
+    }
+  }
+  pkg["dependencies"] = deps;
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
 }
