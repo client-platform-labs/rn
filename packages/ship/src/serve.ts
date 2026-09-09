@@ -565,7 +565,9 @@ export function createControlPlane(options: {
           lane,
           moduleId,
         );
-        const meta = candidates[0];
+        // Newest production candidate wins (promote appends to the production
+        // window as a rollback history; the last entry is the current release).
+        const meta = candidates[candidates.length - 1];
         if (!meta) {
           res.writeHead(204);
           res.end();

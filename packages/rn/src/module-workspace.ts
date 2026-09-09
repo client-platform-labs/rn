@@ -18,6 +18,7 @@ import {
 
 import {
   loadDevSessionConfig,
+  readAppRegistryName,
   writeDevSessionConfig,
 } from "./dev-session-config.js";
 
@@ -43,14 +44,24 @@ export function renderModulePackageJson(moduleId: string): string {
   )}\n`;
 }
 
-export function renderModuleIndex(moduleId: string): string {
+export function renderModuleIndex(moduleId: string, hostAppKey?: string): string {
+  const processEntry = hostAppKey
+    ? `
+// Process-entry contract (release OTA): after installAndReload this module
+// bundle is loaded as the process JS bundle — MainActivity mounts the host's
+// main component (${hostAppKey}), so register it at module top level. In
+// baseline (shell-imported) mode the shell's own App entry overwrites this
+// registration — harmless.
+AppRegistry.registerComponent(${JSON.stringify(hostAppKey)}, () => ModuleApp);
+`
+    : "\n";
   return `/**
  * business_module "${moduleId}" entry (ADR-005 module workspace).
  * Do not treat this package as a second app-host.
  */
 import { AppRegistry } from "react-native";
 import { ModuleApp } from "./src/ModuleApp";
-
+${processEntry}
 export function getModuleApp() {
   return ModuleApp;
 }
@@ -175,7 +186,7 @@ export function scaffoldModuleWorkspace(options: {
   );
   writeFileSync(
     path.join(root, "index.ts"),
-    renderModuleIndex(options.moduleId),
+    renderModuleIndex(options.moduleId, readAppRegistryName(options.projectRoot)),
     "utf8",
   );
   writeFileSync(

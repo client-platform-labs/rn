@@ -49,15 +49,18 @@ export function ShellHost({
     (async () => {
       const native = getNativeAdapter();
       // ADR-017 — pull baked pubkeys from native before verifying any OTA payload.
+      // The Kotlin @ReactMethod is async, but verifySidecar reads the adapter's
+      // synchronous getOtaPublicKeys() — patch it with the awaited cache (same
+      // contract as templates/greenfield-ota/ReleaseOtaBoot). Empty → fail-closed.
       try {
         const keys = await native.getOtaPublicKeys?.();
         const keyArr =
-          keys == null ? [] : Array.from(keys as ArrayLike<string>);
-        if (keyArr.length > 0) {
-          (globalThis as unknown as { __CP_OTA_PUBKEYS__?: string[] })[
-            "__CP_OTA_PUBKEYS__"
-          ] = keyArr;
-        }
+          keys == null
+            ? []
+            : Array.from(keys as ArrayLike<string>).filter(
+                (k): k is string => typeof k === "string" && k.length === 64,
+              );
+        native.getOtaPublicKeys = () => keyArr;
       } catch {
         /* stay empty → fail-closed */
       }
@@ -70,7 +73,7 @@ export function ShellHost({
       const result = await pullOtaUpdate(client, native, moduleId, {
         lane: "production",
         fetchManifest: async (mid, lane) => {
-          const res = await fetch(`${base}/v1/ota/${mid}/manifest?lane=${lane}`);
+          const res = await fetch(`${base}/v1/js-updates/check?module=${mid}&lane=${lane}`);
           if (!res.ok) return null;
           const body = (await res.json()) as OtaSidecar;
           return body;

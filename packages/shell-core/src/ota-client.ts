@@ -56,7 +56,9 @@ export function createOtaClient(
         expectedDigest: sidecar.digest ?? null,
         release_id: sidecar.release_id,
         artifact_kind: sidecar.artifact_kind,
-        publicKeys: native.getOtaPublicKeys(),
+        // ADR-017: bridge returns a WritableNativeArray (not Array.isArray, no
+        // iterator) — normalize with Array.from before any iteration in the gate.
+        publicKeys: Array.from(native.getOtaPublicKeys() ?? []),
         revokedPublicKeys,
       },
       host,

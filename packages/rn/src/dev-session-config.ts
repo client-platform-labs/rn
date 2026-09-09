@@ -78,7 +78,7 @@ export function loadDevSessionConfig(projectRoot: string): DevSessionConfig | nu
   };
 }
 
-function readAppRegistryName(projectRoot: string): string {
+export function readAppRegistryName(projectRoot: string): string {
   for (const name of ["app.json", "app.config.json"]) {
     const p = path.join(projectRoot, name);
     if (!existsSync(p)) continue;
