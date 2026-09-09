@@ -31,6 +31,9 @@ describe("applyIndustrialShell (工业壳生成化)", () => {
       assert.doesNotMatch(shell, /tiangong|hermesgfapp|TiangongOta|__TIANGONG|__HERMES/);
       const reg = readFileSync(path.join(root, "shell/ModuleRegistry.ts"), "utf8");
       assert.match(reg, /@client-platform\/core\/ota/);
+      const host = readFileSync(path.join(root, "shell/ShellHost.tsx"), "utf8");
+      assert.match(host, /@client-platform\/shell-core/); // copy→depend by construction
+      assert.doesNotMatch(host, /tiangong|hermesgfapp/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

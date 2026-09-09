@@ -4,6 +4,12 @@ import {
   SafeAreaProvider,
   initialWindowMetrics,
 } from "react-native-safe-area-context";
+import {
+  createOtaClient,
+  pullOtaUpdate,
+  type OtaSidecar,
+  type OtaNativeAdapter,
+} from "@client-platform/shell-core";
 import { FailedUI } from "./FailedUI";
 import {
   resolveBaselineSurface,
@@ -12,27 +18,39 @@ import {
 import { DEFAULT_MODULE_ID } from "./ota/slotPaths";
 
 /**
- * Industrial shell (ADR-021): resolves the active business module by id,
- * gates OTA updates via @client-platform/core/ota, and renders the surface.
- * Zero reference-host coupling — module identity comes from the generated
- * registry (shell/generated-registrations.ts).
+ * Industrial shell (ADR-021): resolves the active business module by id and runs
+ * the device OTA flow via @client-platform/shell-core (copy→depend by
+ * construction — no local OTA client copies). The native adapter is injected
+ * once; `fetchOtaManifest` targets the control plane (ship serve).
  */
+function getNativeAdapter(): OtaNativeAdapter {
+  return NativeModules.Ota as OtaNativeAdapter;
+}
+
+function cpBaseUrl(): string | null {
+  const g = globalThis as Record<string, unknown>;
+  return typeof g["__CP_BASE_URL__"] === "string"
+    ? (g["__CP_BASE_URL__"] as string)
+    : null;
+}
+
 export function ShellHost({
   moduleId = DEFAULT_MODULE_ID,
 }: {
   moduleId?: string;
 }) {
   const [forceBaseline, setForceBaseline] = useState(false);
-  const [otaSidecar, setOtaSidecar] = useState<unknown>(null);
+  const [otaSidecar, setOtaSidecar] = useState<OtaSidecar | null>(null);
   const [bootReady, setBootReady] = useState(__DEV__);
 
   useEffect(() => {
     if (__DEV__) return; // dev: baseline only, no OTA
     let cancelled = false;
     (async () => {
+      const native = getNativeAdapter();
       // ADR-017 — pull baked pubkeys from native before verifying any OTA payload.
       try {
-        const keys = await NativeModules.Ota?.getOtaPublicKeys?.();
+        const keys = await native.getOtaPublicKeys?.();
         const keyArr =
           keys == null ? [] : Array.from(keys as ArrayLike<string>);
         if (keyArr.length > 0) {
@@ -43,6 +61,22 @@ export function ShellHost({
       } catch {
         /* stay empty → fail-closed */
       }
+      const base = cpBaseUrl();
+      if (!base) {
+        if (!cancelled) setBootReady(true);
+        return;
+      }
+      const client = createOtaClient(native, { defaultModuleId: moduleId });
+      const result = await pullOtaUpdate(client, native, moduleId, {
+        lane: "production",
+        fetchManifest: async (mid, lane) => {
+          const res = await fetch(`${base}/v1/ota/${mid}/manifest?lane=${lane}`);
+          if (!res.ok) return null;
+          const body = (await res.json()) as OtaSidecar;
+          return body;
+        },
+      });
+      if (result.status === "installed") return;
       if (!cancelled) setBootReady(true);
     })().catch(() => {
       if (!cancelled) setBootReady(true);
