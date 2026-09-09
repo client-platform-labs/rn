@@ -22,6 +22,7 @@
 | F14 | P2 模块注册表 | S4 | host-resolver.cjs 生成质量：`WATCH_FOLDERS` 中 `.pnpm` 条目重复 3 次（生成时代码未去重） | 实机 host-resolver.cjs 三个相同 `.pnpm` 行 | 功能无碍（watch 幂等），但派生物不干净 | 生成函数对 WATCH_FOLDERS 去重 | 待修复 |
 | F15 | P3 开发环 | S3 | `rn dev` 行为与帮助文案不符且无日志流：帮助说"starts Metro … then keeps Metro running"，实际多 Metro 编排为 **detached**（终端立即返回，Metro 日志不流向终端）——开发者看不到 Metro/HMR/错误，dev 终端"无反应、非运行态" | 实机：`rn dev --modules main` 输出 "Multi-Metro running (detached)" 后返回；`sed` 改模块 dev 终端无任何输出 | detached 模式下开发闭环不可见；帮助文案误导 | 明确两种模式语义：`rn dev` 前台日志流（默认）vs `rn dev --detached`（后台）；或把日志写入文件并提示 tail；帮助文案与实际一致 | 待修复 |
 | F16 | P3 开发环 | S2 | `rn dev` 复用已占用端口的 Metro **不校验工程身份**：8081 上残留的是旧工程（onboarding-industrial）的 Metro，新工程 `rn dev` 直接"already running"复用 → HMR/开发打到错误工程的内容，且无任何告警 | 实机：PID 30615 cwd=onboarding-industrial；`rn dev` 报 "Metro already running on :8081" | 多工程并行开发时静默连错服务器；开发内容错误难排查 | 见 T4（运行时身份校验：复用任何长驻基础设施前校验工程身份，身份不符即报错，不静默复用） | 待修复 |
+| F17 | P3 开发环 | S2 | dev 与 release 的 Metro 配置**分裂**：`rn dev` 用模块 Metro（`.rn/metro/main.config.cjs`，resolver=默认，**未加载 host-resolver**），只能构建模块入口（`/modules/main/index.bundle` ✓）；宿主壳入口（`/index.bundle`）因 `@client-platform/shell-core` 解析失败报 UnableToResolveError，且**错误无指引**（用户不知道 dev 正确入口是模块路径） | 实机：`/modules/main/index.bundle` 4MB 成功；`/index.bundle` 报 shell-core 无法解析；main.config.cjs 无 host-resolver 引用 | dev 环与宿主壳之间配置分裂：若 dev attach 需宿主壳（ShellHost 进图）则闭环断；请求错误入口得到误导性错误 | 见 T3/T2：统一 dev/release 的 resolver 契约（dev 模块 Metro 也加载 host-resolver 或明确 dev 只服务模块入口）；对错误入口给出语义化指引（"dev 服务模块入口 /modules/main/index.bundle"）；确认 `rn dev --android` attach 加载的入口并保证可构建 | 待修复 |
 
 ---
 
