@@ -9,6 +9,7 @@
 | F01 | P0 密钥供应 | S3 | 密钥生成非一等公民：`ship` 无 keygen 动词，仅 `signature.ts` 内部 helper + `ota.md` 文档 `node -e` 一行 | `ship --help` 命令集无 keygen；`signature.ts:98 generateLabEd25519Pem()` | 0→1 必须从外部复制文档命令，无法体现"平台自供应密钥"；对新人/演示不友好 | 新增 `ship keygen`（生成 ed25519 PEM + 公钥 hex，写 `keys/`，权限 600）。**自动化边界**：仅自动化 lab/测试密钥链路；生产密钥仍 HITL（ADR-018：离线生成、负责人保管、异地备份、密钥事件不上自动化） | 待修复 |
 | F02 | P0 密钥供应 | S3 | 烘焙公钥硬编码：`ota-android/OtaModule.kt.template` `pushString("3c728c98…")`，`apply-ota-to-project.mjs` 不参数化 | 模板第 46 行硬编码 hex；apply-ota 仅写 README 提示 | 每次换密钥都要手改模板；烘焙的未必是签名用的那把 → 设备验签必然失败 | apply-ota 增加 `--pubkey-hex`（或从 keys/ 自动读）；模板改占位符。**自动化边界**：烘焙可自动，但"用哪把公钥/哪个发布身份"由人（发布负责人）决定 | 待修复 |
 | F03 | P0 工具链 | S2 | `get-rn.sh` 安装/卸载 home（`~/.client-platform/rn`）与签名密钥目录撞车；`--uninstall` 会 `rm -rf` 掉同目录密钥 | `~/.client-platform/rn/` 同时是 repo clone + `lab-sign-key.pem`；`do_uninstall` 直接 `rm -rf $HOME_DIR` | 卸载会误删信任根；安装 home 语义被污染 | 安装 home 改独立路径（如 `~/.local/share/client-platform/rn`）或密钥目录独立（`~/.client-platform/keys`）并在文档/预检中约定 | 待修复 |
+| F04 | P7 设备 OTA（ADR-018 轮换） | S2 | 吊销清单消费未接通生成壳：shell-core 有 `fetchRevocations` 契约 + `verifyRevocationSeal` 实现（已单测），但工业壳/绿色壳模板都不调用 → ADR-018 应急轮换的"触达时机"在真机不生效 | `pull-ota.ts:54,63` 有钩子；模板 grep 无 `fetchRevocations`；`ed25519-verify.test.ts` 单测在但无调用方 | K1 泄露后无法免重装轮换（信任根恢复路径断）；回滚窗口内吊销不生效 | 生成壳模板（industrial-shell / greenfield-ota）接通 `fetchRevocations`（从 CP `/v1/revocations` 或类似端点拉 + 用烘焙 K2 验），并加真机探针 | 待修复 |
 
 ---
 
@@ -21,7 +22,12 @@
 | 生成 | `ship keygen` 一条命令 | 离线生成、负责人保管、异地备份 |
 | 烘焙 | apply-ota 参数化自动写公钥 | 公钥烘焙可自动；"用哪把"由人定 |
 | 签名注入 | `RN_DELIVERY_SIGN_KEY_FILE` 自动 | 负责人授权注入、批准发布 |
-| 轮换/吊销 | 命令可执行 | 决策上人、可审计（roles-matrix：密钥类事件永远上人） |
+## 信任根连续性（Q1 补充：人员变更）
+
+发布负责人转岗/离职不是风险：
+- **可用性靠托管**：私钥 age 加密异地备份（与 ADR-014 DR 同流程），解密权由另一人（托管人）持有——双人保管、解密权分离。
+- **安全性靠轮换**：转岗/离职 = 授权终止 → 触发 K1→K2 轮换（ADR-018 一次免重装轮换），旧负责人副本立即失效。
+- 两个机制都独立于"那个人"。
 
 ## 演练过程追加（按 Phase 增量记录）
 
