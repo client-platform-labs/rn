@@ -1,6 +1,7 @@
 # RN 平台交付物清单（系统性盘点）
 
 > 目标读者：平台团队自己（含新成员 onboarding）、以及对外解释「这个平台到底交付了什么、给谁、怎么交付」。
+> 对外汇报版（去除内部票号/代号）：[`enterprise/platform-deliverables.md`](./enterprise/platform-deliverables.md)。
 > 对齐框架：`docs/architecture.md` 五边界（Runtime SDK / Toolchain / Delivery / Control Plane / Governance）；`docs/handbook/architecture/index.md` 三角色（壳开发 / rn 开发 / 运维）；`docs/agents/engineering-principles.md` 五平面。
 > 写作日期：2026-09-09。本清单是**索引**，每个交付物只写「是什么 / 给谁 / 怎么交付 / 在哪」，规范细节指向对应文档。
 
