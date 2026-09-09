@@ -40,6 +40,6 @@
 1. **Develop** — install the CLI with one command → `init` a project → teams develop in isolated module workspaces
 2. **Release** — delivery CLI builds/signs → pre-prod validation → controlled, auditable promote to production
 3. **Deploy** — Docker image deploys to your own servers or cloud (ECS/VPS) with automated health checks
-4. **Operate** — gray rollout / rollback / quality gates / audit out of the box; DR drill = rebuild on another machine
+4. **Operate** — gray rollout / rollback / quality gates / audit out of the box; DR recovery exercise = rebuild on another machine
 
 **In one sentence**: industrial-grade, end-to-end — from scaffolding to release to the device; verified on real hardware, secure and auditable, rollback with a safety net, deployed to your own infrastructure.
