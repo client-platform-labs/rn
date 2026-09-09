@@ -11,7 +11,7 @@
 | F03 | P0 工具链 | S2 | `get-rn.sh` 安装/卸载 home（`~/.client-platform/rn`）与签名密钥目录撞车；`--uninstall` 会 `rm -rf` 掉同目录密钥 | `~/.client-platform/rn/` 同时是 repo clone + `lab-sign-key.pem`；`do_uninstall` 直接 `rm -rf $HOME_DIR` | 卸载会误删信任根；安装 home 语义被污染 | 安装 home 改独立路径（如 `~/.local/share/client-platform/rn`）或密钥目录独立（`~/.client-platform/keys`）并在文档/预检中约定 | 待修复 |
 | F04 | P7 设备 OTA（ADR-018 轮换） | S2 | 吊销清单消费未接通生成壳：shell-core 有 `fetchRevocations` 契约 + `verifyRevocationSeal` 实现（已单测），但工业壳/绿色壳模板都不调用 → ADR-018 应急轮换的"触达时机"在真机不生效 | `pull-ota.ts:54,63` 有钩子；模板 grep 无 `fetchRevocations`；`ed25519-verify.test.ts` 单测在但无调用方 | K1 泄露后无法免重装轮换（信任根恢复路径断）；回滚窗口内吊销不生效 | 生成壳模板（industrial-shell / greenfield-ota）接通 `fetchRevocations`（从 CP `/v1/revocations` 或类似端点拉 + 用烘焙 K2 验），并加真机探针 | 待修复 |
 | F05 | P0 密钥供应 | S2 | 密钥托管/连续性**不是平台能力，只是文档建议**：现状私钥在发布负责人本地（`RN_DELIVERY_SIGN_KEY_FILE` 本地文件）；无线上托管、无双人保管/解密权分离实现；人员离职/转岗无平台级处置（仅 roles-matrix 建议 age 加密异地备份，靠人自觉） | `ota.md` "生产密钥由负责人离线生成并异地保管"为文档建议；无任何托管命令/存储/审计实现 | 发布负责人转岗/离职 = 信任根真实风险；企业审计会问"钥匙到底在哪、谁还能碰" | 把密钥连续性做成平台能力：托管存储（age 加密 + 解密权分离）+ 人员变更触发轮换（K1→K2）流程化 + 审计；或明确定位为"文档约定 + 外部 HSM 接入" | 待修复 |
-| F06 | P0 密钥供应（ADR-018） | S2 | 双钥（K1+K2）**未实现，与 ADR-018 不符**：keygen 只出一对钥；`OtaModule.kt.template` 只烘焙一把（单 `pushString`）；“双钥免重装轮换”是设计文档非现状 | `signature.ts:98` 单对返回；模板第 46 行单 hex | ADR-018 承诺的“1 次 OTA 应急轮换”无法兑现；自研设计与实现漂移 | 决策点：A) 补齐自研双钥（keygen 出 K1+K2、模板烘焙两把、接通吊销清单）；B) 对齐行业主流（单钥 + HSM + 证书链/CRL 吊销）——需重新设计设备端验签链，建议演练后开 ticket 讨论 | 待修复 |
+| F06 | P0 密钥供应（ADR-018） | S2 | 双钥（K1+K2）**未实现，与 ADR-018 不符**：keygen 只出一对钥；`OtaModule.kt.template` 只烘焙一把（单 `pushString`）；“双钥免重装轮换”是设计文档非现状 | `signature.ts:98` 单对返回；模板第 46 行单 hex | ADR-018 承诺的“1 次 OTA 应急轮换”无法兑现；自研设计与实现漂移 | **已决策 B（2026-09-09）**：弃用自研双钥，对齐行业主流——单签名钥 + HSM 托管（签名在 HSM 内完成）+ 证书链（签名证书由根 CA 签发，设备端验链）+ CRL/OCSP 吊销；设备端信任根改为烘焙根 CA 公钥（业务钥轮换不动设备）。改造面：core 验签链（X.509+CRL/OCSP）· ship sign 对接 HSM/PKCS#11/KMS · 模板烘焙根 CA · CP 吊销端点 · 设备端 pull-ota 验链 · ADR-017/018 修订 | 待修复（演练后开 ticket） |
 
 ---
 
@@ -30,6 +30,13 @@
 - **可用性靠托管**：私钥 age 加密异地备份（与 ADR-014 DR 同流程），解密权由另一人（托管人）持有——双人保管、解密权分离。
 - **安全性靠轮换**：转岗/离职 = 授权终止 → 触发 K1→K2 轮换（ADR-018 一次免重装轮换），旧负责人副本立即失效。
 - 两个机制都独立于"那个人"。
+
+## 密钥模型决策（F06 → 行业主流）
+
+- **决策 D3（2026-09-09）**：弃用自研双钥（ADR-018），对齐**行业主流**——单签名钥 + HSM 托管 + 证书链（根 CA 签发）+ CRL/OCSP 吊销。理由：自研双钥未解决现有问题且无大厂实践；主流方案经大量实际项目验证。
+- 原则：除非自研方案能证明比大厂实践更优，否则用主流方案。
+- 范围（演练后开 ticket）：core 验签链（X.509+CRL/OCSP）· ship sign（HSM/PKCS#11/KMS 对接）· 模板（烘焙根 CA）· CP（吊销端点）· 设备端运行时（验链）· ADR-017/018 修订。
+- 由此带来的新能力：业务签名钥可多次轮换且不动设备（证书链保证）；吊销走行业标准 CRL/OCSP；私钥不出 HSM。
 
 ## 演练过程追加（按 Phase 增量记录）
 
