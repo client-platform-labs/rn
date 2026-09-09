@@ -24,7 +24,7 @@ const FORBIDDEN_PRODUCT_PATTERNS = [
     id: "fake-delivery-seal",
     roots: [path.join(REPO_ROOT, "packages/rn/src")],
     re: /\bmodule\s+seal\b|sealModule|module-bundle-seal/i,
-    hint: "withdrawn fake delivery — use rn-delivery + control plane",
+    hint: "withdrawn fake delivery — use ship + control plane",
   },
   {
     id: "dev-metro-as-release",

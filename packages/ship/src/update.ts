@@ -214,7 +214,7 @@ export async function runUpdate(options: {
   }
 
   console.error(
-    `rn-delivery update: bundling modules/${moduleId} (release-profile Hermes bundle)…`,
+    `ship update: bundling modules/${moduleId} (release-profile Hermes bundle)…`,
   );
   const code = await runStreaming(
     process.execPath,

@@ -8,7 +8,7 @@
  *   3. validate + release staging registry round-trip (dry)
  *
  * Device HITL (when ANDROID_HOME + adb + built APK):
- *   rn-delivery release --install
+ *   ship release --install
  *
  * Usage:
  *   node scripts/verify-steel-thread.mjs [projectRoot]
@@ -110,7 +110,7 @@ if (existsSync(registryPath)) {
     `${registry.staging.length} staging · ${registry.blocked.length} blocked`,
   );
 } else {
-  console.log("[SKIP] no registry — run rn-delivery release after build");
+  console.log("[SKIP] no registry — run ship release after build");
 }
 
 const adbProbe = spawnSync("adb", ["devices"], { encoding: "utf8" });
@@ -130,12 +130,12 @@ console.log("Manual steel-thread (GF · HITL):");
 console.log("  rn doctor");
 console.log("  rn dev --android");
 console.log(
-  "  rn-delivery build --platform android --profile release",
+  "  ship build --platform android --profile release",
 );
-console.log("  rn-delivery update --module main --profile release");
-console.log("  rn-delivery sign && rn-delivery validate && rn-delivery release && rn-delivery promote");
+console.log("  ship update --module main --profile release");
+console.log("  ship sign && ship validate && ship release && ship promote");
 console.log("  node scripts/verify-js-update-load.mjs .");
-console.log("  rn-delivery block --reason 'rollback drill'");
+console.log("  ship block --reason 'rollback drill'");
 console.log("");
 console.log(
   "Evidence: archive .rn/delivery/{last-candidate,registry}.json + adb install log",

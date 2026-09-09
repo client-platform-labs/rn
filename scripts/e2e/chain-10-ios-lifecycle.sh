@@ -11,7 +11,7 @@ set -o pipefail
 source "$(dirname "$0")/lib.sh"
 
 JGET="node $E2E_REPO/scripts/e2e/jget.mjs"
-RD="$E2E_REPO/packages/rn-delivery/bin/rn-delivery.mjs"
+RD="$E2E_REPO/packages/ship/bin/ship.mjs"
 IOS_DIR="$E2E_HOST/ios"
 
 # ── 环境探测 ──
@@ -46,7 +46,7 @@ if [[ "$PODS_READY" != "1" ]]; then
   skip "build ios 需先 pod install"; SKIPS=$((SKIPS+1)); chain_done
 fi
 
-step "10.3 [build] rn-delivery build --platform ios"
+step "10.3 [build] ship build --platform ios"
 cd "$E2E_HOST"
 BUILD_OUT=$(node "$RD" build --platform ios 2>&1)
 BUILD_RC=$?

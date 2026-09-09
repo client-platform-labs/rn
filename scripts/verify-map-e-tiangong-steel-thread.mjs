@@ -186,5 +186,5 @@ if (failed) {
   process.exit(1);
 }
 console.log("\nverify-map-e-tiangong-steel-thread: PASS");
-console.log(`\nOpen: cd ${HOST} && RN_CP_TOKEN=dev rn-delivery cp-serve --port 4040`);
+console.log(`\nOpen: cd ${HOST} && RN_CP_TOKEN=dev ship cp-serve --port 4040`);
 console.log(`Then: http://127.0.0.1:4040/ — should show desk js-update + host APK`);

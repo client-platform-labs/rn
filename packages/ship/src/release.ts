@@ -64,7 +64,7 @@ export async function runRelease(options: {
     promoted.path
   ) {
     await installAndroidApk(promoted.path);
-    console.error("rn-delivery release: installed on device");
+    console.error("ship release: installed on device");
   }
 
   if (
@@ -73,7 +73,7 @@ export async function runRelease(options: {
     promoted.bundle_path
   ) {
     await installIosApp(promoted.bundle_path);
-    console.error("rn-delivery release: installed + launched on iOS simulator");
+    console.error("ship release: installed + launched on iOS simulator");
   }
 }
 

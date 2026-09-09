@@ -3,7 +3,7 @@
 set -o pipefail
 source "$(dirname "$0")/lib.sh"
 
-RD="$E2E_REPO/packages/rn-delivery/bin/rn-delivery.mjs"
+RD="$E2E_REPO/packages/ship/bin/ship.mjs"
 JGET="node $E2E_REPO/scripts/e2e/jget.mjs"
 
 step "7.1 JS 发版台路径可达"

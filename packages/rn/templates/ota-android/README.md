@@ -41,5 +41,5 @@
    （adb reverse 127.0.0.1）需 `res/xml/network_security_config.xml` 只对 127.0.0.1/localhost
    放行 cleartext（生产走 HTTPS，ADR-019，勿全局放开）。
 6. **sidecar fingerprint 必须完整**：`runtime_fingerprint` 含 `newArchFlags` 等全部必填字段；
-   缺失会在设备 gate `fingerprintsEqual → sortObjectKeys` 崩。更新应由 rn-delivery 产出，
+   缺失会在设备 gate `fingerprintsEqual → sortObjectKeys` 崩。更新应由 ship 产出，
    勿手搓（本样本曾踩此坑）。

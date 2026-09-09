@@ -15,7 +15,7 @@ import { runUpdate } from "./update.js";
 import { runValidate } from "./validate.js";
 import { DeliveryError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./util.js";
 
-const USAGE = `Usage: rn-delivery <command> [options]
+const USAGE = `Usage: ship <command> [options]
 
 Delivery host for candidate packages. Do not use for store submit.
 
@@ -96,7 +96,7 @@ function parsePlatform(
     return value;
   }
   throw new DeliveryError(
-    "rn-delivery: --platform must be android|ios|all",
+    "ship: --platform must be android|ios|all",
     EXIT_USAGE,
   );
 }
@@ -110,7 +110,7 @@ function parseReleasePlatform(
     return value;
   }
   throw new DeliveryError(
-    "rn-delivery release: --platform must be android|ios",
+    "ship release: --platform must be android|ios",
     EXIT_USAGE,
   );
 }
@@ -122,7 +122,7 @@ function parseProfile(args: string[]): DeliveryProfile | undefined {
     return value;
   }
   throw new DeliveryError(
-    "rn-delivery: --profile must be debug-host|release",
+    "ship: --profile must be debug-host|release",
     EXIT_USAGE,
   );
 }
@@ -131,7 +131,7 @@ function requireModule(args: string[]): string {
   const moduleId = flagValue(args, "--module");
   if (!moduleId?.trim()) {
     throw new DeliveryError(
-      "rn-delivery update: --module <business_module> required",
+      "ship update: --module <business_module> required",
       EXIT_USAGE,
     );
   }
@@ -157,16 +157,16 @@ export async function run(argv = process.argv): Promise<number> {
 
   if (args.length === 0) {
     console.error(
-      "rn-delivery: pass a command. Delivery host is not for store submit.",
+      "ship: pass a command. Delivery host is not for store submit.",
     );
-    console.error("Run `rn-delivery --help` for commands.");
+    console.error("Run `ship --help` for commands.");
     return EXIT_FAIL;
   }
 
   const cmd = args[0];
   if (!cmd || !KNOWN.has(cmd)) {
-    console.error(`rn-delivery: unknown command '${cmd ?? ""}'.`);
-    console.error("Run `rn-delivery --help` for commands.");
+    console.error(`ship: unknown command '${cmd ?? ""}'.`);
+    console.error("Run `ship --help` for commands.");
     return EXIT_USAGE;
   }
 
@@ -314,13 +314,13 @@ export async function run(argv = process.argv): Promise<number> {
         return EXIT_OK;
       }
       throw new DeliveryError(
-        "rn-delivery signal: use record|list|clear",
+        "ship signal: use record|list|clear",
         EXIT_USAGE,
       );
     }
 
     console.error(
-      `rn-delivery ${cmd}: not implemented. Do not use for store submit.`,
+      `ship ${cmd}: not implemented. Do not use for store submit.`,
     );
     return EXIT_FAIL;
   } catch (err) {

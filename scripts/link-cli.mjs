@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Link `rn` / `rn-delivery` onto the user PATH so this works without monorepo cwd:
+ * Link `rn` (and `ship`) onto the user PATH so this works without monorepo cwd:
  *
  *   mkdir app && cd app && rn init
  *
@@ -36,11 +36,6 @@ const bins = [
     name: "rn",
     packageDir: path.join(repoRoot, "packages/rn"),
     target: path.join(repoRoot, "packages/rn/bin/rn.mjs"),
-  },
-  {
-    name: "rn-delivery",
-    packageDir: path.join(repoRoot, "packages/ship"),
-    target: path.join(repoRoot, "packages/ship/bin/ship.mjs"),
   },
 ];
 

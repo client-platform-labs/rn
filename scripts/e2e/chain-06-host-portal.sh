@@ -35,7 +35,7 @@ if grep -qE "upload|apk|host" <<< "$HTML"; then ok "装包台页面含 host 关�
 else warn "装包台页面未含 host 关键词"; SKIPS=$((SKIPS+1)); fi
 
 step "6.6 发壳流程：APK → ingest-host → sign → release → staging"
-RD="$E2E_REPO/packages/rn-delivery/bin/rn-delivery.mjs"
+RD="$E2E_REPO/packages/ship/bin/ship.mjs"
 APK="$E2E_HOST/android/app/build/outputs/apk/release/app-release.apk"
 [[ -f "$APK" ]] || { err "无 release APK"; FAILS=$((FAILS+1)); chain_done; }
 

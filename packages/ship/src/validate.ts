@@ -87,7 +87,7 @@ export function evaluateCandidateReady(
       ok: signed,
       summary: signed
         ? "js-update signature sealed"
-        : "js-update missing signature — run rn-delivery sign",
+        : "js-update missing signature — run ship sign",
       blocking: !signed,
     });
 
@@ -103,7 +103,7 @@ export function evaluateCandidateReady(
         ok: valid,
         summary: valid
           ? "js-update HMAC signature valid"
-          : "js-update HMAC signature mismatch — re-run rn-delivery sign",
+          : "js-update HMAC signature mismatch — re-run ship sign",
         blocking: !valid,
       });
     }
@@ -140,7 +140,7 @@ export function evaluateDeliveryValidate(options: {
       id: "candidate-present",
       ok: false,
       summary:
-        "no candidate metadata — run rn-delivery build --profile release first",
+        "no candidate metadata — run ship build --profile release first",
       blocking: true,
     });
     return { ok: false, checks, candidate: null };
@@ -193,6 +193,6 @@ export async function runValidate(options: {
     ),
   );
   if (!result.ok) {
-    throw new DeliveryError("rn-delivery validate: FAIL", EXIT_FAIL);
+    throw new DeliveryError("ship validate: FAIL", EXIT_FAIL);
   }
 }

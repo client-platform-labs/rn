@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * #7 thin CP API smoke — rn-delivery serve over file registry.
+ * #7 thin CP API smoke — ship serve over file registry.
  *
  * Usage:
  *   node scripts/verify-cp-stub-api.mjs [projectRoot]

@@ -28,7 +28,7 @@ export async function runPromote(options: {
   const staging = registry.staging.find((c) => c.digest === digest);
   if (!staging) {
     throw new DeliveryError(
-      `no staging candidate for digest ${digest} — run rn-delivery release first`,
+      `no staging candidate for digest ${digest} — run ship release first`,
       EXIT_FAIL,
     );
   }

@@ -201,5 +201,5 @@ console.error(`brownfield RCT host: ${path.relative(projectRoot, shellOut)}`);
 console.error(`brownfield RCT host: ${path.relative(projectRoot, surfaceOut)}`);
 console.error("Next:");
 console.error("  rn doctor --profile brownfield");
-console.error("  rn-delivery build --platform android --profile debug-host");
+console.error("  ship build --platform android --profile debug-host");
 console.error("  adb install -r android/app/build/outputs/apk/debug/app-debug.apk");

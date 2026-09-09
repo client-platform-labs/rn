@@ -6,7 +6,7 @@
  *   node scripts/verify-debug-host.mjs [projectRoot]
  *
  * Without projectRoot: contract + schema checks only.
- * With projectRoot: also reads last rn-delivery build metadata if present.
+ * With projectRoot: also reads last ship build metadata if present.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -93,7 +93,7 @@ if (projectRoot) {
       console.log("[SKIP] no android debug-host entry in build-results.json");
     }
   } else {
-    console.log("[SKIP] no .rn/delivery/build-results.json — run rn-delivery build first");
+    console.log("[SKIP] no .rn/delivery/build-results.json — run ship build first");
   }
 }
 

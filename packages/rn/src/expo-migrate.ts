@@ -68,12 +68,12 @@ function buildTracks(options: {
     id: 0,
     name: "retain-expo-overlay",
     summary:
-      "Keep Expo SDK; add client-platform.manifest.jsonc + rn-delivery adapter (no eject)",
+      "Keep Expo SDK; add client-platform.manifest.jsonc + ship adapter (no eject)",
     recommended: true,
     steps: [
       "Add client-platform.manifest.jsonc with interop.expo.sdkVersion and optional runtimeVersionMap",
       "Run rn doctor --profile expo to verify SDK/RN alignment",
-      "Wire rn-delivery to read Expo artifacts without making app.json authoritative",
+      "Wire ship to read Expo artifacts without making app.json authoritative",
     ],
     risks: [
       "Expo Go is not an enterprise runtime baseline (ADR-003)",

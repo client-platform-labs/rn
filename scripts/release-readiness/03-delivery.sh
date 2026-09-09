@@ -12,13 +12,13 @@ echo "── 03 Delivery ──────────────────�
 
 FAIL=0
 
-# 1. rn-delivery 二进制
-echo "[1/5] rn-delivery 入口 …"
-if [[ -f "$REPO_ROOT/packages/rn-delivery/bin/rn-delivery.js" ]] \
-|| [[ -d "$REPO_ROOT/packages/rn-delivery" ]]; then
-  echo "  ✓ rn-delivery 包存在"
+# 1. ship 二进制
+echo "[1/5] ship 入口 …"
+if [[ -f "$REPO_ROOT/packages/ship/bin/ship.js" ]] \
+|| [[ -d "$REPO_ROOT/packages/ship" ]]; then
+  echo "  ✓ ship 包存在"
 else
-  echo "  ✗ rn-delivery 包缺失"
+  echo "  ✗ ship 包缺失"
   FAIL=1
 fi
 
@@ -26,9 +26,9 @@ fi
 echo "[2/5] 七阶段合同 …"
 STAGES=(validate compile sign test attest promote submit)
 for s in "${STAGES[@]}"; do
-  # 阶段子命令是否在 rn-delivery 暴露
-  if grep -q "\"${s}\"" "$REPO_ROOT/packages/rn-delivery/package.json" 2>/dev/null \
-  || find "$REPO_ROOT/packages/rn-delivery/src" -name "${s}.*" 2>/dev/null | head -1 | grep -q .; then
+  # 阶段子命令是否在 ship 暴露
+  if grep -q "\"${s}\"" "$REPO_ROOT/packages/ship/package.json" 2>/dev/null \
+  || find "$REPO_ROOT/packages/ship/src" -name "${s}.*" 2>/dev/null | head -1 | grep -q .; then
     echo "  ✓ 阶段 ${s}"
   else
     echo "  ⚠ 阶段 ${s} 未直接找到（可能聚合在 build/release 子命令）"
@@ -37,7 +37,7 @@ done
 
 # 3. 双 SBOM 槽
 echo "[3/5] 双 SBOM 接口 …"
-SBOM_FILES=$(find "$REPO_ROOT/packages/rn-delivery" -name "*sbom*" 2>/dev/null | wc -l)
+SBOM_FILES=$(find "$REPO_ROOT/packages/ship" -name "*sbom*" 2>/dev/null | wc -l)
 if [[ $SBOM_FILES -ge 1 ]]; then
   echo "  ✓ SBOM 槽实现存在 (${SBOM_FILES} 个文件)"
 else
@@ -46,7 +46,7 @@ fi
 
 # 4. 双签字（HMAC + 真签字根）
 echo "[4/5] 签字 …"
-SIGN_FILES=$(find "$REPO_ROOT/packages/rn-delivery" -name "*sign*" 2>/dev/null | wc -l)
+SIGN_FILES=$(find "$REPO_ROOT/packages/ship" -name "*sign*" 2>/dev/null | wc -l)
 if [[ $SIGN_FILES -ge 1 ]]; then
   echo "  ✓ 签字实现存在 (${SIGN_FILES} 个文件)"
 else

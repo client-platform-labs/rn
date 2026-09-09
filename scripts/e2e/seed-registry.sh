@@ -15,7 +15,7 @@
 set -o pipefail
 source "$(dirname "$0")/lib.sh"
 
-RD="$E2E_REPO/packages/rn-delivery/bin/rn-delivery.mjs"
+RD="$E2E_REPO/packages/ship/bin/ship.mjs"
 cd "$E2E_HOST"
 
 step "seed.host: ingest-host app-release.apk → staging"

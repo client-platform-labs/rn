@@ -411,7 +411,7 @@ export async function runDoctor(options: {
     }
     if (releaseChecks.some((c) => !c.ok)) {
       logger.writeHuman(
-        "  hint: run rn dev-support remove before rn-delivery build --profile release",
+        "  hint: run rn dev-support remove before ship build --profile release",
       );
     }
 

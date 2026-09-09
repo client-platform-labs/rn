@@ -1152,7 +1152,7 @@ export async function runServe(options: {
 }): Promise<void> {
   const handle = createControlPlane({ ...options, serviceMode: "cli-serve" });
   await handle.listen();
-  printBanner(handle, "rn-delivery serve");
+  printBanner(handle, "ship serve");
   await new Promise(() => {
     /* keep alive until SIGINT */
   });
@@ -1175,7 +1175,7 @@ export async function runCpServe(options: {
     serviceMode: "cp-serve",
   });
   await handle.listen();
-  printBanner(handle, "rn-delivery cp-serve");
+  printBanner(handle, "ship cp-serve");
   const shutdown = async () => {
     try {
       await handle.close();

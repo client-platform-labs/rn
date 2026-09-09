@@ -48,7 +48,7 @@ else
 fi
 
 step "4.6 [部署] host 七阶段（ingest-host）"
-RD="$E2E_REPO/packages/rn-delivery/bin/rn-delivery.mjs"
+RD="$E2E_REPO/packages/ship/bin/ship.mjs"
 cd "$E2E_HOST"
 out=$(RN_CP_TOKEN="$E2E_TOKEN" node "$RD" ingest-host --apk "$E2E_HOST/android/app/build/outputs/apk/release/app-release.apk" 2>&1)
 if grep -qE "ingest|signed|host" <<< "$out"; then ok "ingest-host OK"

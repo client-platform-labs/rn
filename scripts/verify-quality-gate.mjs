@@ -97,7 +97,7 @@ if (promoteBlocked.status === 0) {
   console.error("FAIL: promote should be blocked");
   process.exit(1);
 }
-console.log("[OK] rn-delivery promote rejected");
+console.log("[OK] ship promote rejected");
 
 spawnSync(process.execPath, [rd, "signal", "clear"], { cwd: projectRoot });
 console.error("quality-gate verify: PASS");

@@ -421,7 +421,7 @@
 
     function renderCandidates(el, list, lane) {
       if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty">暂无数据 — 请先用 rn-delivery 把制品 release 到${lane === "staging" ? "预发" : "生产"}</div>`;
+        el.innerHTML = `<div class="empty">暂无数据 — 请先用 ship 把制品 release 到${lane === "staging" ? "预发" : "生产"}</div>`;
         return;
       }
       const body = list

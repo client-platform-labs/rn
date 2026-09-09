@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # chain 01 — CLI 工具链自检
 # 覆盖：
-#   - rn / rn-delivery 双 CLI 可用
-#   - rn help / rn-delivery help 输出
+#   - rn / ship 双 CLI 可用
+#   - rn help / ship help 输出
 #   - rn doctor L0/L3e
-#   - rn-delivery cp / build / sign / release / promote 全子命令
+#   - ship cp / build / sign / release / promote 全子命令
 #   - 子命令不破坏 POLA（无未公开命令）
 set -uo pipefail
 source "$(dirname "$0")/lib.sh"
@@ -13,9 +13,9 @@ step "1.1 rn CLI 可用"
 which rn >/dev/null || { err "rn 不在 PATH"; exit 1; }
 ok "rn @ $(which rn)"
 
-step "1.2 rn-delivery CLI 可用"
-which rn-delivery >/dev/null || { err "rn-delivery 不在 PATH"; exit 1; }
-ok "rn-delivery @ $(which rn-delivery)"
+step "1.2 ship CLI 可用"
+which ship >/dev/null || { err "ship 不在 PATH"; exit 1; }
+ok "ship @ $(which ship)"
 
 step "1.3 rn help（公开子命令清单）"
 RN_HELP=$(rn help 2>&1 || true)
@@ -25,18 +25,18 @@ for sub in init doctor build; do
   else warn "rn help 未列 ${sub}（可能为内部命令）"; fi
 done
 
-step "1.4 rn-delivery help（必须含 cp-serve / ingest-host / ingest-pack / sign / release / promote）"
-RD_HELP=$(rn-delivery help 2>&1 || rn-delivery --help 2>&1 || true)
+step "1.4 ship help（必须含 cp-serve / ingest-host / ingest-pack / sign / release / promote）"
+RD_HELP=$(ship help 2>&1 || ship --help 2>&1 || true)
 for sub in cp-serve ingest-host ingest-pack sign release promote; do
-  if grep -qE "\\b${sub}\\b" <<< "$RD_HELP"; then ok "rn-delivery 含 ${sub}"
-  else err "rn-delivery 缺 ${sub}"; FAILS=$((FAILS+1)); fi
+  if grep -qE "\\b${sub}\\b" <<< "$RD_HELP"; then ok "ship 含 ${sub}"
+  else err "ship 缺 ${sub}"; FAILS=$((FAILS+1)); fi
 done
 
-step "1.5 rn-delivery serve（self-serve 模式入口）"
-if rn-delivery serve --help 2>&1 | grep -qE "port|host"; then
-  ok "rn-delivery serve --help OK"
+step "1.5 ship serve（self-serve 模式入口）"
+if ship serve --help 2>&1 | grep -qE "port|host"; then
+  ok "ship serve --help OK"
 else
-  err "rn-delivery serve --help 异常"
+  err "ship serve --help 异常"
   FAILS=$((FAILS+1))
 fi
 

@@ -76,11 +76,11 @@ export function sealCandidateSignature(input: {
         };
       }
       console.error(
-        `rn-delivery sign: PEM key type "${type}" unsupported; falling back`,
+        `ship sign: PEM key type "${type}" unsupported; falling back`,
       );
     } catch (err) {
       console.error(
-        `rn-delivery sign: PEM seal failed (${err instanceof Error ? err.message : String(err)}); falling back`,
+        `ship sign: PEM seal failed (${err instanceof Error ? err.message : String(err)}); falling back`,
       );
     }
   }

@@ -12,7 +12,7 @@
  *   --lane staging|production|all   (default staging)
  *   --digest <sha256>               pick candidate (default: newest in lane)
  *   --serial <adb-serial>
- *   --record-signal                 append rn-delivery signal record on success
+ *   --record-signal                 append ship signal record on success
  *   --dry-run                       list + audit only, no adb
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";

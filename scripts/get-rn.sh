@@ -101,7 +101,7 @@ preflight() {
   elif [[ -d "$HOME/Library/Android/sdk" ]]; then
     log "Android SDK: $HOME/Library/Android/sdk"
   else
-    warn "Android SDK missing (needed for rn-delivery build / rn dev --android)"
+    warn "Android SDK missing (needed for ship build / rn dev --android)"
   fi
   if have adb; then
     log "adb ok"
@@ -172,11 +172,11 @@ clone_or_update() {
 link_bins() {
   ensure_path_profile
   ln -sfn "$HOME_DIR/packages/rn/bin/rn.mjs" "$LOCAL_BIN/rn"
-  ln -sfn "$HOME_DIR/packages/rn-delivery/bin/rn-delivery.mjs" "$LOCAL_BIN/rn-delivery"
-  chmod +x "$HOME_DIR/packages/rn/bin/rn.mjs" "$HOME_DIR/packages/rn-delivery/bin/rn-delivery.mjs" || true
+  ln -sfn "$HOME_DIR/packages/ship/bin/ship.mjs" "$LOCAL_BIN/ship"
+  chmod +x "$HOME_DIR/packages/rn/bin/rn.mjs" "$HOME_DIR/packages/ship/bin/ship.mjs" || true
   # also npm-link when possible (nvm prefix)
   (cd "$HOME_DIR/packages/rn" && npm link --no-fund --no-audit --silent) || true
-  (cd "$HOME_DIR/packages/rn-delivery" && npm link --no-fund --no-audit --silent) || true
+  (cd "$HOME_DIR/packages/ship" && npm link --no-fund --no-audit --silent) || true
 }
 
 do_install() {
@@ -213,7 +213,7 @@ do_uninstall() {
   if have rn; then
     rn self uninstall --yes || true
   fi
-  rm -f "$LOCAL_BIN/rn" "$LOCAL_BIN/rn-delivery"
+  rm -f "$LOCAL_BIN/rn" "$LOCAL_BIN/ship"
   rm -f "$ENV_FILE"
   rm -rf "$HOME_DIR"
   log "uninstall OK"

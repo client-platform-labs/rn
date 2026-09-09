@@ -2,7 +2,7 @@
 /**
  * Branch M8 — BF L4 steel-thread (same pipe as GF · map-a/#22).
  *
- * Unified model: identical rn-delivery / CP / verify scripts; only
+ * Unified model: identical ship / CP / verify scripts; only
  * host-profile=brownfield + native SurfaceHost scaffold differ.
  *
  * Usage:
@@ -69,12 +69,12 @@ console.log("");
 console.log("BF L4 manual checklist (same commands as GF):");
 console.log("  rn doctor --profile brownfield");
 console.log("  rn dev-support remove   # before release profile");
-console.log("  rn-delivery build --platform android --profile release");
-console.log("  rn-delivery release --install");
-console.log("  rn-delivery update --module main --profile release");
-console.log("  rn-delivery sign && rn-delivery release && rn-delivery promote");
+console.log("  ship build --platform android --profile release");
+console.log("  ship release --install");
+console.log("  ship update --module main --profile release");
+console.log("  ship sign && ship release && ship promote");
 console.log("  node scripts/verify-js-update-load.mjs .");
-console.log("  rn-delivery block --reason 'BF L4 rollback drill'");
+console.log("  ship block --reason 'BF L4 rollback drill'");
 console.log("  # Device: native shell → Open RN surface → reload (no Gradle)");
 console.log("");
 

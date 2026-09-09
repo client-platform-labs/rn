@@ -31,7 +31,7 @@ export async function installAndroidApk(apkPath: string): Promise<void> {
       EXIT_FAIL,
     );
   }
-  console.error(`rn-delivery install: adb install -r ${resolved}`);
+  console.error(`ship install: adb install -r ${resolved}`);
   const code = await runStreaming(adb, ["install", "-r", resolved], {});
   if (code !== 0) {
     throw new DeliveryError(`adb install failed (exit ${code})`, EXIT_FAIL);
@@ -66,7 +66,7 @@ export async function installIosApp(appPath: string): Promise<void> {
     );
   }
 
-  console.error(`rn-delivery install: simctl install booted ${resolved}`);
+  console.error(`ship install: simctl install booted ${resolved}`);
   const installCode = await runStreaming("xcrun", [
     "simctl",
     "install",
@@ -77,7 +77,7 @@ export async function installIosApp(appPath: string): Promise<void> {
     throw new DeliveryError(`simctl install failed (exit ${installCode})`, EXIT_FAIL);
   }
 
-  console.error(`rn-delivery install: simctl launch booted ${bundleId}`);
+  console.error(`ship install: simctl launch booted ${bundleId}`);
   const launchCode = await runStreaming("xcrun", [
     "simctl",
     "launch",

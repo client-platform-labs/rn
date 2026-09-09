@@ -1,6 +1,6 @@
 /**
  * Release source/APK hygiene (Spine M2 / ADR-008 G-P0).
- * Shared by `rn doctor` (L3f) and `rn-delivery build --profile release`.
+ * Shared by `rn doctor` (L3f) and `ship build --profile release`.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";

@@ -51,7 +51,7 @@ if (existsSync(apk)) {
   if (r.status !== 0) failed = true;
   console.log(`[${r.status === 0 ? "OK" : "FAIL"}] M2 APK hygiene scan`);
 } else {
-  console.log("[SKIP] release APK — run rn-delivery build --profile release");
+  console.log("[SKIP] release APK — run ship build --profile release");
 }
 
 run("M7 js-update load gate", path.join(repoRoot, "scripts/verify-js-update-load.mjs"));
@@ -101,9 +101,9 @@ console.log(
 console.log("");
 console.log("GF L4 manual checklist:");
 console.log("  rn doctor");
-console.log("  rn-delivery build --profile release && rn-delivery release --install");
-console.log("  rn-delivery update --module main && sign && release && promote");
-console.log("  rn-delivery block --reason 'L4 rollback drill'");
+console.log("  ship build --profile release && ship release --install");
+console.log("  ship update --module main && sign && release && promote");
+console.log("  ship block --reason 'L4 rollback drill'");
 console.log("");
 
 if (failed) {

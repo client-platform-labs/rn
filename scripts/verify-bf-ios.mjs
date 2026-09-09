@@ -3,7 +3,7 @@
  * #5 — iOS rn-module stub podspec contract + real simulator build/install/launch (L2).
  *
  * L0 (static, always runs): podspec / Swift sources present + well-formed.
- * L1 (dynamic, best-effort): build .app + simctl install/launch via rn-delivery.
+ * L1 (dynamic, best-effort): build .app + simctl install/launch via ship.
  *   Any L1 environment gap (non-darwin, no pod, no simulator) → SKIP, not FAIL.
  *
  * Usage:
@@ -85,9 +85,9 @@ if (!isDarwin) {
     timeout: 600_000,
   });
   if (build.status !== 0) {
-    step(`rn-delivery build ios (exit ${build.status})`, false, build.stderr?.split("\n").slice(-3).join(" | "));
+    step(`ship build ios (exit ${build.status})`, false, build.stderr?.split("\n").slice(-3).join(" | "));
   } else {
-    console.log("OK rn-delivery build ios (exit 0)");
+    console.log("OK ship build ios (exit 0)");
     const cand = JSON.parse(
       readFileSync(path.join(hostRoot, ".rn/delivery/last-candidate.json"), "utf8"),
     );

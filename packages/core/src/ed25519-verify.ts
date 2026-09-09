@@ -1,7 +1,7 @@
 /**
  * ADR-017 — device-side Ed25519 verification (pure, no I/O).
  *
- * Verifies `pem:ed25519:<base64>` seals produced by rn-delivery `sign.ts`
+ * Verifies `pem:ed25519:<base64>` seals produced by ship `sign.ts`
  * against baked public keys (K1 + K2). Crypto runs in @noble/ed25519
  * (audited, pure JS, Hermes-safe) with a sync SHA-512 wired from
  * @noble/hashes at module load — Hermes has no WebCrypto subtle.
@@ -40,7 +40,7 @@ function base64ToBytes(b64: string): Uint8Array {
 /**
  * Verify a `pem:ed25519:<base64>` seal against any of the baked public keys and
  * return the matching key (hex) or null. The signed message is the same one
- * rn-delivery sign.ts seals: `${release_id}:${artifact_kind}:${digest}`.
+ * ship sign.ts seals: `${release_id}:${artifact_kind}:${digest}`.
  * Returns null (never throws) on malformed seals / keys / signatures.
  */
 export function verifyEd25519Seal(

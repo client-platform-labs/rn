@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Map B — CP bearer auth on rn-delivery serve mutating routes.
+ * Map B — CP bearer auth on ship serve mutating routes.
  *
  * Usage:
  *   node scripts/verify-cp-auth.mjs

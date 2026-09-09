@@ -38,7 +38,7 @@ export function pickCandidate(
 
   if (!last) {
     throw new DeliveryError(
-      "no candidate metadata — run rn-delivery build or update first",
+      "no candidate metadata — run ship build or update first",
       EXIT_FAIL,
     );
   }

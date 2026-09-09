@@ -37,7 +37,7 @@ function sampleCandidate(root: string) {
 
 describe("candidate store", () => {
   it("persists last candidate from build results", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-store-"));
+    const root = mkdtempSync(path.join(tmpdir(), "ship-store-"));
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({ name: "demo" }),
@@ -50,7 +50,7 @@ describe("candidate store", () => {
   });
 
   it("pickCandidate prefers signed last-candidate over stale last-build", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-pick-"));
+    const root = mkdtempSync(path.join(tmpdir(), "ship-pick-"));
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({ name: "demo" }),
@@ -78,7 +78,7 @@ describe("candidate store", () => {
   });
 
   it("promotes to staging and blocks with rollback drill", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-store-"));
+    const root = mkdtempSync(path.join(tmpdir(), "ship-store-"));
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({ name: "demo" }),
@@ -97,7 +97,7 @@ describe("candidate store", () => {
   });
 
   it("lists installable app-host candidates for #15", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-store-"));
+    const root = mkdtempSync(path.join(tmpdir(), "ship-store-"));
     const meta = sampleCandidate(root);
     const debugApk = path.join(root, "app-debug.apk");
     writeFileSync(debugApk, "fake-debug");
@@ -122,7 +122,7 @@ describe("candidate store", () => {
 
 describe("evaluateDeliveryValidate", () => {
   it("passes clean project with sealed candidate", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-validate-"));
+    const root = mkdtempSync(path.join(tmpdir(), "ship-validate-"));
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({ name: "demo" }),
@@ -137,7 +137,7 @@ describe("evaluateDeliveryValidate", () => {
   });
 
   it("fails when dev-support dir is present", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "rn-delivery-validate-"));
+    const root = mkdtempSync(path.join(tmpdir(), "ship-validate-"));
     writeFileSync(
       path.join(root, "package.json"),
       JSON.stringify({ name: "demo" }),

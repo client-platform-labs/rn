@@ -9,7 +9,7 @@
 
 | # | Chain | 文件 | 覆盖 |
 |---|-------|------|------|
-| 1 | CLI 工具链 | `chain-01-cli.sh` | `rn` / `rn-delivery` 公开面 · POLA · help 完整性 |
+| 1 | CLI 工具链 | `chain-01-cli.sh` | `rn` / `ship` 公开面 · POLA · help 完整性 |
 | 2 | Debug 包加载多离线包 | `chain-02-debug-multi-bundle.sh` | adb reverse 6 端口 · 多 Metro · 多 bundle · loadPolicy=permissive |
 | 3 | Release 壳加载 | `chain-03-release-load.sh` | registry · APK 拉取 · JS bundle 拉取 · 装包启动 · 无 FATAL |
 | 4 | 壳全生命周期 | `chain-04-shell-lifecycle.sh` | 新建 / 调试 / 部署（ingest→sign→release→promote）/ 运维（pause/kill/rollout） |

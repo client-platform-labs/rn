@@ -12,8 +12,8 @@
 |----|------|---------|
 | **平台合同 L0 达上市前** | `bash 01-platform-contract.sh` exit 0 | 01 |
 | **Runtime / Delivery / CP / Governance 达上市前** | `02–05.sh` exit 0 | 02–05 |
-| **业务 APK / IPA 候选包** | 走 `rn-delivery build --profile release` | 03 |
-| **CP promote 一条 module** | 走 `rn-delivery promote` 或 CP Web | 04 |
+| **业务 APK / IPA 候选包** | 走 `ship build --profile release` | 03 |
+| **CP promote 一条 module** | 走 `ship promote` 或 CP Web | 04 |
 | **Release 洁净证据** | `verify-tiangong-release-hygiene.mjs` | 02 |
 | **多 Metro 端口表锁定** | 业务 `dev-session.jsonc` 提交到 CP | 02 |
 | **JS 列车指纹 + 三档放行档** | 业务模块 manifest 提交 | 03 |

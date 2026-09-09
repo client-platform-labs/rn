@@ -118,7 +118,7 @@ const build = skipBuild
   { cwd: projectRoot, encoding: "utf8", env: process.env },
 );
 step(
-  "rn-delivery build debug-host",
+  "ship build debug-host",
   build.status === 0,
   skipBuild ? "skipped" : `exit ${build.status}`,
 );

@@ -75,7 +75,7 @@ export async function runBuild(options: {
 
   if (profile === "release" && !releaseSourceHygieneOk(projectRoot)) {
     throw new DeliveryError(
-      "Release hygiene failed — dev-support surfaces still present. Run `rn doctor` (L3f) and `rn dev-support remove`, then retry `rn-delivery build --profile release`.",
+      "Release hygiene failed — dev-support surfaces still present. Run `rn doctor` (L3f) and `rn dev-support remove`, then retry `ship build --profile release`.",
       EXIT_FAIL,
     );
   }
@@ -94,12 +94,12 @@ export async function runBuild(options: {
           EXIT_FAIL,
         );
       }
-      console.error("rn-delivery build: skip android (android/ missing)");
+      console.error("ship build: skip android (android/ missing)");
     } else {
       const sdk = findAndroidSdkRoot();
       if (!sdk) {
         throw new DeliveryError(
-          "Android SDK missing (set ANDROID_HOME or ANDROID_SDK_ROOT). Install Android Studio SDK + platform-tools, then retry `rn-delivery build --platform android`.",
+          "Android SDK missing (set ANDROID_HOME or ANDROID_SDK_ROOT). Install Android Studio SDK + platform-tools, then retry `ship build --platform android`.",
           EXIT_FAIL,
         );
       }
@@ -116,7 +116,7 @@ export async function runBuild(options: {
       const assembleTask = androidAssembleGradleTask(profile);
       const wantsRnModule = manifest?.artifact_kind === "rn-module";
       console.error(
-        `rn-delivery build: assembling Android ${profile === "release" ? "release" : "debug"} ${wantsRnModule ? "AAR" : "APK"} via Gradle (${assembleTask})…`,
+        `ship build: assembling Android ${profile === "release" ? "release" : "debug"} ${wantsRnModule ? "AAR" : "APK"} via Gradle (${assembleTask})…`,
       );
       const code = await runStreaming(gradlew, [assembleTask], {
         cwd: androidDir,
@@ -171,10 +171,10 @@ export async function runBuild(options: {
           EXIT_FAIL,
         );
       }
-      console.error("rn-delivery build: skip ios (ios/ missing)");
+      console.error("ship build: skip ios (ios/ missing)");
     } else if (process.platform !== "darwin") {
       console.error(
-        "rn-delivery build: iOS debug build requires darwin. Next step: run this command on a Mac with Xcode, or `rn-delivery build --platform android` for APK candidates.",
+        "ship build: iOS debug build requires darwin. Next step: run this command on a Mac with Xcode, or `ship build --platform android` for APK candidates.",
       );
       if (platform === "ios") {
         throw new DeliveryError(
@@ -184,7 +184,7 @@ export async function runBuild(options: {
       }
     } else if (!commandExists("xcodebuild")) {
       console.error(
-        "rn-delivery build: xcodebuild not found. Install Xcode + CLT, open Xcode once, then retry.",
+        "ship build: xcodebuild not found. Install Xcode + CLT, open Xcode once, then retry.",
       );
       throw new DeliveryError(
         "xcodebuild missing — cannot produce iOS debug candidate",
@@ -230,7 +230,7 @@ export async function runBuild(options: {
               "build",
             ];
       console.error(
-        `rn-delivery build: xcodebuild ${iosConfiguration} (iphonesimulator — no store signing)…`,
+        `ship build: xcodebuild ${iosConfiguration} (iphonesimulator — no store signing)…`,
       );
       const code = await runStreaming("xcodebuild", args, { cwd: iosDir });
       if (code !== 0) {
@@ -270,12 +270,12 @@ export async function runBuild(options: {
           meta.path = executable;
         } else {
           console.error(
-            "rn-delivery build: .app found but no primary executable — digest stays pending",
+            "ship build: .app found but no primary executable — digest stays pending",
           );
         }
       } else {
         console.error(
-          "rn-delivery build: .app bundle not found under derived data (digest stays pending)",
+          "ship build: .app bundle not found under derived data (digest stays pending)",
         );
       }
       archiveArtifactIfPresent(projectRoot, meta);

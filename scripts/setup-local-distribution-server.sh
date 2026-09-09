@@ -5,7 +5,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 HOST="${TIANGONG_HOST:-$HOME/code/tiangong-host}"
 NODE="${NODE:-$HOME/.nvm/versions/node/v24.19.0/bin/node}"
-RD="$REPO/packages/rn-delivery/bin/rn-delivery.mjs"
+RD="$REPO/packages/ship/bin/ship.mjs"
 LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
 PROD_DOMAIN="${DIST_PROD_DOMAIN:-dist.tiangong.local}"
 STAGING_DOMAIN="${DIST_STAGING_DOMAIN:-dist-staging.tiangong.local}"

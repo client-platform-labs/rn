@@ -335,7 +335,7 @@ export async function runInit(options: {
       `Wrote ${path.join(cwd, MANIFEST_FILENAME)} (rnExactTuple=${tuple})`,
     );
     options.logger.writeHuman(
-      "Next: rn doctor → rn dev → rn-delivery build --platform android",
+      "Next: rn doctor → rn dev → ship build --platform android",
     );
     options.logger.writeHuman(
       "Android device testing needs ANDROID_HOME + adb (platform-tools). iOS needs Xcode + pod install.",

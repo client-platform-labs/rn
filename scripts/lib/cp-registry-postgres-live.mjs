@@ -1,11 +1,11 @@
 /**
- * Optional live Postgres roundtrip for Map B B8 verify (not imported by rn-delivery build).
+ * Optional live Postgres roundtrip for Map B B8 verify (not imported by ship build).
  */
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
-const dist = path.join(repoRoot, "packages/rn-delivery/dist");
+const dist = path.join(repoRoot, "packages/ship/dist");
 
 export async function tryPostgresRoundtrip(connectionUrl, tenant, registry) {
   let pg;

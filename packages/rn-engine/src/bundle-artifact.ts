@@ -2,7 +2,7 @@
  * Per-module bundle artifact contract (ADR-008 R4).
  *
  * Types + validation only — **no delivery implementation here**.
- * Industrial pack/sign/promote belongs in `rn-delivery` + control plane
+ * Industrial pack/sign/promote belongs in `ship` + control plane
  * (HBC release bundles, signed manifests, CDN). Dev Metro must not be
  * treated as a shippable artifact.
  */
