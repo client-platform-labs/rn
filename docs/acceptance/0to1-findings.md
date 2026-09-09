@@ -21,7 +21,22 @@
 | F13 | P1 初始化（D4 对齐 / 生命周期一致性） | S2 | init 产出一个"引用缺失物"的壳：`metro.config.js` require `.rn/metro/host-resolver.cjs`，但 init 不生成它（仅 `rn module register`/`rn dev` 才生成，`host-metro-config.ts:139`）→ 首次 `rn dev` 前 metro warn 降级、平台包解析未接线。**根因（系统级）**：声明（manifest/dev-session/module 清单）与派生产物（generated-registrations.ts + host-resolver.cjs）生命周期脱节——init 只产出"引用派生物的壳"，不产出派生物 | 实机：`.rn/metro/` 仅有 main.config.cjs；host-metro-config.ts 注释"Regenerate …"；旧工程有该文件因跑过 register | 与 D4"init=最小可跑完整产品"不符；用户 init 后直接 dev 遇 warn/解析缺失（难排查） | **系统级方案（声明→派生模型）**：① 派生产物 = 声明的纯函数（生成函数已存在：host-metro-config + renderModuleRegistry），统一为一个"声明→派生"再生成原语；② 触发点 = init 收尾 + `rn module register`（声明变更）+ `rn dev` 预检（兜底）；③ init 必生成，保证 init 产物即完整产品（D4）；④ metro 对缺失 resolver **fail-closed（报错）**而非 warn 降级（平台包解析是工业壳必须项）；⑤ 写入架构文档（声明→派生） | 待修复 |
 | F14 | P2 模块注册表 | S4 | host-resolver.cjs 生成质量：`WATCH_FOLDERS` 中 `.pnpm` 条目重复 3 次（生成时代码未去重） | 实机 host-resolver.cjs 三个相同 `.pnpm` 行 | 功能无碍（watch 幂等），但派生物不干净 | 生成函数对 WATCH_FOLDERS 去重 | 待修复 |
 | F15 | P3 开发环 | S3 | `rn dev` 行为与帮助文案不符且无日志流：帮助说"starts Metro … then keeps Metro running"，实际多 Metro 编排为 **detached**（终端立即返回，Metro 日志不流向终端）——开发者看不到 Metro/HMR/错误，dev 终端"无反应、非运行态" | 实机：`rn dev --modules main` 输出 "Multi-Metro running (detached)" 后返回；`sed` 改模块 dev 终端无任何输出 | detached 模式下开发闭环不可见；帮助文案误导 | 明确两种模式语义：`rn dev` 前台日志流（默认）vs `rn dev --detached`（后台）；或把日志写入文件并提示 tail；帮助文案与实际一致 | 待修复 |
-| F16 | P3 开发环 | S2 | `rn dev` 复用已占用端口的 Metro **不校验工程身份**：8081 上残留的是旧工程（onboarding-industrial）的 Metro，新工程 `rn dev` 直接"already running"复用 → HMR/开发打到错误工程的内容，且无任何告警 | 实机：PID 30615 cwd=onboarding-industrial；`rn dev` 报 "Metro already running on :8081" | 多工程并行开发时静默连错服务器；开发内容错误难排查 | 复用前校验端口上 Metro 的工程身份（如 /status 或 bundle 指纹/工程根）；身份不符 → 报错并提示端口占用方（不静默复用） | 待修复 |
+| F16 | P3 开发环 | S2 | `rn dev` 复用已占用端口的 Metro **不校验工程身份**：8081 上残留的是旧工程（onboarding-industrial）的 Metro，新工程 `rn dev` 直接"already running"复用 → HMR/开发打到错误工程的内容，且无任何告警 | 实机：PID 30615 cwd=onboarding-industrial；`rn dev` 报 "Metro already running on :8081" | 多工程并行开发时静默连错服务器；开发内容错误难排查 | 见 T4（运行时身份校验：复用任何长驻基础设施前校验工程身份，身份不符即报错，不静默复用） | 待修复 |
+
+---
+
+## 系统级修复框架（非点对点；站在更高抽象）
+
+**方法要求**：所有 finding 的修复方案**禁止点对点补丁**，必须收敛到系统级主题（T1–T4）展开；ticket 按主题开，不按单条 finding 开。
+
+| 主题 | 抽象（站在哪一层） | 收敛的 finding | 系统级解 |
+|------|--------------------|----------------|----------|
+| **T1 信任根子系统** | 签名/验签不是一个功能，是**受管子系统**：生成(HSM) → 规范存放(托管/双人) → 烘焙(声明驱动) → 签名 → 轮换/吊销(证书链)。上游=信任源(负责人/HSM)，下游=设备验签链/CP 签名，中间=烘焙管线 | F01 · F02 · F05 · F06 | 平台把"信任根生命周期"建为一等子系统（D3 证书链+HSM）；lab 自动化与生产 HITL 同一子系统；F01/F02/F05/F06 是它缺失的切片 |
+| **T2 工具链生命周期与用户表面** | 安装/卸载/升级是一条**统一生命周期**（pi/rustup 模型：单一 home + npm-bin 主路径 + 一键卸载），且**用户表面语义化**：命令名、输出、产物路径全部指向真实语义，不泄漏内部分类学/ADR 代号/失效路径 | F03 · F07 · F08 · F09 · F10 · F11 · F12 · F15 | 工具链生命周期作为一等设计层（get-rn.sh/rn self 统一）；用户表面三层审计：命令名语义（F09/F10）、输出语义（F11）、产物路径真实（F12/F15）；F03/F07/F08 为生命周期闭环 |
+| **T3 声明→派生产物系统** | 注册表/host-resolver 等派生物是声明的**纯函数输出**：单一再生成原语，触发点 = init 收尾 / 声明变更 / dev 预检；init 产物即完整产品（D4）；生成质量统一（去重） | F13 · F14 | 声明→派生再生成原语（host-metro-config + renderModuleRegistry 统一）；init 必生成（D4）；派生物生成质量门禁 |
+| **T4 运行时身份校验** | 平台复用任何**长驻基础设施**（Metro 端口 / CP / 设备）前，必须校验其**工程身份**（工程根 / 指纹 / 项目标识），身份不符即报错，绝不静默复用 | F16 | 统一"基础设施身份校验"原语（端口→工程身份）；复用前强制校验；身份契约写入平台文档 |
+
+**票务原则**：演练后按 T1–T4 开 4 张系统级 ticket（或按主题拆分），每个 ticket 收敛对应 finding 及其子问题，不做逐条点修。
 
 ---
 
