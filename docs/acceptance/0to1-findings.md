@@ -1,0 +1,22 @@
+# 0→1 全链路演练 · 问题台账（Findings Log）
+
+> 演练分支：`test-rn1` · 演练对象：RN 平台（`rn-0to1-drill` 全新工程 + 真机）
+> 记录规则：演练中**每发现一个问题**都登记；走完全流程后据此**开图（ticket）从系统层面一一解决**。
+> 严重度：S1 阻断（流程走不通）· S2 高（有损/不安全）· S3 中（体验/一致性）· S4 低（清洁度/文档）
+
+| ID | 阶段 | 严重度 | 问题 | 证据 | 影响 | 修复方向（ticket 素材） | 状态 |
+|----|------|--------|------|------|------|------------------------|------|
+| F01 | P0 密钥供应 | S3 | 密钥生成非一等公民：`ship` 无 keygen 动词，仅 `signature.ts` 内部 helper + `ota.md` 文档 `node -e` 一行 | `ship --help` 命令集无 keygen；`signature.ts:98 generateLabEd25519Pem()` | 0→1 必须从外部复制文档命令，无法体现"平台自供应密钥"；对新人/演示不友好 | 新增 `ship keygen`（生成 ed25519 PEM + 公钥 hex，写 `keys/`，权限 600） | 待修复 |
+| F02 | P0 密钥供应 | S3 | 烘焙公钥硬编码：`ota-android/OtaModule.kt.template` `pushString("3c728c98…")`，`apply-ota-to-project.mjs` 不参数化 | 模板第 46 行硬编码 hex；apply-ota 仅写 README 提示 | 每次换密钥都要手改模板；烘焙的未必是签名用的那把 → 设备验签必然失败 | apply-ota 增加 `--pubkey-hex`（或从 keys/ 自动读）；模板改占位符 | 待修复 |
+| F03 | P0 工具链 | S2 | `get-rn.sh` 安装/卸载 home（`~/.client-platform/rn`）与签名密钥目录撞车；`--uninstall` 会 `rm -rf` 掉同目录密钥 | `~/.client-platform/rn/` 同时是 repo clone + `lab-sign-key.pem`；`do_uninstall` 直接 `rm -rf $HOME_DIR` | 卸载会误删信任根；安装 home 语义被污染 | 安装 home 改独立路径（如 `~/.local/share/client-platform/rn`）或密钥目录独立（`~/.client-platform/keys`）并在文档/预检中约定 | 待修复 |
+
+---
+
+## 演练过程追加（按 Phase 增量记录）
+
+### P0 — 环境与密钥供应（进行中）
+
+- 决策 D1：采用方案 A —— 走**现状**如实演示（`node -e` 生成 lab 密钥 → 手动烘焙新公钥），缺口记为 finding（F01/F02），演练后统一开图解决。
+- 决策 D2：0→1 不使用机器上预置的历史密钥（`~/.client-platform/rn/lab-sign-key.pem`），改为**新生成** lab 密钥（`rn-0to1-drill/keys/`）。
+
+_（后续阶段发现的问题在此追加，保持本表为主索引。）_
