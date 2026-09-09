@@ -10,6 +10,8 @@
 | F02 | P0 密钥供应 | S3 | 烘焙公钥硬编码：`ota-android/OtaModule.kt.template` `pushString("3c728c98…")`，`apply-ota-to-project.mjs` 不参数化 | 模板第 46 行硬编码 hex；apply-ota 仅写 README 提示 | 每次换密钥都要手改模板；烘焙的未必是签名用的那把 → 设备验签必然失败 | apply-ota 增加 `--pubkey-hex`（或从 keys/ 自动读）；模板改占位符。**自动化边界**：烘焙可自动，但"用哪把公钥/哪个发布身份"由人（发布负责人）决定 | 待修复 |
 | F03 | P0 工具链 | S2 | `get-rn.sh` 安装/卸载 home（`~/.client-platform/rn`）与签名密钥目录撞车；`--uninstall` 会 `rm -rf` 掉同目录密钥 | `~/.client-platform/rn/` 同时是 repo clone + `lab-sign-key.pem`；`do_uninstall` 直接 `rm -rf $HOME_DIR` | 卸载会误删信任根；安装 home 语义被污染 | 安装 home 改独立路径（如 `~/.local/share/client-platform/rn`）或密钥目录独立（`~/.client-platform/keys`）并在文档/预检中约定 | 待修复 |
 | F04 | P7 设备 OTA（ADR-018 轮换） | S2 | 吊销清单消费未接通生成壳：shell-core 有 `fetchRevocations` 契约 + `verifyRevocationSeal` 实现（已单测），但工业壳/绿色壳模板都不调用 → ADR-018 应急轮换的"触达时机"在真机不生效 | `pull-ota.ts:54,63` 有钩子；模板 grep 无 `fetchRevocations`；`ed25519-verify.test.ts` 单测在但无调用方 | K1 泄露后无法免重装轮换（信任根恢复路径断）；回滚窗口内吊销不生效 | 生成壳模板（industrial-shell / greenfield-ota）接通 `fetchRevocations`（从 CP `/v1/revocations` 或类似端点拉 + 用烘焙 K2 验），并加真机探针 | 待修复 |
+| F05 | P0 密钥供应 | S2 | 密钥托管/连续性**不是平台能力，只是文档建议**：现状私钥在发布负责人本地（`RN_DELIVERY_SIGN_KEY_FILE` 本地文件）；无线上托管、无双人保管/解密权分离实现；人员离职/转岗无平台级处置（仅 roles-matrix 建议 age 加密异地备份，靠人自觉） | `ota.md` "生产密钥由负责人离线生成并异地保管"为文档建议；无任何托管命令/存储/审计实现 | 发布负责人转岗/离职 = 信任根真实风险；企业审计会问"钥匙到底在哪、谁还能碰" | 把密钥连续性做成平台能力：托管存储（age 加密 + 解密权分离）+ 人员变更触发轮换（K1→K2）流程化 + 审计；或明确定位为"文档约定 + 外部 HSM 接入" | 待修复 |
+| F06 | P0 密钥供应（ADR-018） | S2 | 双钥（K1+K2）**未实现，与 ADR-018 不符**：keygen 只出一对钥；`OtaModule.kt.template` 只烘焙一把（单 `pushString`）；“双钥免重装轮换”是设计文档非现状 | `signature.ts:98` 单对返回；模板第 46 行单 hex | ADR-018 承诺的“1 次 OTA 应急轮换”无法兑现；自研设计与实现漂移 | 决策点：A) 补齐自研双钥（keygen 出 K1+K2、模板烘焙两把、接通吊销清单）；B) 对齐行业主流（单钥 + HSM + 证书链/CRL 吊销）——需重新设计设备端验签链，建议演练后开 ticket 讨论 | 待修复 |
 
 ---
 
