@@ -14,8 +14,8 @@
 | F06 | P0 密钥供应（ADR-018） | S2 | 双钥（K1+K2）**未实现，与 ADR-018 不符**：keygen 只出一对钥；`OtaModule.kt.template` 只烘焙一把（单 `pushString`）；“双钥免重装轮换”是设计文档非现状 | `signature.ts:98` 单对返回；模板第 46 行单 hex | ADR-018 承诺的“1 次 OTA 应急轮换”无法兑现；自研设计与实现漂移 | **已决策 B（2026-09-09）**：弃用自研双钥，对齐行业主流——单签名钥 + HSM 托管（签名在 HSM 内完成）+ 证书链（签名证书由根 CA 签发，设备端验链）+ CRL/OCSP 吊销；设备端信任根改为烘焙根 CA 公钥（业务钥轮换不动设备）。改造面：core 验签链（X.509+CRL/OCSP）· ship sign 对接 HSM/PKCS#11/KMS · 模板烘焙根 CA · CP 吊销端点 · 设备端 pull-ota 验链 · ADR-017/018 修订 | 待修复（演练后开 ticket） |
 | F07 | P0 工具链 | S3 | 卸载入口不一致且 `rn self uninstall` 不完整：完整一键卸载只有 `get-rn.sh --uninstall`（删 rn/ship 链接+ENV_FILE+安装 home）；`rn self uninstall` 漏删 `~/.local/bin/ship`、ENV_FILE、安装 home（~/.client-platform/rn clone） | `self.ts` 遍历仅 ["rn"]、npm unlink rn+ship、markers；get-rn.sh `do_uninstall` 才删 ship/ENV_FILE/home | 用户按文档（cli-distribution.md）用 `rn self uninstall` 卸载会留下大量残余；两个入口行为不一致 | 演练后统一：A) 补全 `rn self uninstall`（+ship/+ENV_FILE/+安装 home）与 get-rn.sh --uninstall 对齐；B) 或文档把 `get-rn.sh --uninstall` 定为唯一卸载入口，`rn self uninstall` 降为只卸 CLI 自身 | 待修复 |
 | F08 | P0 工具链 | S3 | 一键安装后"当前终端激活"步骤非一等公民，且安装目标路径选型错误：`curl \| bash` 跑在子 shell 无法改父 shell PATH（POSIX 约束）；平台把 `~/.local/bin`（新用户 PATH 里没有）当主路径 + env 文件 + 埋没的 source 提示；而 npm 全局 bin 对每个 Node 用户本来就在 PATH（pi/npm install -g 装完即用的秘密）。另：get-rn.sh 的 npm link 打进了安装时 nvm 选的版本（v24.21.0）而非用户活动版本（v24.19.0），其 bin 不在当前 PATH → npm-link 路径形同虚设 | pi 对比：`npm install -g` 装进 npm bin（已在 PATH）；get-rn.sh `link_bins` npm link 到子 shell 的 nvm use 版本；`command -v rn` 无自检 | 新用户装完当前终端不可用且提示不显眼；npm-link 路径因 nvm 版本不一致失效 | **升级方向（pi 模型）**：① 主安装路径 = 活动 Node 的 npm 全局 bin（`npm install -g` / `npm link`），对 Node 用户装完即用零 source；② 安装后自检 `command -v rn`：可解析 → 打印"已可用"；不可 → 才提示 source/重开终端；③ `~/.local/bin` 降为无 npm 环境的兜底；④ cli-distribution.md 把 `npm install -g` 列为主入口，get-rn.sh 为安装器 | 待修复 |
-| F09 | P1 初始化（CLI UX） | S3 | 产品形态（工业壳）需要长命令 `rn init --starter topology-b --industrial`，且 `--starter topology-b` 与默认值重复；`--industrial` 是平台产品却要使用者手动记得加——新用户要么忘加得到降级壳，要么被长命令劝退，与"工业壳=平台产品"定位不符 | cli.ts help：starter 默认即 topology-b；industrial 为独立 flag；README 产品命令写全量长形式 | 产品默认体验缺失；新用户 onboarding 摩擦 | 产品默认：`rn init` 默认产出工业壳（starter=topology-b 已默认，把 industrial 翻转为默认或并入 starter 语义），`--demo`/`--bare`/`--inline` 作为替代；文档同步为 `rn init`（短形式） | 待修复 |
-| F10 | P1 初始化（CLI 命名） | S3 | CLI flag 泄漏内部架构分类学：`--starter topology-b` 把 ADR-005 的"拓扑 B"内部代号直接暴露给用户（用户不懂"拓扑/A/B"，无法从名字推断）；且 `--starter`（布局）与 `--industrial`（壳内容）职责重叠——工业壳就是 topology-b 该有的壳，用户要理解"为什么 B 还要加 industrial" | cli.ts：`--starter topology-b|inline-main`（默认 topology-b）；`--industrial` 独立 flag；命名源自 ADR-005 拓扑分类 | flag 非语义化；新用户无法直觉理解；分类学耦合进公共命令面 | 与 F09 合并：`rn init` 默认产品（壳+模块+工业内容）；`--starter` 不再暴露"拓扑"——去除或用语义名（`--starter shell` / `--starter inline`）；`--demo` 留教学 | 待修复 |
+| F09 | P1 初始化（CLI UX） | S3 | 产品形态（工业壳）需要长命令 `rn init --starter topology-b --industrial`，且 `--starter topology-b` 与默认值重复；`--industrial` 是平台产品却要使用者手动记得加——新用户要么忘加得到降级壳，要么被长命令劝退，与"工业壳=平台产品"定位不符 | cli.ts help：starter 默认即 topology-b；industrial 为独立 flag；README 产品命令写全量长形式 | 产品默认体验缺失；新用户 onboarding 摩擦 | **已决策 D4（产品意图）**：`rn init` 默认 = 最小可跑完整链路（工业壳 + main 模块 + **OTA 原生适配注入** + host-resolver + 平台包链接），覆盖全角色；`rn init --pure`（干净壳）/ `--demo`（教学）为显式降档出口；分层命令，不再要求长 flag | 待修复 |
+| F10 | P1 初始化（CLI 命名） | S3 | CLI flag 泄漏内部架构分类学：`--starter topology-b` 把 ADR-005 的"拓扑 B"内部代号直接暴露给用户（用户不懂"拓扑/A/B"，无法从名字推断）；且 `--starter`（布局）与 `--industrial`（壳内容）职责重叠——工业壳就是 topology-b 该有的壳，用户要理解"为什么 B 还要加 industrial" | cli.ts：`--starter topology-b|inline-main`（默认 topology-b）；`--industrial` 独立 flag；命名源自 ADR-005 拓扑分类 | flag 非语义化；新用户无法直觉理解；分类学耦合进公共命令面 | **已决策 D4**：分层命令替代——`rn init`=产品默认；`--pure`/`--demo` 显式降档；去掉 topology-b/industrial 暴露（或并入语义名） | 待修复 |
 
 ---
 
@@ -34,6 +34,15 @@
 - **可用性靠托管**：私钥 age 加密异地备份（与 ADR-014 DR 同流程），解密权由另一人（托管人）持有——双人保管、解密权分离。
 - **安全性靠轮换**：转岗/离职 = 授权终止 → 触发 K1→K2 轮换（ADR-018 一次免重装轮换），旧负责人副本立即失效。
 - 两个机制都独立于"那个人"。
+
+## 产品意图决策（rn init 定位，Q1–Q3 拍板）
+
+- **决策 D4（2026-09-09）**：
+  1. 目标用户 = **全角色**（业务应用团队 / 移动平台团队 / 运维——开发链路所有角色）。
+  2. `rn init` 默认产物 = **最小可跑完整链路**：工业壳（ShellHost+ModuleRegistry+FailedUI）+ main 业务模块 + **OTA 原生适配注入（必须，RN 产品形态就要 OTA，init 就做）** + host-resolver + 平台包链接。init 完 → `rn dev` 能开发、`ship` 能发布、设备能 OTA。
+  3. 显式降档出口：`rn init --pure`（干净壳）/ `--demo`（教学）；分层命令，不再要求长 flag。
+  4. OTA 适配注入需参数化公钥（F02 方向）：`--pubkey-hex` 或读 keys/，不静默埋默认钥（生产 HITL）。
+- 影响：F09/F10 修复方向已对齐 D4；P1 演练仍按现状（init 不含 OTA 注入，P4 显式注入）走，差异记为 finding。
 
 ## 密钥模型决策（F06 → 行业主流）
 
