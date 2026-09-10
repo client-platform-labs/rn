@@ -128,11 +128,11 @@ export function ShellHost({
           return body;
         },
       });
-      if (result.status === "installed" || result.status === "already_installed") {
-        // G1/ADR-014: healthy boot resets the crash counter so the next launch
-        // starts from zero failures.
-        await native.resetStartupFailures?.(moduleId);
-      }
+      // G1/ADR-014: ANY completed boot (installed / already_installed /
+      // no_update / failed) means the JS survived to this point — the previous
+      // launch did not crash, so the crash-loop counter resets. Only a boot
+      // that dies mid-flight (before this reset) keeps the counter rising.
+      await native.resetStartupFailures?.(moduleId);
       if (result.status === "installed") return;
       if (!cancelled) setBootReady(true);
     })().catch(() => {

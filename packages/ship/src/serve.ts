@@ -14,7 +14,6 @@ import {
   blockCandidateInRegistry,
   blockedUpdateIdsForRuntime,
   buildCrlDoc,
-  findInstallableByDigest,
   findArtifactByDigest,
   getDeviceLane,
   isValidLane,
@@ -557,7 +556,7 @@ export function createControlPlane(options: {
         const crl = buildCrlDoc(projectRoot);
         if (crl.seal === null) {
           console.error(
-            "[cp] /v1/crl served UNSIGNED (no CRL signing key) — devices will reject it (fail-closed). Configure RN_DELIVERY_SIGN_KEY_PEM/FILE or RN_DELIVERY_HSM_SIGN_CMD.",
+            "[cp] /v1/crl served UNSIGNED (no CRL signing key) — devices will reject it (fail-closed). Configure RN_DELIVERY_SIGN_KEY_PEM/FILE or RN_DELIVERY_HSM_SIGN_CMD. IMPORTANT (ADR-024 cert mode): the CRL must be signed with the RCA private key baked into the APK (--rca-pubkey-hex); signing with the leaf key instead makes devices reject every CRL.",
           );
         }
         sendJson(res, 200, crl);

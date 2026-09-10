@@ -135,3 +135,12 @@ G1–G8 代码未引入 e2e 回归；真机 case（G1-D1/G2-D1/G3-D1/G4-D1/G8-D1
   - 顺带修复 pi-lens biome autofix 造成的 1-space 缩进损坏（统一为仓库 2-space）。
 - **Spec 轴**：G1/G2/G3/G4/G7/F10/F19/G8 全部实现且与 ticket 一致；无 scope creep。
 - 复审后全量回归：328 tests / 327 pass / 0 fail / 1 skip；tsc clean；governance PASS；G3-I1 + live CRL PASS。
+
+### 代码审查后追加修复（2026-09-10 · /code-review 两轴）
+
+| 新增 | 严重度 | 根因 | 修复 |
+|------|--------|------|------|
+| R1 | S2 | cert 模式下 CRL 必须用 **RCA 私钥**签名；若运维只配 leaf 钥，设备（烘焙 RCA）会拒所有 CRL → 全量 OTA 断 | serve.ts fail-loud 报错文案补充 `(cert mode: use the RCA private key baked via --rca-pubkey-hex)` |
+| R2 | S2 | 崩溃环计数器在 `no_update` 路径**不复位**：无更新待装的健康设备每次启动 +1，3 次后误触发回滚+reload 循环（greenfield 参考模板同缺陷） | 两个模板改为**任何完整启动**（installed/already_installed/no_update/failed）都 reset —— 只有启动中途崩溃才保留计数 |
+
+验证：328 tests / 0 fail 复跑 PASS；`verify-g3-crl-signed.mjs` + live CRL 复跑 PASS；tsc/governance clean；ShellHost + greenfield 模板 esbuild 语法 PASS。

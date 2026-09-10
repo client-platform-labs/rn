@@ -34,7 +34,14 @@ import type {
 } from "@client-platform/shell-core";
 
 // The host supplies this from its Kotlin module (templates/ota-android).
+// SAFETY: native bridge returns the module or undefined; we treat a missing
+// adapter as an empty OTA surface and fail closed at verify, so the cast only
+// narrows the bridge type — it never invents a working adapter.
 function nativeAdapter(): OtaNativeAdapter {
+  // SAFETY: the RN bridge returns the registered module (or undefined on a
+  // missing registration); a missing adapter yields an empty OTA surface that
+  // fails closed at verify — the cast only narrows the bridge type, it never
+  // invents a working adapter.
   return NativeModules.YourOta as unknown as OtaNativeAdapter;
 }
 
@@ -94,10 +101,12 @@ async function bootOta(moduleId: string): Promise<PullOtaResult> {
     },
   });
 
-  // Mark a healthy boot so the crash counter resets next launch.
-  if (result.status === "installed" || result.status === "already_installed") {
-    await native.resetStartupFailures?.(moduleId);
-  }
+  // Mark a healthy boot so the crash counter resets next launch. ANY completed
+  // boot (installed / already_installed / no_update / failed) means the JS
+  // survived to this point — only a boot that dies mid-flight keeps the counter
+  // rising (crash-loop guard stays correct without false rollbacks on healthy
+  // no-update devices).
+  await native.resetStartupFailures?.(moduleId);
   return result;
 }
 
