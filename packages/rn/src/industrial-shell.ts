@@ -87,11 +87,51 @@ export function applyIndustrialShell(projectRoot: string): void {
 
   linkPlatformPackages(projectRoot);
 
+  // SEAM-1/F20: fresh industrial init bakes the loopback cleartext config so
+  // device OTA over adb reverse works out of the box (was a manual fix on every
+  // new project). Loopback-only — no broad cleartext.
+  bakeNetworkSecurityConfig(projectRoot);
+
   // SEAM-2 (F13/F23): init tail regenerates ALL declaration-derived artifacts
   // (registry + host-resolver + generated-runtime) so the init product is a
   // complete runnable chain (D4), and the OTA base URL has a config seam.
   ensureRuntimeConfig(projectRoot, {});
   regenerateDerivedArtifacts(projectRoot);
+}
+
+/** F20: loopback-only cleartext for device OTA (127.0.0.1/localhost). */
+function bakeNetworkSecurityConfig(projectRoot: string): void {
+  const xmlDir = path.join(
+    projectRoot,
+    "android/app/src/main/res/xml",
+  );
+  const xml = path.join(xmlDir, "network_security_config.xml");
+  mkdirSync(xmlDir, { recursive: true });
+  writeFileSync(
+    xml,
+    `<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
+`,
+    "utf8",
+  );
+  const manifest = path.join(
+    projectRoot,
+    "android/app/src/main/AndroidManifest.xml",
+  );
+  if (!existsSync(manifest)) return;
+  let body = readFileSync(manifest, "utf8");
+  if (!body.includes("networkSecurityConfig")) {
+    body = body.replace(
+      /android:icon="@mipmap\/ic_launcher"/,
+      'android:icon="@mipmap/ic_launcher"\n      android:networkSecurityConfig="@xml/network_security_config"',
+    );
+    writeFileSync(manifest, body, "utf8");
+  }
 }
 
 /**

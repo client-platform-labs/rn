@@ -29,6 +29,9 @@ Commands:
     Per-module js-update bundle (compile). Not Metro dev output.
   ingest-pack --module <id> [--hbc <path>]
     Ingest pack-business HBC at assets/ota/<id>/index.hbc as js-update candidate.
+  keygen [--dir <keys-dir>] [--label <name>]
+    Generate a lab Ed25519 signing keypair (canonical keys dir, 0600) and
+    print the public-key hex for baking (SEAM-1/F01). Production stays HITL.
   ingest-host --apk <path> [--profile release|debug-host]
     Register existing APK as app-host candidate (skip Gradle rebuild).
   sign [--candidate <path>]
@@ -64,6 +67,7 @@ const KNOWN = new Set([
   "build",
   "update",
   "ingest-pack",
+  "keygen",
   "ingest-host",
   "sign",
   "validate",
@@ -211,6 +215,16 @@ export async function run(argv = process.argv): Promise<number> {
         apkPath: apk,
         profile: parseProfile(rest) ?? "release",
       });
+      return EXIT_OK;
+    }
+
+    if (cmd === "keygen") {
+      const { runKeygen, printKeygenResult, DEFAULT_KEYS_DIR } = await import(
+        "./keygen.js"
+      );
+      const dir = flagValue(rest, "--dir") ?? DEFAULT_KEYS_DIR;
+      const label = flagValue(rest, "--label");
+      printKeygenResult(runKeygen({ dir, label }));
       return EXIT_OK;
     }
 
