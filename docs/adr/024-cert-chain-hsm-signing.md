@@ -88,3 +88,26 @@ Supercedes: ADR-018 的"双烘焙钥 + 吊销清单"自研模型
 | **GF/BF** | 同一验签链契约，GF/BF 共用 |
 | **Blast radius** | 信任根迁移 P0；分阶段并行（阶段 1 兼容期），逐阶段验证 |
 | **Evidence** | 单测 + 真机验链/轮换/吊销探针 + 0→1 e2e |
+
+## Amendment (2026-09-10) — Stage-3 迁移设计（证书链默认化 + 旧单钥下线）
+
+**目标**：证书链模型成为默认/唯一信任路径；旧单钥路径在兼容窗口后下线。
+
+| 项 | 现状 | Stage-3 |
+|----|------|---------|
+| keygen | `--cert` 才生成证书链 | **默认生成证书链**（`--legacy` 才单钥） |
+| sign | `RN_DELIVERY_LEAF_*` 可选附带 | **默认必填**（缺 → fail-loud 提示证书链缺失） |
+| 设备信任根 | apply-ota 手动 `--rca-pubkey-hex` | **init/apply-ota 默认烘焙 RCA** |
+| gate 双路径 | 有 certChain 用 cert，无则 stage-0 | **stage-0 加 deprecation 标志**（默认开兼容，配置可关；关闭后 cert 缺失 = fail） |
+| 下线条件 | — | 存量设备全部升级到烘焙 RCA 的 APK（或企业接受强制重装）→ 关 stage-0 |
+
+**迁移时序（每业务）**：
+1. RCA 初始化（离线/HSM 生成 RCA，`ship keygen` 默认产链）
+2. 烘焙 RCA 进**下一个 APK 发版**（apply-ota/init 默认 `--rca-pubkey-hex`）
+3. 新发布 `sign` 默认用 leaf 私钥 + 附带 cert_chain
+4. 存量设备（烘焙单钥）随 APK 升级切换到 RCA；窗口内 gate 双路径兼容
+5. **窗口关闭**：全量升级完成/企业接受强制重装 → 关闭 stage-0（gate 配置）→ 旧单钥不可验（fail-closed）
+
+**下线判定（探针）**：`rn doctor` 检查当前发布是否全 cert 模式；CP registry 无旧单钥候选；设备探针无 stage-0 命中。
+
+**风险**：窗口期存量设备若无法升级（遗弃设备），需企业决策（强制重装 / 永久双路径）。不自动关旧路径——上线/下线都是 HITL 决策。
