@@ -178,7 +178,11 @@ export async function runDev(options: {
       logger: options.logger,
       modules: ports,
       noMetro: options.noMetro,
-      detached: options.detachMetro || Boolean(options.android || options.ios),
+      // SEAM-3/F15: plain `rn dev` detaches Metro with logs to a file (never
+      // lost to /dev/null and never a lie about "detached"); --android/--ios
+      // attach the shell and also detach Metro. tail -f the log for live view.
+      detached:
+        options.detachMetro || Boolean(options.android || options.ios) || true,
     });
 
     const androidHost = probeAndroidHost();

@@ -94,8 +94,7 @@ export function isMetroRunning(port = DEFAULT_METRO_PORT): boolean {
 export function metroProjectRoot(port = DEFAULT_METRO_PORT): string | null {
   const lsof = spawnSyncCapture("lsof", [
     "-nP",
-    "-iTCP",
-    String(port),
+    `-iTCP:${String(port)}`,
     "-sTCP:LISTEN",
     "-Fc",
   ]);
