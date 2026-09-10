@@ -164,8 +164,16 @@ export async function runSelfUninstall(options: {
   }
 
   if (existsSync(home)) {
-    options.logger.info(`removing install home ${home}`);
-    rmSync(home, { recursive: true, force: true });
+    // SEAM-4/F03: only remove the install home when it's actually our repo
+    // clone (.git); never rm -rf a directory holding keys/data.
+    if (existsSync(path.join(home, ".git"))) {
+      options.logger.info(`removing install home ${home}`);
+      rmSync(home, { recursive: true, force: true });
+    } else {
+      options.logger.warn(
+        `install home ${home} is not a repo clone — leaving it (SEAM-4/F03)`,
+      );
+    }
   }
 
   options.logger.writeHuman("rn self uninstall: OK");
