@@ -86,6 +86,29 @@ function readReactNativeVersion(projectRoot: string): string {
  * Absolute cwd / `.` become `''` and mkdir fails — always use a relative
  * subdirectory name, then hoist into the target cwd.
  */
+/** F12: strip the Community CLI's stale "Run instructions for …" block (its
+ * paths point at the pre-hoist stage dir that no longer exists). The block is
+ * the indented section after "Run instructions for Android/iOS/macOS:"; the
+ * next unindented line ends it. */
+function stripStaleRunInstructions(): (chunk: string) => string {
+  let inBlock = false;
+  return (chunk: string) => {
+    let out = "";
+    for (const line of chunk.split("\n")) {
+      if (/^Run instructions for (Android|iOS|macOS):/.test(line)) {
+        inBlock = true;
+        continue;
+      }
+      if (inBlock) {
+        if (line.startsWith("  ")) continue; // indented block content
+        inBlock = false; // unindented line → block ended
+      }
+      out += line + "\n";
+    }
+    return out;
+  };
+}
+
 function communityCliArgs(appName: string): string[] {
   return [
     "--yes",
@@ -269,6 +292,7 @@ export async function runInit(options: {
     cwd,
     replaceEnv: child.replaceEnv,
     env: child.env,
+    outputFilter: stripStaleRunInstructions(),
   });
   if (code !== 0) {
     throw new CliError(

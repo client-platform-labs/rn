@@ -265,6 +265,31 @@ export async function run(argv = process.argv): Promise<number> {
       }
       // ADR-024 stage-3: cert chain is the DEFAULT trust path; single-key is
       // the legacy escape hatch (--legacy) during the sunset window.
+      if (rest.includes("--export-encrypted")) {
+        const { exportEncryptedPrivateKey, runKeygenCertChain } = await import("./keygen.js");
+        const dir = flagValue(rest, "--dir") ?? DEFAULT_KEYS_DIR;
+        const chain = runKeygenCertChain({ dir, label: label ?? "lab-sign-key" });
+        const out = flagValue(rest, "--out");
+        const e = exportEncryptedPrivateKey({ keyFile: chain.leafCertFile.replace(".leaf.crt", ".key"), outFile: out });
+        console.log(
+          JSON.stringify(
+            {
+              ok: true,
+              action: "keygen-escrow",
+              encrypted_backup: e.outFile,
+              escrow_passphrase: e.passphrase,
+              custody: [
+                "key backup off-machine (escrow holder)",
+                "passphrase held by a SECOND person (dual custody)",
+                "rotation on personnel change: ship keygen --cert → ship revoke --pubkey-hex <old-leaf>",
+              ],
+            },
+            null,
+            2,
+          ),
+        );
+        return EXIT_OK;
+      }
       if (!rest.includes("--legacy")) {
         const chain = runKeygenCertChain({ dir, label: label ?? "lab-sign-key" });
         console.log(

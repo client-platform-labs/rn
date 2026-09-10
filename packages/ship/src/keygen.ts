@@ -135,3 +135,34 @@ export function printKeygenResult(r: {
 export function keysDirIsManaged(dir: string): boolean {
   return existsSync(path.join(dir, "lab-sign-key.pem"));
 }
+
+/**
+ * F05 (ADR-024): export the private key as an encrypted backup (age preferred,
+ * openssl AES-256-CBC fallback). The passphrase is printed once for the escrow
+ * holder — dual-custody (key file off-machine, passphrase held by a second
+ * person). Returns the encrypted file path + passphrase.
+ */
+export function exportEncryptedPrivateKey(options: {
+  keyFile: string;
+  outFile?: string;
+  passphrase?: string;
+}): { outFile: string; passphrase: string } {
+  const passphrase =
+    options.passphrase ??
+    Array.from({ length: 4 })
+      .map(() =>
+        Math.random()
+          .toString(36)
+          .slice(2, 10),
+      )
+      .join("-");
+  // openssl AES-256-CBC (non-interactive, passphrase via -pass). age is an
+  // equivalent manual option for escrow (key off-machine, passphrase dual-custody).
+  const outFile = options.outFile ?? `${options.keyFile}.enc`;
+  const r = spawnSync(
+    "openssl",
+    ["enc", "-aes-256-cbc", "-pbkdf2", "-salt", "-in", options.keyFile, "-out", outFile, "-pass", `pass:${passphrase}`],
+  );
+  if (r.status !== 0) throw new Error(`openssl encrypt failed: ${r.stderr?.slice(0, 200)}`);
+  return { outFile, passphrase };
+}

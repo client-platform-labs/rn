@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 import {
   createHmac,
   createPrivateKey,
@@ -106,4 +108,35 @@ export function generateLabEd25519Pem(): {
       .toString(),
     publicKeyPem: publicKey.export({ type: "spki", format: "pem" }).toString(),
   };
+}
+
+/**
+ * F06 (ADR-024): signer-backend seam. `pem` (default) signs with a PEM key from
+ * env; `hsm` requires an external KMS/HSM adapter via RN_DELIVERY_HSM_SIGN_CMD
+ * (contract: receives the seal payload on stdin, emits the base64 signature on
+ * stdout). Fail-loud: claiming hsm without the adapter is an error, not a
+ * silent fallback.
+ */
+export type SignerBackend = "pem" | "hsm";
+
+export function resolveSignerBackend(): SignerBackend {
+  return process.env.RN_DELIVERY_SIGNER === "hsm" ? "hsm" : "pem";
+}
+
+/** Sign the seal payload via the configured backend (HSM adapter contract). */
+export function signSealPayload(payload: string): { signature: string; backend: SignerBackend } {
+  const backend = resolveSignerBackend();
+  if (backend === "hsm") {
+    const cmd = process.env.RN_DELIVERY_HSM_SIGN_CMD;
+    if (!cmd) {
+      throw new Error(
+        "signer=hsm but RN_DELIVERY_HSM_SIGN_CMD is not set — provide a KMS/HSM adapter (stdin=payload, stdout=base64 signature). Use signer=pem for PEM signing.",
+      );
+    }
+    const r = spawnSync(cmd, { input: payload, encoding: "utf8", shell: true });
+    if (r.status !== 0) throw new Error(`HSM sign failed: ${r.stderr?.slice(0, 200)}`);
+    return { signature: r.stdout.trim(), backend };
+  }
+  // pem backend — existing logic (resolved below by sealCandidateSignature)
+  return { signature: "", backend };
 }

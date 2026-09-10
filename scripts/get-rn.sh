@@ -174,12 +174,23 @@ link_bins() {
   ln -sfn "$HOME_DIR/packages/rn/bin/rn.mjs" "$LOCAL_BIN/rn"
   ln -sfn "$HOME_DIR/packages/ship/bin/ship.mjs" "$LOCAL_BIN/ship"
   chmod +x "$HOME_DIR/packages/rn/bin/rn.mjs" "$HOME_DIR/packages/ship/bin/ship.mjs" || true
-  # also npm-link when possible (nvm prefix)
-  (cd "$HOME_DIR/packages/rn" && npm link --no-fund --no-audit --silent) || true
-  (cd "$HOME_DIR/packages/ship" && npm link --no-fund --no-audit --silent) || true
+  # SEAM-4/F08: npm-link into the USER's ACTIVE node bin (captured before the
+  # bootstrap nvm switch), so the link lands on the PATH the user actually has.
+  # A link into a bootstrap-picked nvm version (v24.21.0 vs active v24.19.0)
+  # is invisible to the user's shell.
+  local active_npm="$ACTIVE_NPM"
+  if [[ -z "$active_npm" ]]; then
+    active_npm="$(command -v npm || true)"
+  fi
+  if [[ -n "$active_npm" ]]; then
+    (cd "$HOME_DIR/packages/rn" && "$active_npm" link --no-fund --no-audit --silent) || true
+    (cd "$HOME_DIR/packages/ship" && "$active_npm" link --no-fund --no-audit --silent) || true
+  fi
 }
 
 do_install() {
+  # F08: capture the user's ACTIVE npm before bootstrap may nvm-switch.
+  ACTIVE_NPM="$(command -v npm || true)"
   preflight
   bootstrap_node_pnpm
   clone_or_update

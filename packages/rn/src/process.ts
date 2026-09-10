@@ -50,6 +50,8 @@ export async function runStreaming(
     env?: NodeJS.ProcessEnv;
     /** When true, `env` replaces process.env instead of merging. */
     replaceEnv?: boolean;
+    /** F12: transform stdout chunks before writing (e.g. strip stale output). */
+    outputFilter?: (chunk: string) => string;
   } = {},
 ): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -59,9 +61,16 @@ export async function runStreaming(
     const child = spawn(command, args, {
       cwd: options.cwd,
       env,
-      stdio: "inherit",
+      stdio: ["inherit", "pipe", "inherit"],
       shell: process.platform === "win32",
     });
+    if (options.outputFilter) {
+      child.stdout?.on("data", (d: Buffer) => {
+        process.stdout.write(options.outputFilter!(d.toString()));
+      });
+    } else {
+      child.stdout?.pipe(process.stdout);
+    }
     child.on("error", reject);
     child.on("close", (code) => resolve(code ?? 1));
   });
