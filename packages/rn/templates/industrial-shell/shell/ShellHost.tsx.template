@@ -16,6 +16,7 @@ import {
   resolveModuleSurface,
 } from "./ModuleRegistry";
 import { DEFAULT_MODULE_ID } from "./ota/slotPaths";
+import { cpBaseUrl as declaredCpBaseUrl } from "./generated-runtime";
 
 /**
  * Industrial shell (ADR-021): resolves the active business module by id and runs
@@ -29,8 +30,14 @@ function getNativeAdapter(): OtaNativeAdapter {
 
 function cpBaseUrl(): string | null {
   const g = globalThis as Record<string, unknown>;
-  return typeof g["__CP_BASE_URL__"] === "string"
-    ? (g["__CP_BASE_URL__"] as string)
+  const override =
+    typeof g["__CP_BASE_URL__"] === "string"
+      ? (g["__CP_BASE_URL__"] as string)
+      : null;
+  if (override) return override;
+  // SEAM-2 (F23): declared config from .rn/runtime.jsonc (generated-runtime.ts).
+  return typeof declaredCpBaseUrl === "string" && declaredCpBaseUrl.length > 0
+    ? declaredCpBaseUrl
     : null;
 }
 
@@ -66,6 +73,9 @@ export function ShellHost({
       }
       const base = cpBaseUrl();
       if (!base) {
+        console.warn(
+          "[OTA] control-plane base URL not configured — set cpBaseUrl in .rn/runtime.jsonc (SEAM-2) or __CP_BASE_URL__ at runtime; booting baseline",
+        );
         if (!cancelled) setBootReady(true);
         return;
       }

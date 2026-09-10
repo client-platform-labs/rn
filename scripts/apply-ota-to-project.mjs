@@ -6,7 +6,8 @@
  *  1. 拷贝 `ota-android` 原生模板（OtaModule.kt + OtaPackage.kt）到
  *     `android/app/src/main/java/<applicationId>/ota/`；
  *  2. 补 MainApplication.kt：注册 OtaPackage（PackageList.apply{add}）；
- *  3. 加依赖 `@client-platform/shell-core`（device-safe OTA 客户端）+ `@client-platform/rn-core`；
+ *  3. 加依赖 `@client-platform/shell-core`（device-safe OTA 客户端，真实版本，跳过已存在）；
+ *     可选 `--pubkey-hex <64hex>` 把设备公钥烘焙进 OtaModule.getOtaPublicKeys()（F02/SEAM-2）；
  *  4. 写入 `ReleaseOtaBoot` 接线参考 + README 指针（不自动改业务 App，避免覆盖业务启动逻辑）。
  *
  * 用法：
@@ -23,6 +24,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "..");
 const projectRoot = path.resolve(process.argv[2] ?? "");
 const dryRun = process.argv.includes("--dry-run");
+// SEAM-2/F02: bake the given Ed25519 pubkey (hex) into OtaModule.getOtaPublicKeys().
+const pubkeyHex = (() => {
+  const i = process.argv.indexOf("--pubkey-hex");
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1].trim() : "";
+})();
 
 if (!existsSync(projectRoot)) {
   console.error("apply-ota: PROJECT_ROOT missing");
@@ -63,6 +69,20 @@ if (pkgPath && existsSync(templatesDir)) {
         /^package\s+[\w.]+/m,
         `package ${appId}.ota`,
       );
+      // F02: parameterized pubkey bake (SEAM-2) — replaces the template default.
+      if (
+        name === "OtaModule.kt.template" &&
+        /^[0-9a-fA-F]{64}$/.test(pubkeyHex)
+      ) {
+        const baked = body.replace(
+          /pushString\("([0-9a-fA-F]{64})"\)/,
+          `pushString("${pubkeyHex}")`,
+        );
+        if (baked !== body) {
+          body = baked;
+          sh(`bake pubkey → OtaModule.getOtaPublicKeys (${pubkeyHex.slice(0, 8)}…)`);
+        }
+      }
       writeFileSync(out, body);
     }
     sh(`copy ${name} → ${path.relative(projectRoot, out)} (package=${appId}.ota)`);
@@ -133,12 +153,11 @@ if (existsSync(pkgJson)) {
   const pkg = JSON.parse(readFileSync(pkgJson, "utf8"));
   const deps = (pkg.dependencies = pkg.dependencies ?? {});
   const added = [];
-  for (const [name, ver] of [
-    ["@client-platform/shell-core", "workspace:*"],
-    ["@client-platform/rn-core", "workspace:*"],
-  ]) {
+  // SEAM-2/F18: only the device-side OTA client dep, real version (not workspace:*,
+  // not the pre-split rn-core). Skip when already present.
+  for (const name of ["@client-platform/shell-core"]) {
     if (!deps[name]) {
-      deps[name] = ver;
+      deps[name] = "0.1.0";
       added.push(name);
     }
   }

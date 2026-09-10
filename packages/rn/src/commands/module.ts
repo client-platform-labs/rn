@@ -15,6 +15,7 @@ import {
 } from "../module-workspace.js";
 import { loadDevSessionConfig } from "../dev-session-config.js";
 import { writeHostMetroResolver } from "../host-metro-config.js";
+import { writeGeneratedRuntime } from "../runtime-config.js";
 
 const MODULE_ID_RE = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -161,5 +162,11 @@ export async function runModuleRegister(options: {
   const resolver = writeHostMetroResolver(projectRoot);
   options.logger.writeHuman(
     `Wrote host Metro resolver: ${path.relative(projectRoot, resolver)}`,
+  );
+  // SEAM-2 (F13/F23): module register also regenerates the runtime config
+  // derived artifact so declaration and derived artifacts stay in sync.
+  const runtime = writeGeneratedRuntime(projectRoot);
+  options.logger.writeHuman(
+    `Wrote generated runtime: ${path.relative(projectRoot, runtime)}`,
   );
 }

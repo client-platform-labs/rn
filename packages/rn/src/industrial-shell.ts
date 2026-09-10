@@ -16,6 +16,10 @@ import { fileURLToPath } from "node:url";
 
 import { MANIFEST_FILENAME } from "@client-platform/core";
 import { CliError, EXIT_FAIL } from "./errors.js";
+import {
+  ensureRuntimeConfig,
+  regenerateDerivedArtifacts,
+} from "./declaration-derived.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // dist: packages/rn/dist/industrial-shell.js → templates at packages/rn/templates
@@ -82,6 +86,12 @@ export function applyIndustrialShell(projectRoot: string): void {
   }
 
   linkPlatformPackages(projectRoot);
+
+  // SEAM-2 (F13/F23): init tail regenerates ALL declaration-derived artifacts
+  // (registry + host-resolver + generated-runtime) so the init product is a
+  // complete runnable chain (D4), and the OTA base URL has a config seam.
+  ensureRuntimeConfig(projectRoot, {});
+  regenerateDerivedArtifacts(projectRoot);
 }
 
 /**

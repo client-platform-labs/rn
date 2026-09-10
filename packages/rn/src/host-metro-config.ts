@@ -90,10 +90,13 @@ export function renderHostMetroResolverCjs(config: DevSessionConfig, hostRoot: s
     ...new Set([...Object.values(businessAliases), ...outOfProject]),
   ];
   // pnpm: add each out-of-project workspace's .pnpm virtual store so Metro can
-  // follow package symlinks (e.g. @noble/ed25519 → .pnpm/@noble+ed25519@…)
+  // follow package symlinks (e.g. @noble/ed25519 → .pnpm/@noble+ed25519@…).
+  // F14/SEAM-2: dedup — multiple platform packages share the same .pnpm store.
   for (const p of outOfProject) {
     const pnpm = path.join(path.resolve(p, "../.."), "node_modules", ".pnpm");
-    if (existsSync(pnpm)) watchFolders.push(pnpm);
+    if (existsSync(pnpm) && !watchFolders.includes(pnpm)) {
+      watchFolders.push(pnpm);
+    }
   }
   // node_modules paths: project + out-of-project platform package node_modules + workspace root
   const nodeModulesPaths = [path.join(hostRoot, "node_modules")];
