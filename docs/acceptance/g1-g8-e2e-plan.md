@@ -187,3 +187,32 @@ adb reverse tcp:7430 tcp:7430 && ship serve --port 7430
 | **N10** | S2（F23 回归） | `ensureRuntimeConfig` 每次 `shell refresh` 用 `{}` 覆盖声明配置，**冲掉运维配的 cpBaseUrl** → refresh 后设备 OTA 静默失效 | 改为 merge：保留已有值，只补缺失键 |
 
 **结论**：G1/G3/G7/F19/G2/G8 全部经真机 + 真实构建端到端验证；N6–N10 五个新 bug 均由本轮端到端测试发现并修复，其中 N8（构建阻断）、N9（解析失败）、N10（配置被冲掉）都是**此前单元测试无法暴露、只有真机全链才会显形**的缺陷——印证了"必须自己跑完整 e2e"的必要性。
+
+---
+
+## 9-chain 真机全链套件（2026-09-10 · 自主修复环境后）
+
+### 结果：3 PASS → **7 PASS / 1 FAIL**（8 实跑 + 2 SKIP 环境）
+
+| Chain | 修复前 | 修复后 |
+| ------- | -------- | -------- |
+| 01-cli | PASS | PASS |
+| 03-release-load | FAIL | FAIL（参考宿主 bootstrap，见下） |
+| 04-shell-lifecycle | PASS | PASS |
+| 05-biz-lifecycle | FAIL | **PASS** |
+| 06-host-portal | FAIL | **PASS** |
+| 07-biz-portal | FAIL | **PASS** |
+| 08-update-strategy | FAIL | **PASS** |
+| 10-ios-lifecycle | PASS | PASS |
+
+### 本轮修复的 3 个新缺陷（均在本仓库）
+
+| 新增 | 严重度 | 根因 | 修复 |
+| ------ | -------- | ------ | ------ |
+| **N11** | S2（自伤回归） | 我们的 F19 `release-debuggable-variants` 对所有 android 工程 **blocking** → 任何未跑过新 `rn shell refresh` 的工程 `ship validate/release` 全失败（4-6 条链集体挂）。F19 台账本就标注"未复现"（RN 0.87 默认已安全） | 改为 **advisory（永不阻断）** |
+| **N12** | S2（部署阻断） | `deploy/distribution-service/{Dockerfile,entrypoint.sh}` 引用**已废除的包** `rn-core`/`rn-delivery` + 旧二进制 `rn-delivery.mjs cp-serve` → **CP 镜像无法从 HEAD 重建**，容器冻结在 ADR-022 之前的 commit，不能下发 artifact | 更新为 `core`/`rn-engine`/`ship`；重建镜像 + 重启容器 → `/v1/artifacts` 200 |
+| **N13** | S3（套件陈旧） | e2e 链硬编码改名前的宿主包 `com.hermesgfapp`（现 `com.tiangong.host`）；且未适配 D3 证书链默认 → sign 失败 | 加 `E2E_HOST_PKG` + lab 用 `RN_DELIVERY_LEGACY_SIGN` |
+
+### 唯一剩余：chain-03（参考宿主自身问题，非平台代码）
+
+`com.tiangong.host` release APK 在**全新安装**下启动即崩：`Invariant Violation: "tiangonghost" has not been registered`（`[ota] APP EVAL` → 未注册组件）。属参考宿主 `tiangong-host`（独立项目）的 OTA 运行时 bootstrap 设计（需先落 OTA bundle 或修内嵌基线），不在本平台仓库范围内。artifact 下载/装包步骤本轮已修复通过（N12）。
