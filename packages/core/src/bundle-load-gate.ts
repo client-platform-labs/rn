@@ -8,6 +8,7 @@ import {
   type BundleDependencyEdge,
 } from "./dependency-manifest.js";
 import { verifyEd25519Seal } from "./ed25519-verify.js";
+import { verifyX509Ed25519Leaf } from "./cert-chain.js";
 import { gateJsCandidate } from "./selector.js";
 import type {
   GateJsCandidateResult,
@@ -34,6 +35,12 @@ export type BundleLoadArtifact = {
   artifact_kind?: string;
   /** Baked Ed25519 public keys (hex, 32 bytes each) — K1 + K2. */
   publicKeys?: readonly string[];
+  /**
+   * ADR-024 (D3): stage-1 cert chain — leaf X.509 cert + its signing key hex.
+   * When present, `publicKeys` are the root-CA keys; verify the leaf under the
+   * RCA, then the seal with the leaf key (cert mode). Absent = stage-0 direct.
+   */
+  certChain?: { leafCertPem: string; leafPubkeyHex: string };
   /** ADR-018 — keys revoked via a K2-signed revocation list; a matching key is rejected. */
   revokedPublicKeys?: readonly string[];
   /**
@@ -92,6 +99,34 @@ export function gateBundleLoad(
     }
   } else if (sig.startsWith("pem:ed25519:")) {
     // ADR-017 — real Ed25519 verify against baked public keys (fail-closed).
+    // ADR-024 (D3): cert mode — baked keys are root-CA keys; verify the leaf
+    // cert under the RCA, then the seal with the leaf key (multi-rotation
+    // without touching devices). Absent certChain = stage-0 direct keys.
+    const certChain = artifact.certChain;
+    let verifyKeys: readonly string[] | null =
+      certChain && certChain.leafCertPem && certChain.leafPubkeyHex
+        ? null
+        : (artifact.publicKeys ?? []);
+    let certReason: string | null = null;
+    if (verifyKeys === null && certChain) {
+      const cert = verifyX509Ed25519Leaf(
+        certChain.leafCertPem,
+        (artifact.publicKeys ?? [])[0] ?? "",
+        certChain.leafPubkeyHex,
+      );
+      if (!cert.ok) {
+        certReason = cert.reason;
+      } else {
+        verifyKeys = [cert.leafPubkeyHex];
+      }
+    }
+    if (verifyKeys === null) {
+      return {
+        ok: false,
+        signatureStatus: "invalid",
+        reason: `cert-chain verification failed for update_id=${artifact.candidate.update_id}: ${certReason ?? "no keys"}`,
+      };
+    }
     const matchedKey = verifyEd25519Seal(
       sig,
       {
@@ -99,7 +134,7 @@ export function gateBundleLoad(
         artifact_kind: artifact.artifact_kind ?? "",
         digest: expected ?? "",
       },
-      artifact.publicKeys ?? [],
+      verifyKeys,
     );
     if (matchedKey === null) {
       return {

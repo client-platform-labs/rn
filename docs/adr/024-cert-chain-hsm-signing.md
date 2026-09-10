@@ -1,6 +1,6 @@
 # ADR-024: 签名模型迁移 —— 自研双钥 → 证书链 + HSM（行业主流）
 
-Status: **proposed** (2026-09-10)
+Status: **accepted** (2026-09-10, approved)
 Related: ADR-017（设备验签）· ADR-018（双钥轮换）· ADR-023（指纹权威）· 0→1 演练 F04/F05/F06 · SEAM-1 #247 · 决策 D3
 Supercedes: ADR-018 的"双烘焙钥 + 吊销清单"自研模型
 

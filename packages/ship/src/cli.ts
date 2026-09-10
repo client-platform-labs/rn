@@ -219,11 +219,32 @@ export async function run(argv = process.argv): Promise<number> {
     }
 
     if (cmd === "keygen") {
-      const { runKeygen, printKeygenResult, DEFAULT_KEYS_DIR } = await import(
-        "./keygen.js"
-      );
+      const {
+        runKeygen,
+        printKeygenResult,
+        runKeygenCertChain,
+        DEFAULT_KEYS_DIR,
+      } = await import("./keygen.js");
       const dir = flagValue(rest, "--dir") ?? DEFAULT_KEYS_DIR;
       const label = flagValue(rest, "--label");
+      if (rest.includes("--cert")) {
+        const chain = runKeygenCertChain({ dir, label: label ?? "lab-sign-key" });
+        console.log(
+          JSON.stringify(
+            {
+              ok: true,
+              action: "keygen-cert",
+              leaf_cert: chain.leafCertFile,
+              root_ca_cert: chain.rcaCertFile,
+              root_ca_public_key_hex: chain.rcaPubkeyHex,
+              next: [`bake RCA pubkey (device trust root): apply-ota --rca-pubkey-hex ${chain.rcaPubkeyHex}`],
+            },
+            null,
+            2,
+          ),
+        );
+        return EXIT_OK;
+      }
       printKeygenResult(runKeygen({ dir, label }));
       return EXIT_OK;
     }

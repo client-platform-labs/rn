@@ -14,6 +14,7 @@ import {
   mkdirSync,
   writeFileSync,
 } from "node:fs";
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 
@@ -53,6 +54,47 @@ export function runKeygen(options: {
   chmodSync(keyFile, 0o600);
   const pubHex = pubkeyHexFromPem(publicKeyPem);
   return { dir, keyFile, pubHex };
+}
+
+/**
+ * ADR-024 (D3): generate an X.509 Ed25519 certificate chain — a self-signed
+ * root CA and a leaf cert signed by it. Returns leaf/RCA cert PEMs + RCA
+ * public key hex (for baking into the APK). Requires openssl (ship runs on
+ * dev/CI hosts, not the device). Stage-1 cert material for the trust model.
+ */
+export function runKeygenCertChain(options: {
+  dir: string;
+  label: string;
+}): {
+  dir: string;
+  leafCertFile: string;
+  rcaCertFile: string;
+  rcaPubkeyHex: string;
+} {
+  const dir = options.dir;
+  const label = options.label ?? "lab-sign-key";
+  const rcaKey = path.join(dir, `${label}.rca.key`);
+  const rcaCrt = path.join(dir, `${label}.rca.crt`);
+  const leafKey = path.join(dir, `${label}.key`);
+  const leafCsr = path.join(dir, `${label}.csr`);
+  const leafCrt = path.join(dir, `${label}.leaf.crt`);
+  const run = (args: string[]): string => {
+    const r = spawnSync("openssl", args, { cwd: dir, encoding: "utf8" });
+    if (r.status !== 0) {
+      throw new Error(`openssl ${args.join(" ")} failed: ${r.stderr?.slice(0, 300)}`);
+    }
+    return r.stdout;
+  };
+  run(["req", "-x509", "-newkey", "ed25519", "-keyout", rcaKey, "-out", rcaCrt, "-days", "3650", "-subj", "/CN=client-platform-root-ca", "-nodes"]);
+  run(["req", "-newkey", "ed25519", "-keyout", leafKey, "-out", leafCsr, "-nodes", "-subj", `/CN=${label}`]);
+  run(["x509", "-req", "-in", leafCsr, "-CA", rcaCrt, "-CAkey", rcaKey, "-CAcreateserial", "-out", leafCrt, "-days", "365"]);
+  chmodSync(leafKey, 0o600);
+  const der = spawnSync("openssl", ["x509", "-in", rcaCrt, "-outform", "DER"]);
+  const raw = new Uint8Array(der.stdout as unknown as ArrayBuffer);
+  const rcaPubkeyHex = Array.from(raw.subarray(raw.length - 32))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return { dir, leafCertFile: leafCrt, rcaCertFile: rcaCrt, rcaPubkeyHex };
 }
 
 export function printKeygenResult(r: {
