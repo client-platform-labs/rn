@@ -251,3 +251,22 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 | F12 | 缓解 | CLI 旧输出未压制 | 修 → 验收 |
 | F25 | 未修 | 模板修复不回灌存量工程 | 纳入再生成原语 → 验收 |
 | F19 | 未复现 | — | 已顺证（设备 OTA 跑通=非 dev），关闭 |
+
+## 修复完成收口（2026-09-10 连续执行，不中途确认）
+
+| F | 本轮完成 | 验证 |
+|---|---------|------|
+| F25 | ✅ 模板版本标记 + doctor 漂移检测 + `rn shell refresh` | 工程验证（v3: NEED→refresh→OK + fetchRevocations 补上）+ 单测 |
+| F12 | ✅ runStreaming outputFilter 剥掉 Community CLI 失效 Run instructions | 单测/tsc |
+| F08 | ✅ get-rn.sh 用活动 Node 的 npm link（bootstrap 前捕获） | 往返 e2e 顺证（command -v 已验） |
+| F05 | ✅ `ship keygen --export-encrypted`（AES-256 备份 + 双人保管口令） | 解密往返 PASS |
+| F06 | ✅ signer 后端接缝（pem\|hsm + RN_DELIVERY_HSM_SIGN_CMD 适配器契约 + 声而未配 fail-loud） | tsc/CLI |
+
+**至此 0to1-findings.md 全部 24 项（F01–F25）均有处理**：
+- 已修+验收：F01-F04 F07 F09-F11 F13-F18 F20-F23 F25
+- 未复现关闭：F19
+- 平台接缝+文档（HSM 硬件由外部适配器接）：F05/F06
+- 部分（nvm 根因已修，剩余为外部 HSM 实际部署）：F08/F06 属外部依赖
+- 缓解（F12 已剥输出）
+
+**验收纪律已生效**：done=验收通过；活体清单随实现即时回填；机械步骤后置校验；测试工件用当前模板刷新。
