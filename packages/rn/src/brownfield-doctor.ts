@@ -15,6 +15,7 @@ import {
 } from "@client-platform/core";
 
 import { evaluateBrownfieldNativeDoctor } from "./brownfield-native-doctor.js";
+import { findNativeOtaAdapterPath } from "./industrial-shell.js";
 
 export const HOST_PROFILE_RELATIVE = path.join(".rn", "host-profile.jsonc");
 
@@ -37,9 +38,7 @@ export function parseDoctorProfile(raw: string | undefined): DoctorProfile {
   );
 }
 
-export function loadHostProfile(
-  projectRoot: string,
-): {
+export function loadHostProfile(projectRoot: string): {
   profile: DoctorProfile;
   schemaVersion?: number;
   topology?: string;
@@ -52,12 +51,24 @@ export function loadHostProfile(
     .split("\n")
     .filter((line) => !line.trim().startsWith("//"))
     .join("\n");
-  const parsed = JSON.parse(json) as {
+  const parsed: {
     profile?: string;
     schemaVersion?: number;
     topology?: string;
     runtimeContract?: BrownfieldRuntimeContract;
-  };
+  } | null = (() => {
+    try {
+      return JSON.parse(json) as {
+        profile?: string;
+        schemaVersion?: number;
+        topology?: string;
+        runtimeContract?: BrownfieldRuntimeContract;
+      };
+    } catch {
+      return null;
+    }
+  })();
+  if (!parsed) return null;
   if (parsed.profile !== "greenfield" && parsed.profile !== "brownfield") {
     return null;
   }
@@ -81,6 +92,35 @@ export type BrownfieldRuntimeContract = {
    */
   codegenPolicy?: "rn-module-stub" | "app-host";
 };
+
+/**
+ * G4 — locate a native OTA adapter registration in a BF host.
+ * Reuses the shared android walk (industrial-shell.findNativeOtaAdapterPath),
+ * then falls back to a JS shell that references "NativeModules.Ota" (the
+ * shell-core adapter injection) so the adapter shape stays defined once.
+ */
+function findNativeOtaAdapter(projectRoot: string): string | null {
+  const fromNative = findNativeOtaAdapterPath(projectRoot);
+  if (fromNative) return fromNative;
+  // JS shell referencing the shell-core OTA adapter (NativeModules.Ota).
+  const shellFiles = [
+    path.join(projectRoot, "App.tsx"),
+    path.join(projectRoot, "shell", "ShellHost.tsx"),
+  ];
+  for (const f of shellFiles) {
+    try {
+      if (
+        existsSync(f) &&
+        readFileSync(f, "utf8").includes("NativeModules.Ota")
+      ) {
+        return f;
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  return null;
+}
 
 function findSurfaceHostStub(projectRoot: string): string | null {
   const exact = [
@@ -142,6 +182,17 @@ export function evaluateBrownfieldDoctor(options: {
     summary: stub
       ? `SurfaceHostAdapter stub present (${path.relative(root, stub)})`
       : "SurfaceHostAdapter.kt stub missing under android/src/main/{java|kotlin}/…/brownfield/",
+    blocking: false,
+  });
+
+  // G4 — BF device OTA wiring (ADR-016: same shell-core client as GF).
+  const ota = findNativeOtaAdapter(root);
+  checks.push({
+    id: "bf-native-ota",
+    ok: ota != null,
+    summary: ota
+      ? `native OTA adapter present (${path.relative(root, ota)})`
+      : "BF device OTA needs the native OtaModule registered + shell-core pullOtaUpdate in the host shell; see templates/brownfield-android/ota/",
     blocking: false,
   });
 

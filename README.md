@@ -10,6 +10,12 @@ Deliver a production-grade platform and thin CLI for multi-business-line React N
 
 This repository holds the **blueprint** (complete) and implementation maps toward a runnable, enterprise-promotable platform. Workspace packages and the `rn` CLI (including A1 Greenfield `init` / `doctor` / `dev`) are in-tree.
 
+### Platform scope (by OS)
+
+- **Android** — first-class target: host builds, device **executable OTA** (ADR-012/016/017), signing + CRL revocation, all lanes.
+- **iOS** — host builds / store native updates only; **no executable OTA** (ADR-012 store-policy boundary).
+- **HarmonyOS** — contract-reserved (ADR-022); main path shelved (#93).
+
 ## Quick start (any directory — industrial install)
 
 ```bash
@@ -51,6 +57,8 @@ In:
 - Release control plane with JS train (production default on), host trains, and release gates
 - Governance, observability, and high-sensitivity consumer security baseline
 - Thin CLI + versioned plugins + platform API
+
+> Control-plane storage = **file | SQLite** by default; **Postgres (RDS/HA) is a contract-only seam** (ADR-013), not yet wired.
 
 Out (for now):
 

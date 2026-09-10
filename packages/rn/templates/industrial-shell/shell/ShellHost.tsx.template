@@ -7,6 +7,8 @@ import {
 import {
   createOtaClient,
   pullOtaUpdate,
+  shouldRollbackOnCrashLoop,
+  verifyRevocationSealAny,
   type OtaSidecar,
   type OtaNativeAdapter,
 } from "@client-platform/shell-core";
@@ -47,7 +49,6 @@ export function ShellHost({
   moduleId?: string;
 }) {
   const [forceBaseline, setForceBaseline] = useState(false);
-  const [otaSidecar, setOtaSidecar] = useState<OtaSidecar | null>(null);
   const [bootReady, setBootReady] = useState(__DEV__);
 
   useEffect(() => {
@@ -80,19 +81,45 @@ export function ShellHost({
         return;
       }
       const client = createOtaClient(native, { defaultModuleId: moduleId });
+      // G1/ADR-014: crash-loop guard — consecutive failed boots roll back to
+      // the embedded baseline before any OTA pull (same contract as
+      // templates/greenfield-ota/ReleaseOtaBoot).
+      const failCount = (await native.recordStartupFailure?.(moduleId)) ?? 0;
+      if (shouldRollbackOnCrashLoop(failCount)) {
+        try {
+          await client.rollbackToEmbeddedBaseline(moduleId);
+        } catch {
+          /* baseline fallback is best-effort */
+        }
+        if (!cancelled) setBootReady(true);
+        return;
+      }
       const result = await pullOtaUpdate(client, native, moduleId, {
         lane: "production",
-        // ADR-024 (D3/F04): fetch the revocation list (CRL) before verifying —
-        // a revoked signing key is rejected even when the seal is valid.
+        // ADR-024 (D3/G3): fetch + VERIFY the signed revocation list (CRL)
+        // before verifying an update — a revoked signing key is rejected even
+        // when the seal is valid, and an unsigned/tampered CRL fails closed.
         fetchRevocations: async () => {
-          try {
-            const res = await fetch(`${base}/v1/crl`);
-            if (!res.ok) return [];
-            const body = (await res.json()) as { revoked?: string[] };
-            return body.revoked ?? [];
-          } catch {
-            return [];
+          const res = await fetch(`${base}/v1/crl`);
+          if (!res.ok) throw new Error(`CRL HTTP ${res.status}`);
+          const body = (await res.json()) as {
+            revoked?: string[];
+            payload?: string;
+            seal?: string | null;
+          };
+          if (!body || typeof body.seal !== "string" || typeof body.payload !== "string") {
+            throw new Error("CRL unsigned");
           }
+          if (
+            !verifyRevocationSealAny(
+              body.seal,
+              body.payload,
+              Array.from(native.getOtaPublicKeys() ?? []),
+            )
+          ) {
+            throw new Error("CRL seal invalid");
+          }
+          return Array.isArray(body.revoked) ? body.revoked : [];
         },
         fetchManifest: async (mid, lane) => {
           const res = await fetch(`${base}/v1/js-updates/check?module=${mid}&lane=${lane}`);
@@ -101,6 +128,11 @@ export function ShellHost({
           return body;
         },
       });
+      if (result.status === "installed" || result.status === "already_installed") {
+        // G1/ADR-014: healthy boot resets the crash counter so the next launch
+        // starts from zero failures.
+        await native.resetStartupFailures?.(moduleId);
+      }
       if (result.status === "installed") return;
       if (!cancelled) setBootReady(true);
     })().catch(() => {
@@ -115,7 +147,7 @@ export function ShellHost({
 
   const surface = forceBaseline
     ? resolveBaselineSurface(moduleId)
-    : resolveModuleSurface(moduleId, { otaSidecar: otaSidecar ?? undefined });
+    : resolveModuleSurface(moduleId);
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>

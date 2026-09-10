@@ -13,6 +13,7 @@ import {
   advanceRollout,
   blockCandidateInRegistry,
   blockedUpdateIdsForRuntime,
+  buildCrlDoc,
   findInstallableByDigest,
   findArtifactByDigest,
   getDeviceLane,
@@ -21,7 +22,6 @@ import {
   listDeviceLanes,
   listInstallableCandidates,
   listJsUpdateCandidates,
-  listRevocations,
   loadRegistry,
   pauseModule,
   pauseRollout,
@@ -226,10 +226,7 @@ function loadPortalHtml(name: string): string {
   return readFileSync(path.join(PORTAL_DIR, name), "utf8");
 }
 
-function servePortalStatic(
-  res: ServerResponse,
-  rel: string,
-): boolean {
+function servePortalStatic(res: ServerResponse, rel: string): boolean {
   const safe = path.normalize(rel).replace(/^(\.\.(\/|\\|$))+/, "");
   const file = path.join(PORTAL_DIR, safe);
   if (!file.startsWith(PORTAL_DIR) || !existsSync(file)) {
@@ -423,7 +420,8 @@ export function createControlPlane(options: {
             const parsed = JSON.parse(readFileSync(file, "utf8")) as typeof doc;
             doc = {
               revoked: Array.isArray(parsed.revoked) ? parsed.revoked : [],
-              payload: typeof parsed.payload === "string" ? parsed.payload : "{}",
+              payload:
+                typeof parsed.payload === "string" ? parsed.payload : "{}",
               seal: typeof parsed.seal === "string" ? parsed.seal : null,
             };
           } catch {
@@ -457,7 +455,10 @@ export function createControlPlane(options: {
           throw new DeliveryError("POST /v1/sli: digest required", EXIT_FAIL);
         }
         if (!body.sli || typeof body.sli !== "object") {
-          throw new DeliveryError("POST /v1/sli: sli object required", EXIT_FAIL);
+          throw new DeliveryError(
+            "POST /v1/sli: sli object required",
+            EXIT_FAIL,
+          );
         }
         const digest = body.digest.trim();
         metrics.last_sli[digest] = body.sli;
@@ -516,16 +517,14 @@ export function createControlPlane(options: {
           },
           metrics: "/v1/metrics",
           sli: "POST /v1/sli",
-          note:
-            "thin CP — production storage = file | sqlite; Postgres is an unwired RDS/HA seam (ADR-013 / G9)",
+          note: "thin CP — production storage = file | sqlite; Postgres is an unwired RDS/HA seam (ADR-013 / G9)",
         });
         return;
       }
 
       if (req.method === "GET" && url.pathname === "/v1/candidates") {
         const lane = url.searchParams.get("lane");
-        const laneFilter =
-          isValidLane(lane) ? lane : "all";
+        const laneFilter = isValidLane(lane) ? lane : "all";
         const registry = loadRegistry(projectRoot);
         sendJson(res, 200, {
           candidates: listInstallableCandidates(registry, laneFilter).map(
@@ -537,8 +536,7 @@ export function createControlPlane(options: {
 
       if (req.method === "GET" && url.pathname === "/v1/js-updates") {
         const lane = url.searchParams.get("lane");
-        const laneFilter =
-          isValidLane(lane) ? lane : "all";
+        const laneFilter = isValidLane(lane) ? lane : "all";
         const moduleFilter = url.searchParams.get("module") || undefined;
         const registry = loadRegistry(projectRoot);
         sendJson(res, 200, {
@@ -551,12 +549,18 @@ export function createControlPlane(options: {
         return;
       }
 
-      // ADR-024 (D3): CRL — revoked signing keys (hex); devices fetch before verify (F04).
+      // ADR-024 (D3/G3): CRL — revoked signing keys (hex); devices fetch before
+      // verify (F04). Signed doc: seal over canonical payload; device verifies
+      // with baked keys (verifyRevocationSealAny). An unsigned CRL (seal:null,
+      // no key configured) is served as-is; devices fail-closed and reject it.
       if (req.method === "GET" && url.pathname === "/v1/crl") {
-        sendJson(res, 200, {
-          schemaVersion: 1,
-          revoked: listRevocations(projectRoot),
-        });
+        const crl = buildCrlDoc(projectRoot);
+        if (crl.seal === null) {
+          console.error(
+            "[cp] /v1/crl served UNSIGNED (no CRL signing key) — devices will reject it (fail-closed). Configure RN_DELIVERY_SIGN_KEY_PEM/FILE or RN_DELIVERY_HSM_SIGN_CMD.",
+          );
+        }
+        sendJson(res, 200, crl);
         return;
       }
 
@@ -570,11 +574,7 @@ export function createControlPlane(options: {
           return;
         }
         const registry = loadRegistry(projectRoot);
-        const candidates = listJsUpdateCandidates(
-          registry,
-          lane,
-          moduleId,
-        );
+        const candidates = listJsUpdateCandidates(registry, lane, moduleId);
         // Newest production candidate wins (promote appends to the production
         // window as a rollback history; the last entry is the current release).
         const meta = candidates[candidates.length - 1];
@@ -585,9 +585,8 @@ export function createControlPlane(options: {
         }
         const proto = req.headers["x-forwarded-proto"];
         const hostHeader = req.headers.host;
-        const baseUrl =
-          hostHeader ?
-            `${proto === "https" ? "https" : "http"}://${hostHeader}`
+        const baseUrl = hostHeader
+          ? `${proto === "https" ? "https" : "http"}://${hostHeader}`
           : undefined;
         const manifest = buildDeviceJsUpdateManifest(meta, {
           baseUrl,
@@ -610,7 +609,8 @@ export function createControlPlane(options: {
         if (req.method === "GET" && artMatch) {
           const digest = decodeURIComponent(artMatch[1] ?? "");
           const cand = findArtifactByDigest(loadRegistry(projectRoot), digest);
-          const filePath = artifactStore.get(digest) ?? cand?.path?.trim() ?? null;
+          const filePath =
+            artifactStore.get(digest) ?? cand?.path?.trim() ?? null;
           if (!filePath) {
             sendJson(res, 404, { error: "artifact_not_found", digest });
             return;
@@ -653,15 +653,17 @@ export function createControlPlane(options: {
           if (req.method === "GET") {
             const registry = loadRegistry(projectRoot);
             const lane = getDeviceLane(registry, serial);
-            sendJson(res, 200, { serial, lane, devices: listDeviceLanes(registry) });
+            sendJson(res, 200, {
+              serial,
+              lane,
+              devices: listDeviceLanes(registry),
+            });
             return;
           }
           if (req.method === "PUT") {
             if (!requireCpAuth()) return;
             const raw = await readBody(req);
-            const body = raw
-              ? (JSON.parse(raw) as { lane?: string })
-              : {};
+            const body = raw ? (JSON.parse(raw) as { lane?: string }) : {};
             if (!isValidLane(body.lane)) {
               appendAudit(projectRoot, {
                 method: "PUT",
@@ -676,7 +678,11 @@ export function createControlPlane(options: {
               });
               return;
             }
-            const { registry, lane } = setDeviceLane(projectRoot, serial, body.lane);
+            const { registry, lane } = setDeviceLane(
+              projectRoot,
+              serial,
+              body.lane,
+            );
             appendAudit(projectRoot, {
               method: "PUT",
               path: url.pathname,
@@ -697,7 +703,9 @@ export function createControlPlane(options: {
       }
 
       if (req.method === "GET" && url.pathname === "/v1/devices") {
-        sendJson(res, 200, { devices: listDeviceLanes(loadRegistry(projectRoot)) });
+        sendJson(res, 200, {
+          devices: listDeviceLanes(loadRegistry(projectRoot)),
+        });
         return;
       }
 
@@ -1145,11 +1153,17 @@ function printBanner(handle: ControlPlaneHandle, label: string): void {
   console.error("  GET  /v1/artifacts/:digest  (Map E host download)");
   console.error("  GET  /v1/js-updates?lane=&module=  (Map E JS train)");
   console.error("  GET|PUT /v1/dependency-manifest (Map E deps)");
-  console.error("  GET  /v1/devices | GET|PUT /v1/devices/:serial/lane (C6.3 grey slice)");
-  console.error("  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)");
+  console.error(
+    "  GET  /v1/devices | GET|PUT /v1/devices/:serial/lane (C6.3 grey slice)",
+  );
+  console.error(
+    "  POST /v1/rollout/slo-breach { digest, reason } (C2 thin P10)",
+  );
   console.error("  POST /v1/rollout/tick { digest, sli?, now? } (C5 P10 auto)");
   console.error("  GET  /v1/metrics  (Prometheus text — thin observability)");
-  console.error("  POST /v1/sli { digest, sli, tick? }  (SLI ingest → optional tick)");
+  console.error(
+    "  POST /v1/sli { digest, sli, tick? }  (SLI ingest → optional tick)",
+  );
   console.error("  auth: RN_CP_TOKEN | RN_CP_TENANTS + X-RN-Tenant");
   console.error("  audit -> .rn/distribution-lab/logs/cp-audit.log (C6.4)");
 }

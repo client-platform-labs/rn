@@ -43,7 +43,10 @@ class OtaModule(private val ctx: ReactApplicationContext) :
     // Use Arguments.createArray — Kotlin arrayOf() becomes WritableNativeArray,
     // Array.isArray() === false on the JS side.
     val arr = Arguments.createArray()
-    arr.pushString("3c728c981b5c368a4ea24b0be8736f88f0b927105c86007c4c0c8c5c2b2fd62f")
+    // F02: placeholder — replaced by apply-ota --pubkey-hex/--rca-pubkey-hex.
+    // Hosts copying this template WITHOUT baking a real key get an all-zeros
+    // key that fails verification (fail-closed), never a silently-wrong key.
+    arr.pushString("0000000000000000000000000000000000000000000000000000000000000000")
     promise.resolve(arr)
   }
 

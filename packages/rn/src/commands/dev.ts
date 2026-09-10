@@ -1,9 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import {
-  findManifestRoot,
-  MANIFEST_FILENAME,
-} from "@client-platform/core";
+import { findManifestRoot, MANIFEST_FILENAME } from "@client-platform/core";
 import { ensureMetroBridge } from "../android-dev-bridge.js";
 import {
   buildAndroidInstallArgs,
@@ -21,6 +18,7 @@ import {
   loadDevSessionConfig,
 } from "../dev-session-config.js";
 import { writeDevSessionContributions } from "../dev-session-plugins.js";
+import { regenerateDerivedArtifacts } from "../declaration-derived.js";
 import { DEV_SUPPORT_MODULE_DIR } from "../dev-support/constants.js";
 import {
   type MetroAfterPlatform,
@@ -74,13 +72,23 @@ function logDevTransportSetup(
   } else if (transport.mode !== "lan" && probe.bridgeReady) {
     logger.writeHuman("dev session: device bridge ready");
   } else if (transport.mode === "lan") {
-    logger.writeHuman("dev session: LAN — ensure phone and Mac on same network");
+    logger.writeHuman(
+      "dev session: LAN — ensure phone and Mac on same network",
+    );
   }
 }
 
 function isAndroidBuildWarm(projectRoot: string): boolean {
   return existsSync(
-    path.join(projectRoot, "android", "app", "build", "outputs", "apk", "debug"),
+    path.join(
+      projectRoot,
+      "android",
+      "app",
+      "build",
+      "outputs",
+      "apk",
+      "debug",
+    ),
   );
 }
 
@@ -128,7 +136,10 @@ export async function runDev(options: {
   }
 
   if (options.stopMetro && options.detachMetro) {
-    throw new CliError("pass only one of --stop-metro or --detach-metro", EXIT_FAIL);
+    throw new CliError(
+      "pass only one of --stop-metro or --detach-metro",
+      EXIT_FAIL,
+    );
   }
 
   const npx = resolveNpx();
@@ -140,6 +151,23 @@ export async function runDev(options: {
         .map((s) => s.trim())
         .filter(Boolean)
     : [];
+
+  // G7 (F13): dev preflight — regenerate declaration-derived artifacts
+  // (registry + host-resolver + generated-runtime) so Metro never hits the
+  // missing-resolver fail-closed throw. Best-effort: a --pure project without
+  // dev-session still starts dev (warn, don't block).
+  if (existsSync(path.join(projectRoot, ".rn", "dev-session.jsonc"))) {
+    try {
+      regenerateDerivedArtifacts(projectRoot);
+      options.logger.writeHuman(
+        "[rn] dev preflight: regenerated declaration-derived artifacts (F13/G7)",
+      );
+    } catch (err) {
+      options.logger.warn(
+        `[rn] dev preflight: derived-artifact regeneration skipped — ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
 
   if (moduleIds.length > 0) {
     const sessionConfig = loadDevSessionConfig(projectRoot);
@@ -218,10 +246,14 @@ export async function runDev(options: {
     logger: options.logger,
     noMetro: options.noMetro || moduleIds.length > 0,
     after: metroAfter,
-    port: moduleIds.length > 0
-      ? listModulePorts(loadDevSessionConfig(projectRoot)!, moduleIds, projectRoot)[0]
-          ?.port
-      : undefined,
+    port:
+      moduleIds.length > 0
+        ? listModulePorts(
+            loadDevSessionConfig(projectRoot)!,
+            moduleIds,
+            projectRoot,
+          )[0]?.port
+        : undefined,
   };
 
   if (options.android) {
@@ -284,25 +316,24 @@ export async function runDev(options: {
         env: { ...childEnv, ...gradleEnv },
       });
       if (code !== 0) {
-        throw new CliError(`react-native run-android failed (exit ${code})`, EXIT_FAIL);
+        throw new CliError(
+          `react-native run-android failed (exit ${code})`,
+          EXIT_FAIL,
+        );
       }
-      options.logger.writeHuman("dev session: install complete — reload JS from Metro (r)");
+      options.logger.writeHuman(
+        "dev session: install complete — reload JS from Metro (r)",
+      );
     });
     return;
   }
 
   if (options.ios) {
     if (process.platform !== "darwin") {
-      throw new CliError(
-        "iOS run is only supported on darwin.",
-        EXIT_FAIL,
-      );
+      throw new CliError("iOS run is only supported on darwin.", EXIT_FAIL);
     }
     if (!commandExists("xcodebuild")) {
-      throw new CliError(
-        "xcodebuild not found — install Xcode.",
-        EXIT_FAIL,
-      );
+      throw new CliError("xcodebuild not found — install Xcode.", EXIT_FAIL);
     }
 
     await runPlatformWithMetro(metroBase, async () => {
@@ -316,7 +347,10 @@ export async function runDev(options: {
         { cwd: projectRoot },
       );
       if (code !== 0) {
-        throw new CliError(`react-native run-ios failed (exit ${code})`, EXIT_FAIL);
+        throw new CliError(
+          `react-native run-ios failed (exit ${code})`,
+          EXIT_FAIL,
+        );
       }
     });
     return;
@@ -328,12 +362,17 @@ export async function runDev(options: {
     const bridge = ensureMetroBridge({ adbPath: android.adbPath });
     if (bridge.ok) {
       options.logger.writeHuman(bridge.message);
-    } else if (bridge.probe.devices.length > 0 || bridge.probe.unauthorizedCount > 0) {
+    } else if (
+      bridge.probe.devices.length > 0 ||
+      bridge.probe.unauthorizedCount > 0
+    ) {
       options.logger.warn(bridge.message);
     }
   }
   if (!options.logger.json) {
-    options.logger.writeHuman("Metro will stay in the foreground. Ctrl+C to stop.");
+    options.logger.writeHuman(
+      "Metro will stay in the foreground. Ctrl+C to stop.",
+    );
     options.logger.writeHuman(
       "Platform attach: rn dev --android  (starts Metro + install; Metro stays up until Ctrl+C).",
     );

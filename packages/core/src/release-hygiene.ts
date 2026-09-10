@@ -20,8 +20,8 @@ export const RELEASE_DEV_SUPPORT_MARKER = "client-platform-rn-dev-support";
 const APP_ENTRY_NAMES = ["App.tsx", "App.jsx", "index.js", "index.tsx"];
 
 function appEntryPaths(projectRoot: string): string[] {
-  return APP_ENTRY_NAMES.map((name) => path.join(projectRoot, name)).filter((p) =>
-    existsSync(p),
+  return APP_ENTRY_NAMES.map((name) => path.join(projectRoot, name)).filter(
+    (p) => existsSync(p),
   );
 }
 
@@ -76,6 +76,29 @@ export function evaluateReleaseSourceHygiene(
             .map((f) => path.relative(root, f))
             .join(", ")}`,
     blocking: wrappedEntries.length > 0,
+  });
+
+  // F19 (G8): release bundles must never carry dev=true — ShellHost gates OTA
+  // on `if (__DEV__) return`, so a dev=true release silently skips device OTA.
+  const hasAndroidDir = existsSync(path.join(root, "android"));
+  const gradle = path.join(root, "android", "app", "build.gradle");
+  const gradleOk =
+    hasAndroidDir &&
+    existsSync(gradle) &&
+    /^\s*debuggableVariants\s*=\s*\[\]/m.test(readFileSync(gradle, "utf8"));
+  checks.push({
+    id: "release-debuggable-variants",
+    // N/A (ok) when the project has no android/ at all; blocking only when it
+    // claims to be an Android project but hasn't baked release hygiene.
+    ok: !hasAndroidDir || gradleOk,
+    summary: hasAndroidDir
+      ? gradleOk
+        ? "build.gradle bakes debuggableVariants = [] (release never dev=true)"
+        : existsSync(gradle)
+          ? "build.gradle lacks active `debuggableVariants = []` — run rn shell refresh / rn init to bake (F19)"
+          : "android/app/build.gradle missing — release hygiene default not baked (F19)"
+      : "no android/ — debuggable-variants hygiene N/A",
+    blocking: hasAndroidDir && !gradleOk,
   });
 
   return checks;

@@ -27,7 +27,10 @@ describe("release source hygiene", () => {
   it("fails when dev-support module dir exists", () => {
     const root = mkdtempSync(path.join(tmpdir(), "rn-release-hygiene-"));
     mkdirSync(path.join(root, "src", ".rn-dev-support"), { recursive: true });
-    writeFileSync(path.join(root, "App.tsx"), "export default function App() {}\n");
+    writeFileSync(
+      path.join(root, "App.tsx"),
+      "export default function App() {}\n",
+    );
     const checks = evaluateReleaseSourceHygiene(root);
     const dirCheck = checks.find((c) => c.id === "release-dev-support-dir");
     assert.equal(dirCheck?.ok, false);
@@ -55,5 +58,58 @@ describe("scanApkReleaseHygiene", () => {
     const scan = scanApkReleaseHygiene(apk);
     assert.equal(scan[0]?.ok, false);
     assert.match(scan[0]?.summary ?? "", /DevSupportRoot/);
+  });
+});
+
+describe("release debuggable-variants hygiene (F19/G8)", () => {
+  function makeRoot(gradleBody: string | null): string {
+    const root = mkdtempSync(path.join(tmpdir(), "rn-release-debug-"));
+    mkdirSync(path.join(root, "android", "app"), { recursive: true });
+    if (gradleBody !== null) {
+      writeFileSync(
+        path.join(root, "android", "app", "build.gradle"),
+        gradleBody,
+      );
+    }
+    return root;
+  }
+
+  it("flags missing build.gradle", () => {
+    const root = makeRoot(null);
+    const check = evaluateReleaseSourceHygiene(root).find(
+      (c) => c.id === "release-debuggable-variants",
+    );
+    assert.ok(check);
+    assert.equal(check?.ok, false);
+    assert.equal(check?.blocking, true);
+  });
+
+  it("non-Android project is N/A (not blocking)", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "rn-release-debug-"));
+    const check = evaluateReleaseSourceHygiene(root).find(
+      (c) => c.id === "release-debuggable-variants",
+    );
+    assert.ok(check);
+    assert.equal(check?.ok, true);
+    assert.equal(check?.blocking, false);
+  });
+
+
+  it("flags commented debuggableVariants", () => {
+    const root = makeRoot("android {\n    // debuggableVariants = []\n}\n");
+    const check = evaluateReleaseSourceHygiene(root).find(
+      (c) => c.id === "release-debuggable-variants",
+    );
+    assert.ok(check);
+    assert.equal(check?.ok, false);
+  });
+
+  it("passes on active debuggableVariants = []", () => {
+    const root = makeRoot("android {\n    debuggableVariants = []\n}\n");
+    const check = evaluateReleaseSourceHygiene(root).find(
+      (c) => c.id === "release-debuggable-variants",
+    );
+    assert.ok(check);
+    assert.equal(check?.ok, true);
   });
 });

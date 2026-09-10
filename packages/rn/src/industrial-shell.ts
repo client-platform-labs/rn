@@ -7,7 +7,9 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -43,10 +45,7 @@ function renderTemplate(rel: string, defaultModuleId: string): string {
 /** Read the project's default module id from its manifest (or fall back). */
 function defaultModuleIdFromManifest(projectRoot: string): string {
   try {
-    const raw = readFileSync(
-      path.join(projectRoot, MANIFEST_FILENAME),
-      "utf8",
-    );
+    const raw = readFileSync(path.join(projectRoot, MANIFEST_FILENAME), "utf8");
     // minimal JSONC read: business default is "main" per topology-b; the
     // manifest doesn't carry it, so default to "main".
     void raw;
@@ -63,7 +62,7 @@ function defaultModuleIdFromManifest(projectRoot: string): string {
  */
 /** F25: template version — bump when industrial shell templates change. Existing
  * projects can detect drift and run `rn shell refresh` to regenerate. */
-export const INDUSTRIAL_TEMPLATE_VERSION = "2";
+export const INDUSTRIAL_TEMPLATE_VERSION = "3";
 
 /** Write the applied template version marker (.rn/template-version.json). */
 export function writeTemplateVersion(projectRoot: string): void {
@@ -80,7 +79,10 @@ export function writeTemplateVersion(projectRoot: string): void {
 export function readTemplateVersion(projectRoot: string): string | null {
   try {
     const j = JSON.parse(
-      readFileSync(path.join(projectRoot, ".rn", "template-version.json"), "utf8"),
+      readFileSync(
+        path.join(projectRoot, ".rn", "template-version.json"),
+        "utf8",
+      ),
     ) as { industrialTemplateVersion?: string };
     return j.industrialTemplateVersion ?? null;
   } catch {
@@ -131,15 +133,113 @@ export function applyIndustrialShell(projectRoot: string): void {
   // complete runnable chain (D4), and the OTA base URL has a config seam.
   ensureRuntimeConfig(projectRoot, {});
   regenerateDerivedArtifacts(projectRoot);
+
+  // F19 (G8): release hygiene default — release bundles must never carry dev=true.
+  bakeReleaseHygiene(projectRoot);
+
   writeTemplateVersion(projectRoot);
+}
+
+/**
+ * G2 (D4) / G4 (BF): locate a native OTA adapter registration under `android/`.
+ * Any of: an OtaModule.kt / OtaPackage.kt file, or a *Application.kt whose body
+ * references "OtaPackage" (apply-ota signature). Bounded recursive walk — never
+ * follows into node_modules / build / .gradle. Returns the first match path or
+ * null. Shared by the GF product probe (nativeOtaAdapterPresent) and the BF
+ * host probe (brownfield-doctor) so the adapter shape stays defined once.
+ */
+export function findNativeOtaAdapterPath(projectRoot: string): string | null {
+  const androidRoot = path.join(projectRoot, "android");
+  if (!existsSync(androidRoot)) return null;
+  const queue = [androidRoot];
+  const maxVisited = 40_000;
+  let visited = 0;
+  while (queue.length > 0 && visited < maxVisited) {
+    const dir = queue.shift()!;
+    visited += 1;
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true }).map((e) => e.name);
+    } catch {
+      continue;
+    }
+    for (const name of entries) {
+      const abs = path.join(dir, name);
+      if (name === "node_modules" || name === "build" || name === ".gradle") {
+        continue;
+      }
+      if (name === "OtaModule.kt" || name === "OtaPackage.kt") {
+        return abs;
+      }
+      if (name.endsWith("Application.kt")) {
+        try {
+          const body = readFileSync(abs, "utf8");
+          if (body.includes("OtaPackage")) return abs;
+        } catch {
+          /* unreadable — skip */
+        }
+      }
+      try {
+        if (statSync(abs).isDirectory()) queue.push(abs);
+      } catch {
+        /* not a dir — skip */
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * G2 (D4): is the project's native side wired with the OTA adapter?
+ * True when the android source tree contains an OtaModule.kt / OtaPackage.kt,
+ * or MainApplication.kt already registers OtaPackage (apply-ota signature).
+ * Shares the walk with the BF probe (findNativeOtaAdapterPath) so the adapter
+ * shape is defined once.
+ */
+export function nativeOtaAdapterPresent(projectRoot: string): boolean {
+  return findNativeOtaAdapterPath(projectRoot) != null;
+}
+
+/**
+ * F19 (G8): release-hygiene hardening — ensure android/app/build.gradle carries
+ * an ACTIVE (uncommented) `debuggableVariants = []` so a release bundle is never
+ * built with dev=true (ShellHost `if (__DEV__) return` would skip OTA).
+ * Best-effort: uncomment an existing commented line, else insert after `android {`.
+ * Never throws on unexpected gradle shapes.
+ */
+export function bakeReleaseHygiene(projectRoot: string): void {
+  const gradle = path.join(projectRoot, "android", "app", "build.gradle");
+  if (!existsSync(gradle)) return;
+  let body: string;
+  try {
+    body = readFileSync(gradle, "utf8");
+  } catch {
+    return;
+  }
+  const active = /^\s*debuggableVariants\s*=\s*\[\]/m;
+  if (active.test(body)) return;
+  const commented = /^\s*\/\/\s*debuggableVariants\s*=\s*\[\]/m;
+  if (commented.test(body)) {
+    body = body.replace(commented, "    debuggableVariants = []");
+  } else {
+    // No line at all — insert right after the `android {` block opener.
+    const open = /^android\s*\{$/m;
+    if (open.test(body)) {
+      body = body.replace(open, "android {\n    debuggableVariants = []");
+    } else {
+      return;
+    }
+  }
+  try {
+    writeFileSync(gradle, body, "utf8");
+  } catch {
+    /* best-effort */
+  }
 }
 
 /** F20: loopback-only cleartext for device OTA (127.0.0.1/localhost). */
 function bakeNetworkSecurityConfig(projectRoot: string): void {
-  const xmlDir = path.join(
-    projectRoot,
-    "android/app/src/main/res/xml",
-  );
+  const xmlDir = path.join(projectRoot, "android/app/src/main/res/xml");
   const xml = path.join(xmlDir, "network_security_config.xml");
   mkdirSync(xmlDir, { recursive: true });
   writeFileSync(
@@ -192,7 +292,12 @@ function linkPlatformPackages(projectRoot: string): void {
     const src = path.join(platformRoot, "packages", name);
     if (!existsSync(src)) continue;
     deps[scoped] = deps[scoped] ?? "0.1.0";
-    const dest = path.join(projectRoot, "node_modules", "@client-platform", name);
+    const dest = path.join(
+      projectRoot,
+      "node_modules",
+      "@client-platform",
+      name,
+    );
     mkdirSync(path.dirname(dest), { recursive: true });
     try {
       if (existsSync(dest)) rmSync(dest, { recursive: true, force: true });

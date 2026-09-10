@@ -55,4 +55,13 @@ describe("metro module config", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("renders fail-closed resolver load (G7/F13 — missing host-resolver throws)", () => {
+    const cfg = renderMetroModuleConfig({ moduleId: "main", entry: "index" });
+    assert.match(cfg, /hostResolver/);
+    // G7: a missing host-resolver must THROW, not console.warn + degrade.
+    assert.match(cfg, /throw new Error\(/);
+    assert.match(cfg, /host-resolver.cjs missing — run: rn module register/);
+    assert.doesNotMatch(cfg, /console\.warn\(/);
+  });
 });

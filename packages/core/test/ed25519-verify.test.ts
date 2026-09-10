@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { generateKeyPairSync, sign as nodeSign } from "node:crypto";
 
-import { verifyEd25519Seal, verifyRevocationSeal } from "../dist/index.js";
+import {
+  verifyEd25519Seal,
+  verifyRevocationSeal,
+  verifyRevocationSealAny,
+} from "../dist/index.js";
 
 function rawPubHex() {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
@@ -61,7 +65,11 @@ describe("verifyEd25519Seal (ADR-017)", () => {
 
   it("ADR-018: verifyRevocationSeal accepts a K2-signed revocation payload", () => {
     const k2 = rawPubHex();
-    const payload = JSON.stringify({ schemaVersion: 1, revoked: ["k1hex"], ts: "t" });
+    const payload = JSON.stringify({
+      schemaVersion: 1,
+      revoked: ["k1hex"],
+      ts: "t",
+    });
     const seal = `pem:ed25519:${nodeSign(null, Buffer.from(payload, "utf8"), k2.privateKey).toString("base64")}`;
     assert.equal(verifyRevocationSeal(seal, payload, k2.pubHex), true);
     // tampered payload / wrong key → false
@@ -71,5 +79,33 @@ describe("verifyEd25519Seal (ADR-017)", () => {
     );
     const k3 = rawPubHex();
     assert.equal(verifyRevocationSeal(seal, payload, k3.pubHex), false);
+  });
+
+  it("G3: verifyRevocationSealAny accepts ANY baked key, rejects tampering", () => {
+    const k1 = rawPubHex();
+    const k2 = rawPubHex();
+    const payload = 'v1|schemaVersion=1|revoked=["a"]';
+    const sig = nodeSign(null, Buffer.from(payload, "utf8"), k2.privateKey);
+    const seal = `pem:ed25519:${sig.toString("base64")}`;
+    // sealed by k2 → verifies against [k1, k2]
+    assert.equal(
+      verifyRevocationSealAny(seal, payload, [k1.pubHex, k2.pubHex]),
+      true,
+    );
+    // wrong payload / cleared list → false (fail-closed)
+    assert.equal(
+      verifyRevocationSealAny(seal, "v1|schemaVersion=1|revoked=[]", [
+        k1.pubHex,
+        k2.pubHex,
+      ]),
+      false,
+    );
+    // empty key set / malformed seal / wrong key → false
+    assert.equal(verifyRevocationSealAny(seal, payload, []), false);
+    assert.equal(
+      verifyRevocationSealAny("not-a-seal", payload, [k2.pubHex]),
+      false,
+    );
+    assert.equal(verifyRevocationSealAny(seal, payload, [k1.pubHex]), false);
   });
 });

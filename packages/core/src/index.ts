@@ -315,7 +315,11 @@ export {
 export type { DisposeProbe, DisposeProbeHandle } from "./dispose-probe.js";
 
 export { gateBundleLoad } from "./bundle-load-gate.js";
-export { verifyEd25519Seal, verifyRevocationSeal } from "./ed25519-verify.js";
+export {
+  verifyEd25519Seal,
+  verifyRevocationSeal,
+  verifyRevocationSealAny,
+} from "./ed25519-verify.js";
 export type {
   BundleLoadArtifact,
   BundleLoadGateResult,

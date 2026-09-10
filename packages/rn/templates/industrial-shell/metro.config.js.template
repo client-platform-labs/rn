@@ -4,12 +4,16 @@ const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
 const hostRoot = __dirname;
 const resolverPath = path.join(hostRoot, ".rn/metro/host-resolver.cjs");
 
-let hostMetro = {};
+// G7 (F13): fail-closed — the industrial shell REQUIRES host-resolver for
+// platform-package resolution. A missing resolver is a broken project, not a
+// warn-and-degrade condition.
+let hostMetro;
 try {
   hostMetro = require(resolverPath).load();
-} catch {
-  console.warn(
-    "[rn] missing .rn/metro/host-resolver.cjs — run: rn module register or rn dev",
+} catch (err) {
+  throw new Error(
+    "[rn] missing .rn/metro/host-resolver.cjs — run: rn module register (fail-closed, F13/G7). " +
+      (err && err.message ? err.message : ""),
   );
 }
 

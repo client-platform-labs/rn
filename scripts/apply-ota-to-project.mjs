@@ -60,17 +60,25 @@ function sh(name) {
 
 // 1) applicationId from android/app/build.gradle
 const buildGradle = path.join(projectRoot, "android/app/build.gradle");
-if (!existsSync(buildGradle)) errors.push("android/app/build.gradle missing (not an RN android app?)");
+if (!existsSync(buildGradle))
+  errors.push("android/app/build.gradle missing (not an RN android app?)");
 let appId = "";
 if (existsSync(buildGradle)) {
-  const m = readFileSync(buildGradle, "utf8").match(/applicationId\s+"([^"]+)"/);
-  if (!m) errors.push("applicationId not found in build.gradle");
-  else appId = m[1];
+  const m = readFileSync(buildGradle, "utf8").match(
+    /applicationId\s+"([^"]+)"/,
+  );
+  if (m) appId = m[1];
+  else errors.push("applicationId not found in build.gradle");
 }
 
 // 2) copy native templates into <pkg>/ota/
 const pkgPath = appId
-  ? path.join(projectRoot, "android/app/src/main/java", ...appId.split("."), "ota")
+  ? path.join(
+      projectRoot,
+      "android/app/src/main/java",
+      ...appId.split("."),
+      "ota",
+    )
   : null;
 const templatesDir = path.join(repoRoot, "packages/rn/templates/ota-android");
 if (pkgPath && existsSync(templatesDir)) {
@@ -93,7 +101,13 @@ if (pkgPath && existsSync(templatesDir)) {
           /pushString\("([0-9a-fA-F]{64})"\)/,
           `pushString("${bakeKey}")`,
         );
-        if (baked !== body) {
+        if (baked === body) {
+          // G8/F02 residual: a host that copied the template without a 64-hex
+          // pubkey string would silently keep a bad default. Fail loud instead.
+          throw new Error(
+            `apply-ota: could not locate a 64-hex pubkey string to bake in OtaModule.kt — template changed? (expected pushString("<64hex>"))`,
+          );
+        } else {
           body = baked;
           sh(
             `bake ${rcaPubkeyHex ? "root-CA" : "pubkey"} → OtaModule.getOtaPublicKeys (${bakeKey.slice(0, 8)}…)`,
@@ -102,24 +116,35 @@ if (pkgPath && existsSync(templatesDir)) {
       }
       writeFileSync(out, body);
     }
-    sh(`copy ${name} → ${path.relative(projectRoot, out)} (package=${appId}.ota)`);
+    sh(
+      `copy ${name} → ${path.relative(projectRoot, out)} (package=${appId}.ota)`,
+    );
   }
 }
 
 // 3) patch MainApplication.kt (register package)
-const mainApp = path.join(projectRoot, "android/app/src/main/java", ...(appId ? appId.split(".") : []), "MainApplication.kt");
-if (!existsSync(mainApp)) errors.push(`MainApplication.kt not found at ${mainApp}`);
+const mainApp = path.join(
+  projectRoot,
+  "android/app/src/main/java",
+  ...(appId ? appId.split(".") : []),
+  "MainApplication.kt",
+);
+if (!existsSync(mainApp))
+  errors.push(`MainApplication.kt not found at ${mainApp}`);
 if (existsSync(mainApp)) {
   let src = readFileSync(mainApp, "utf8");
   const pkgImport = `import ${appId}.ota.OtaPackage`;
   if (!src.includes(pkgImport)) {
     const decl = src.match(/^package\s+([\w.]+);?$/m);
-    if (!decl) {
-      errors.push("cannot locate package declaration in MainApplication.kt");
-    } else {
+    if (decl) {
       const nextImport = src.indexOf("\nimport ");
-      const insertAt = nextImport >= 0 ? nextImport + 1 : src.indexOf(decl[0]) + decl[0].length;
+      const insertAt =
+        nextImport >= 0
+          ? nextImport + 1
+          : src.indexOf(decl[0]) + decl[0].length;
       src = src.slice(0, insertAt) + pkgImport + "\n" + src.slice(insertAt);
+    } else {
+      errors.push("cannot locate package declaration in MainApplication.kt");
     }
   }
   if (!src.includes("add(OtaPackage())")) {
@@ -146,7 +171,10 @@ if (existsSync(mainApp)) {
     const decl = src.match(/^package\s+([\w.]+);?$/m);
     if (decl) {
       const nextImport = src.indexOf("\nimport ");
-      const insertAt = nextImport >= 0 ? nextImport + 1 : src.indexOf(decl[0]) + decl[0].length;
+      const insertAt =
+        nextImport >= 0
+          ? nextImport + 1
+          : src.indexOf(decl[0]) + decl[0].length;
       src = src.slice(0, insertAt) + modImport + "\n" + src.slice(insertAt);
     }
   }
@@ -155,7 +183,7 @@ if (existsSync(mainApp)) {
       /(getDefaultReactHost\()([\s\S]*?)(context = applicationContext,)/,
       (_, head, mid, ctx) =>
         `val jsBundleFilePath = OtaModule.resolveJsBundleFilePath(applicationContext, BuildConfig.DEBUG)\n` +
-          `${head}jsBundleFilePath = jsBundleFilePath,${mid}${ctx}`,
+        `${head}jsBundleFilePath = jsBundleFilePath,${mid}${ctx}`,
     );
   }
 
@@ -167,19 +195,29 @@ if (existsSync(mainApp)) {
 const pkgJson = path.join(projectRoot, "package.json");
 if (!existsSync(pkgJson)) errors.push("package.json missing");
 if (existsSync(pkgJson)) {
-  const pkg = JSON.parse(readFileSync(pkgJson, "utf8"));
-  const deps = (pkg.dependencies = pkg.dependencies ?? {});
-  const added = [];
-  // SEAM-2/F18: only the device-side OTA client dep, real version (not workspace:*,
-  // not the pre-split rn-core). Skip when already present.
-  for (const name of ["@client-platform/shell-core"]) {
-    if (!deps[name]) {
-      deps[name] = "0.1.0";
-      added.push(name);
-    }
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(pkgJson, "utf8"));
+  } catch {
+    pkg = null;
   }
-  if (!dryRun) writeFileSync(pkgJson, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
-  sh(`add deps: ${added.join(", ") || "(already present)"}`);
+  if (!pkg) {
+    errors.push(`invalid package.json (JSON parse failed): ${pkgJson}`);
+  } else {
+    const deps = (pkg.dependencies = pkg.dependencies ?? {});
+    const added = [];
+    // SEAM-2/F18: only the device-side OTA client dep, real version (not workspace:*,
+    // not the pre-split rn-core). Skip when already present.
+    for (const name of ["@client-platform/shell-core"]) {
+      if (!deps[name]) {
+        deps[name] = "0.1.0";
+        added.push(name);
+      }
+    }
+    if (!dryRun)
+      writeFileSync(pkgJson, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
+    sh(`add deps: ${added.join(", ") || "(already present)"}`);
+  }
 }
 
 // 5) wiring reference (do NOT overwrite business App)

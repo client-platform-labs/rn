@@ -32,6 +32,7 @@ import {
   saveRegistrySqlite,
   useSqliteRegistry,
 } from "./registry-sqlite.js";
+import { signCanonicalPayload } from "./signature.js";
 
 export const DELIVERY_STATE_DIR = ".rn/delivery";
 export const LAST_BUILD_FILE = "last-build.json";
@@ -51,8 +52,7 @@ export const LANES: readonly Lane[] = ["staging", "production", "gray"];
 
 export function isValidLane(value: unknown): value is Lane {
   return (
-    typeof value === "string" &&
-    (LANES as readonly string[]).includes(value)
+    typeof value === "string" && (LANES as readonly string[]).includes(value)
   );
 }
 
@@ -151,7 +151,11 @@ export function writeBuildResults(
 export function readLastBuild(projectRoot: string): LastBuildRecord | null {
   const file = path.join(deliveryDir(projectRoot), LAST_BUILD_FILE);
   if (!existsSync(file)) return null;
-  return JSON.parse(readFileSync(file, "utf8")) as LastBuildRecord;
+  try {
+    return JSON.parse(readFileSync(file, "utf8")) as LastBuildRecord;
+  } catch {
+    return null;
+  }
 }
 
 export function readLastCandidate(
@@ -159,7 +163,11 @@ export function readLastCandidate(
 ): CandidateMetadata | null {
   const file = path.join(deliveryDir(projectRoot), LAST_CANDIDATE_FILE);
   if (!existsSync(file)) return null;
-  return JSON.parse(readFileSync(file, "utf8")) as CandidateMetadata;
+  try {
+    return JSON.parse(readFileSync(file, "utf8")) as CandidateMetadata;
+  } catch {
+    return null;
+  }
 }
 
 export function emptyRegistry(): DeliveryRegistry {
@@ -192,7 +200,9 @@ function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
   };
 }
 
-function normalizeDevices(raw: DeliveryRegistry["devices"] | undefined): DeviceLaneRecord {
+function normalizeDevices(
+  raw: DeliveryRegistry["devices"] | undefined,
+): DeviceLaneRecord {
   const out: DeviceLaneRecord = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [serial, rec] of Object.entries(raw)) {
@@ -201,7 +211,10 @@ function normalizeDevices(raw: DeliveryRegistry["devices"] | undefined): DeviceL
     if (!isValidLane(lane)) continue;
     out[serial] = {
       lane,
-      assigned_at: typeof rec.assigned_at === "string" ? rec.assigned_at : new Date().toISOString(),
+      assigned_at:
+        typeof rec.assigned_at === "string"
+          ? rec.assigned_at
+          : new Date().toISOString(),
     };
   }
   return out;
@@ -213,9 +226,13 @@ export function loadRegistry(projectRoot: string): DeliveryRegistry {
   }
   const file = path.join(deliveryDir(projectRoot), REGISTRY_FILE);
   if (!existsSync(file)) return emptyRegistry();
-  return normalizeRegistry(
-    JSON.parse(readFileSync(file, "utf8")) as DeliveryRegistry,
-  );
+  try {
+    return normalizeRegistry(
+      JSON.parse(readFileSync(file, "utf8")) as DeliveryRegistry,
+    );
+  } catch {
+    return emptyRegistry();
+  }
 }
 
 const INSTALLABLE_KINDS = new Set(["app-host", "app-host-debug"]);
@@ -302,7 +319,11 @@ export function promoteCandidateToStaging(
   candidate: CandidateMetadata,
 ): DeliveryRegistry {
   const registry = loadRegistry(projectRoot);
-  const promoted: CandidateMetadata = { ...candidate, stage: "promote", lane: "staging" };
+  const promoted: CandidateMetadata = {
+    ...candidate,
+    stage: "promote",
+    lane: "staging",
+  };
   registry.staging = [
     ...registry.staging.filter((c) => c.digest !== promoted.digest),
     promoted,
@@ -317,7 +338,9 @@ export function blockCandidateInRegistry(
   reason: string,
 ): DeliveryRegistry {
   const registry = loadRegistry(projectRoot);
-  registry.staging = registry.staging.filter((c) => c.digest !== candidate.digest);
+  registry.staging = registry.staging.filter(
+    (c) => c.digest !== candidate.digest,
+  );
   registry.production = registry.production.filter(
     (c) => c.digest !== candidate.digest,
   );
@@ -339,12 +362,20 @@ export function writeLastCandidate(
   candidate: CandidateMetadata,
 ): void {
   ensureDeliveryDir(projectRoot);
-  const candidateFile = path.join(deliveryDir(projectRoot), LAST_CANDIDATE_FILE);
+  const candidateFile = path.join(
+    deliveryDir(projectRoot),
+    LAST_CANDIDATE_FILE,
+  );
   writeFileAtomicSync(candidateFile, `${JSON.stringify(candidate, null, 2)}\n`);
 
   const buildFile = path.join(deliveryDir(projectRoot), LAST_BUILD_FILE);
   if (!existsSync(buildFile)) return;
-  const record = JSON.parse(readFileSync(buildFile, "utf8")) as LastBuildRecord;
+  let record: LastBuildRecord;
+  try {
+    record = JSON.parse(readFileSync(buildFile, "utf8")) as LastBuildRecord;
+  } catch {
+    return;
+  }
   const idx = record.candidates.findIndex((c) => c.digest === candidate.digest);
   if (idx < 0) return;
   record.candidates[idx] = candidate;
@@ -360,7 +391,11 @@ export function promoteStagingToProduction(
   if (!staging) {
     throw new Error(`no staging candidate for digest ${digest}`);
   }
-  const production: CandidateMetadata = { ...staging, stage: "promote", lane: "production" };
+  const production: CandidateMetadata = {
+    ...staging,
+    stage: "promote",
+    lane: "production",
+  };
   registry.staging = registry.staging.filter((c) => c.digest !== digest);
   registry.production = [
     ...registry.production.filter((c) => c.digest !== digest),
@@ -449,9 +484,7 @@ export function setDeviceLane(
 }
 
 /** C6.3 grey slicing — list device→lane assignments. */
-export function listDeviceLanes(
-  registry: DeliveryRegistry,
-): DeviceLaneRecord {
+export function listDeviceLanes(registry: DeliveryRegistry): DeviceLaneRecord {
   return registry.devices;
 }
 
@@ -497,8 +530,9 @@ export function startRollout(
     gate: input.gate,
     actor: input.actor,
     steps:
-      input.min_soak_ms != null
-        ? [
+      input.min_soak_ms == null
+        ? undefined
+        : [
             {
               cohort: "canary",
               percent: 1,
@@ -516,8 +550,7 @@ export function startRollout(
               percent: 100,
               min_soak_ms: 0,
             },
-          ]
-        : undefined,
+          ],
   });
   upsertRollout(registry, rollout);
   saveRegistry(projectRoot, registry);
@@ -615,4 +648,30 @@ export function addRevocation(
 /** ADR-024: revoked signing keys (hex) for /v1/crl + device fail-closed checks. */
 export function listRevocations(projectRoot: string): string[] {
   return loadRegistry(projectRoot).revocations.map((r) => r.public_key_hex);
+}
+
+/**
+ * G3 (ADR-024): build the signed CRL document served at `/v1/crl`.
+ *
+ * `payload` is the canonical string the seal signs; a device verifies
+ * `seal` against its baked public keys (root CA in cert mode) with
+ * `verifyRevocationSealAny` before trusting `revoked`. When no signing key is
+ * configured `seal` is null — serve callers must fail-closed (device rejects
+ * an unsigned CRL), so this is never a silent plaintext trust root.
+ */
+export function buildCrlDoc(projectRoot: string): {
+  schemaVersion: 1;
+  revoked: string[];
+  payload: string;
+  seal: string | null;
+} {
+  const revoked = [...listRevocations(projectRoot)].sort();
+  const payload = `v1|schemaVersion=1|revoked=${JSON.stringify(revoked)}`;
+  let seal: string | null = null;
+  try {
+    seal = signCanonicalPayload(payload).signature;
+  } catch {
+    seal = null; // no signing key configured — serve must decide fail-closed
+  }
+  return { schemaVersion: 1, revoked, payload, seal };
 }

@@ -1,7 +1,11 @@
-# ota-android template — on-device OTA native adapter (SKELETON)
+# ota-android template — on-device OTA native adapter
 
-状态：**skeleton**（G0 抽取产物）。Kotlin 未在 Android SDK / 真机验证，
-设备端 e2e 属 HITL 待办（G0 / G1）。**不要当作已验证的设备运行时使用。**
+状态：**productized 模板（GF 设备 e2e 已验证，D3）**。Kotlin 原生适配器实现已落地，
+GF（greenfield）真机链路 check → fetch → verify → install → reload 已验证通过
+（2026-09-10 D3 证书链 + CRL 吊销 e2e）。本目录文件是**供宿主复制的模板**：
+`rn init` 后经 `apply-ota-to-project.mjs` 注入工程，BF 宿主按
+`templates/brownfield-android/ota/OtaWiringNotes.md.template` 接线。
+**不再标注 skeleton。**
 
 ## 用途
 
@@ -17,12 +21,10 @@
 - 验签发生在 `@client-platform/rn-core`（随 APK 的 embedded 包），
   绝不用 OTA 下载的 JS 去验 OTA 包。
 
-## HITL 待办
+## HITL 待办（剩余）
 
-- [ ] Android 编译通过 + 真机 `rn init` Greenfield 工程链接原生模块。
-- [ ] 真机走通 check → fetch → verify → install → reload → rollback。
-- [ ] 崩溃环计数（native 启动计数 + shell-core `crash-loop`）真机验证。
-- [ ] 双公钥 K1/K2 + 「K1 吊销」真机验证（ADR-018）。
+- [ ] 崩溃环计数（native 启动计数 + shell-core `crash-loop`）真机验证（G1）。
+- [ ] 双公钥 K1/K2 + 「K1 吊销」真机验证（ADR-018 遗留；D3 证书链模型已替代，CRL 吊销已验证）。
 
 ## 工业级实现契约（设备 e2e 验证出的正确做法）
 

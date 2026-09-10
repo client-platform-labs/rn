@@ -27,7 +27,10 @@ import {
 import { resolveNpx, runStreaming } from "../process.js";
 import { runDemoAdd } from "./demo.js";
 import { applyTopologyBAfterInit } from "../module-workspace.js";
-import { applyIndustrialShell } from "../industrial-shell.js";
+import {
+  applyIndustrialShell,
+  nativeOtaAdapterPresent,
+} from "../industrial-shell.js";
 
 const COMMUNITY_CLI = "@react-native-community/cli@latest";
 
@@ -131,13 +134,18 @@ function assertCwdAcceptsInit(cwd: string): void {
   if (existsSync(path.join(cwd, MANIFEST_FILENAME))) {
     throw new CliError(`${MANIFEST_FILENAME} already exists`, EXIT_FAIL);
   }
-  if (existsSync(path.join(cwd, "ios")) || existsSync(path.join(cwd, "android"))) {
+  if (
+    existsSync(path.join(cwd, "ios")) ||
+    existsSync(path.join(cwd, "android"))
+  ) {
     throw new CliError(
       "ios/ or android/ already exists — refuse to overwrite a native tree",
       EXIT_FAIL,
     );
   }
-  const entries = readdirSync(cwd).filter((name) => !ALLOWED_PREEXISTING.has(name));
+  const entries = readdirSync(cwd).filter(
+    (name) => !ALLOWED_PREEXISTING.has(name),
+  );
   if (entries.length > 0) {
     throw new CliError(
       `cwd is not empty (${entries.slice(0, 5).join(", ")}${entries.length > 5 ? ", …" : ""}). Run rn init in an empty directory.`,
@@ -159,7 +167,10 @@ function hoistProjectToCwd(cwd: string, appName: string): void {
     const from = path.join(staged, entry);
     const to = path.join(cwd, entry);
     if (existsSync(to)) {
-      throw new CliError(`cannot hoist ${entry}: already exists in cwd`, EXIT_FAIL);
+      throw new CliError(
+        `cannot hoist ${entry}: already exists in cwd`,
+        EXIT_FAIL,
+      );
     }
     renameSync(from, to);
   }
@@ -263,7 +274,9 @@ export async function runInit(options: {
     if (options.demo) {
       options.logger.writeHuman("  demo: rn demo add (after init)");
     }
-    options.logger.writeHuman(`  rnExactTuple (preview): ${rnExactTuplePreview}`);
+    options.logger.writeHuman(
+      `  rnExactTuple (preview): ${rnExactTuplePreview}`,
+    );
     options.logger.writeHuman(`  ${formatNpmPolicyLine(npm)}`);
     if (npm.policy === "isolated" && npmConfigKeyCount > 0) {
       options.logger.writeHuman(
@@ -303,7 +316,10 @@ export async function runInit(options: {
 
   hoistProjectToCwd(cwd, appName);
 
-  if (!existsSync(path.join(cwd, "android")) || !existsSync(path.join(cwd, "ios"))) {
+  if (
+    !existsSync(path.join(cwd, "android")) ||
+    !existsSync(path.join(cwd, "ios"))
+  ) {
     throw new CliError(
       "Community CLI init finished but ios/ or android/ is missing after hoist",
       EXIT_FAIL,
@@ -325,9 +341,30 @@ export async function runInit(options: {
       );
     } else {
       applyIndustrialShell(cwd);
-      options.logger.writeHuman(
-        "✅ 可运行的完整产品就绪：壳 + 业务模块 + OTA 能力（rn dev 开发 / ship 发布 / 设备 OTA）",
-      );
+      // G2 (D4): init produces the JS OTA layer (ShellHost + generated-runtime),
+      // but the NATIVE OTA adapter (OtaModule/OtaPackage) is a separate bake step
+      // that needs a signing key (HITL, ADR-024). Fail-loud: never silently claim
+      // "device OTA ready" when the native side is missing.
+      if (nativeOtaAdapterPresent(cwd)) {
+        options.logger.writeHuman(
+          "✅ 可运行的完整产品就绪：壳 + 业务模块 + OTA（rn dev 开发 / ship 发布 / 设备 OTA）",
+        );
+      } else {
+        options.logger.writeHuman(
+          "⚠️  可运行的完整产品就绪（JS 层）：壳 + 业务模块 + OTA 运行时已就位；" +
+            "设备 OTA 还需注入原生 OTA 适配器（D4/G2）。",
+        );
+        options.logger.writeHuman("    生成密钥 + 烘焙公钥（一次性，HITL）：");
+        options.logger.writeHuman(
+          "      ship keygen --cert   # 生成 RCA+leaf 证书链，输出 --rca-pubkey-hex",
+        );
+        options.logger.writeHuman(
+          "      apply-ota --rca-pubkey-hex <hex>   # 注入 OtaModule + 烘焙信任根到 APK",
+        );
+        options.logger.writeHuman(
+          "    rn doctor 会持续提示该缺失直到注入完成（G2 探针）。",
+        );
+      }
     }
   } else {
     mkdirSync(path.join(cwd, ".rn"), { recursive: true });
@@ -367,7 +404,9 @@ export async function runInit(options: {
     // Community CLI's own run-instructions echo the pre-hoist stage path).
     options.logger.writeHuman("Next (run from this project root):");
     options.logger.writeHuman(`  cd ${cwd}`);
-    options.logger.writeHuman("  rn doctor → rn dev --android → ship build --platform android");
+    options.logger.writeHuman(
+      "  rn doctor → rn dev --android → ship build --platform android",
+    );
     options.logger.writeHuman(
       "Android device testing needs ANDROID_HOME + adb (platform-tools). iOS needs Xcode + pod install.",
     );

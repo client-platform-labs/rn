@@ -1,4 +1,10 @@
-import { mkdirSync, writeFileSync, existsSync, rmSync, readdirSync } from "node:fs";
+import {
+  mkdirSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+  readdirSync,
+} from "node:fs";
 import path from "node:path";
 
 import type { DevSessionConfig } from "@client-platform/core";
@@ -9,7 +15,10 @@ export const METRO_MODULE_DIR = path.join(".rn", "metro");
  * Per-module Metro config (CJS) — isolates transformer cache via cacheVersion.
  * Entry file is selected by the bundle URL path (e.g. /index.support.bundle).
  */
-export function metroModuleConfigPath(projectRoot: string, moduleId: string): string {
+export function metroModuleConfigPath(
+  projectRoot: string,
+  moduleId: string,
+): string {
   return path.join(projectRoot, METRO_MODULE_DIR, `${moduleId}.config.cjs`);
 }
 
@@ -31,13 +40,15 @@ const defaultConfig = getDefaultConfig(projectRoot);
 
 // SEAM-2/F17: inherit the host resolver (platform-package resolution) so the
 // module dev Metro resolves @client-platform/* exactly like the host shell —
-// one resolver contract for dev and release.
-let hostResolver = {};
+// one resolver contract for dev and release. G7: fail-closed — a missing
+// resolver is a broken project, not a warn-and-degrade condition.
+let hostResolver;
 try {
   hostResolver = require("./host-resolver.cjs").load();
-} catch (e) {
-  console.warn(
-    "[rn] host-resolver.cjs missing — platform packages may not resolve; run rn module register",
+} catch (err) {
+  throw new Error(
+    "[rn] host-resolver.cjs missing — run: rn module register (fail-closed, F13/G7). " +
+      (err && err.message ? err.message : ""),
   );
 }
 

@@ -5,7 +5,7 @@
 > 严重度：S1 阻断（流程走不通）· S2 高（有损/不安全）· S3 中（体验/一致性）· S4 低（清洁度/文档）
 
 | ID | 阶段 | 严重度 | 问题 | 证据 | 影响 | 修复方向（ticket 素材） | 状态 |
-|----|------|--------|------|------|------|------------------------|------|
+| ---- | ------ | -------- | ------ | ------ | ------ | ------------------------ | ------ |
 | F01 | P0 密钥供应 | S3 | 密钥生成非一等公民：`ship` 无 keygen 动词，仅 `signature.ts` 内部 helper + `ota.md` 文档 `node -e` 一行；且**无规范密钥存放位置**（canonical key home），密钥只能随手放置 → 曾发生放入工程目录撞 init 空目录检查 | `ship --help` 命令集无 keygen；`signature.ts:98 generateLabEd25519Pem()`；本次演练 keys 放工程目录被 init 拒 | 0→1 必须从外部复制文档命令；密钥位置靠用户/助手猜 | 新增 `ship keygen`（生成 ed25519 PEM + 公钥 hex，权限 600）+ **定义规范密钥位置**（如 `~/.client-platform/keys/` 或工程 `.rn/keys/`，init 之后放工程内则 gitignore）；init 默认产品化（D4）时烘焙从规范位置读（F02）。**自动化边界**：仅 lab/测试密钥自动化；生产 HITL（ADR-018） | 待修复 |
 | F02 | P0 密钥供应 | S3 | 烘焙公钥硬编码：`ota-android/OtaModule.kt.template` `pushString("3c728c98…")`，`apply-ota-to-project.mjs` 不参数化 | 模板第 46 行硬编码 hex；apply-ota 仅写 README 提示 | 每次换密钥都要手改模板；烘焙的未必是签名用的那把 → 设备验签必然失败 | apply-ota 增加 `--pubkey-hex`（或从 keys/ 自动读）；模板改占位符。**自动化边界**：烘焙可自动，但"用哪把公钥/哪个发布身份"由人（发布负责人）决定 | 待修复 |
 | F03 | P0 工具链 | S2 | `get-rn.sh` 安装/卸载 home（`~/.client-platform/rn`）与签名密钥目录撞车；`--uninstall` 会 `rm -rf` 掉同目录密钥 | `~/.client-platform/rn/` 同时是 repo clone + `lab-sign-key.pem`；`do_uninstall` 直接 `rm -rf $HOME_DIR` | 卸载会误删信任根；安装 home 语义被污染 | 安装 home 改独立路径（如 `~/.local/share/client-platform/rn`）或密钥目录独立（`~/.client-platform/keys`）并在文档/预检中约定 | 待修复 |
@@ -15,7 +15,7 @@
 | F07 | P0 工具链 | S3 | 卸载入口不一致且 `rn self uninstall` 不完整：完整一键卸载只有 `get-rn.sh --uninstall`（删 rn/ship 链接+ENV_FILE+安装 home）；`rn self uninstall` 漏删 `~/.local/bin/ship`、ENV_FILE、安装 home（~/.client-platform/rn clone） | `self.ts` 遍历仅 ["rn"]、npm unlink rn+ship、markers；get-rn.sh `do_uninstall` 才删 ship/ENV_FILE/home | 用户按文档（cli-distribution.md）用 `rn self uninstall` 卸载会留下大量残余；两个入口行为不一致 | 演练后统一：A) 补全 `rn self uninstall`（+ship/+ENV_FILE/+安装 home）与 get-rn.sh --uninstall 对齐；B) 或文档把 `get-rn.sh --uninstall` 定为唯一卸载入口，`rn self uninstall` 降为只卸 CLI 自身 | 待修复 |
 | F08 | P0 工具链 | S3 | 一键安装后"当前终端激活"步骤非一等公民，且安装目标路径选型错误：`curl \| bash` 跑在子 shell 无法改父 shell PATH（POSIX 约束）；平台把 `~/.local/bin`（新用户 PATH 里没有）当主路径 + env 文件 + 埋没的 source 提示；而 npm 全局 bin 对每个 Node 用户本来就在 PATH（pi/npm install -g 装完即用的秘密）。另：get-rn.sh 的 npm link 打进了安装时 nvm 选的版本（v24.21.0）而非用户活动版本（v24.19.0），其 bin 不在当前 PATH → npm-link 路径形同虚设 | pi 对比：`npm install -g` 装进 npm bin（已在 PATH）；get-rn.sh `link_bins` npm link 到子 shell 的 nvm use 版本；`command -v rn` 无自检 | 新用户装完当前终端不可用且提示不显眼；npm-link 路径因 nvm 版本不一致失效 | **升级方向（pi 模型）**：① 主安装路径 = 活动 Node 的 npm 全局 bin（`npm install -g` / `npm link`），对 Node 用户装完即用零 source；② 安装后自检 `command -v rn`：可解析 → 打印"已可用"；不可 → 才提示 source/重开终端；③ `~/.local/bin` 降为无 npm 环境的兜底；④ cli-distribution.md 把 `npm install -g` 列为主入口，get-rn.sh 为安装器 | 待修复 |
 | F09 | P1 初始化（CLI UX） | S3 | 产品形态（工业壳）需要长命令 `rn init --starter topology-b --industrial`，且 `--starter topology-b` 与默认值重复；`--industrial` 是平台产品却要使用者手动记得加——新用户要么忘加得到降级壳，要么被长命令劝退，与"工业壳=平台产品"定位不符 | cli.ts help：starter 默认即 topology-b；industrial 为独立 flag；README 产品命令写全量长形式 | 产品默认体验缺失；新用户 onboarding 摩擦 | **已决策 D4（产品意图）**：`rn init` 默认 = 最小可跑完整链路（工业壳 + main 模块 + **OTA 原生适配注入** + host-resolver + 平台包链接），覆盖全角色；`rn init --pure`（干净壳）/ `--demo`（教学）为显式降档出口；分层命令，不再要求长 flag | 待修复 |
-| F10 | P1 初始化（CLI 命名） | S3 | CLI flag 泄漏内部架构分类学：`--starter topology-b` 把 ADR-005 的"拓扑 B"内部代号直接暴露给用户（用户不懂"拓扑/A/B"，无法从名字推断）；且 `--starter`（布局）与 `--industrial`（壳内容）职责重叠——工业壳就是 topology-b 该有的壳，用户要理解"为什么 B 还要加 industrial" | cli.ts：`--starter topology-b|inline-main`（默认 topology-b）；`--industrial` 独立 flag；命名源自 ADR-005 拓扑分类 | flag 非语义化；新用户无法直觉理解；分类学耦合进公共命令面 | **已决策 D4**：分层命令替代——`rn init`=产品默认；`--pure`/`--demo` 显式降档；去掉 topology-b/industrial 暴露（或并入语义名） | 待修复 |
+| F10 | P1 初始化（CLI 命名） | S3 | CLI flag 泄漏内部架构分类学：`--starter topology-b` 把 ADR-005 的"拓扑 B"内部代号直接暴露给用户（用户不懂"拓扑/A/B"，无法从名字推断）；且 `--starter`（布局）与 `--industrial`（壳内容）职责重叠——工业壳就是 topology-b 该有的壳，用户要理解"为什么 B 还要加 industrial" | cli.ts：`--starter topology-b | inline-main`（默认 topology-b）；`--industrial` 独立 flag；命名源自 ADR-005 拓扑分类 | flag 非语义化；新用户无法直觉理解；分类学耦合进公共命令面 | **已决策 D4**：分层命令替代——`rn init`=产品默认；`--pure`/`--demo` 显式降档；去掉 topology-b/industrial 暴露（或并入语义名） | 待修复 |
 | F11 | P1 初始化（控制台输出） | S3 | init 控制台输出泄漏内部决策代号：`starter: topology-b (shell-plus-modules)`、`topology B: modules/main + shell App.tsx`、`industrial shell: ShellHost + ModuleRegistry + OTA gate applied (ADR-021)` —— 新用户看不懂 "topology B""ADR-021"是什么，也无法从中得知产物价值 | 本次 `rn init . --industrial` 实机输出 | 产物价值不可见；决策代号耦合公共输出 | 用户面向输出改语义化（如：`生成可运行的完整产品：壳 + 业务模块 + OTA 就绪` / `✅ 产品壳就绪 — 可 rn dev 开发 / ship 发布 / 设备 OTA`）；ADR 代号只留内部日志 | 待修复 |
 | F12 | P1 初始化（输出） | S3 | init 后 Community CLI 的 "Run instructions" 打印 stage 目录路径（`cd …/rn0to1drill`），hoist 后该子目录不存在 → 打印路径失效，指向不存在的目录 | 本次实机：`ls -d rn0to1drill` 不存在；工程根为 hoist 后的 cwd | 用户照抄指令会 cd 到不存在的目录；输出与真实产物不符 | hoist 后平台应覆盖/重打印正确指令（指向真实工程根 cwd），并提示 `rn dev --android` 而非裸 npx react-native run-android | 待修复 |
 | F13 | P1 初始化（D4 对齐 / 生命周期一致性） | S2 | init 产出一个"引用缺失物"的壳：`metro.config.js` require `.rn/metro/host-resolver.cjs`，但 init 不生成它（仅 `rn module register`/`rn dev` 才生成，`host-metro-config.ts:139`）→ 首次 `rn dev` 前 metro warn 降级、平台包解析未接线。**根因（系统级）**：声明（manifest/dev-session/module 清单）与派生产物（generated-registrations.ts + host-resolver.cjs）生命周期脱节——init 只产出"引用派生物的壳"，不产出派生物 | 实机：`.rn/metro/` 仅有 main.config.cjs；host-metro-config.ts 注释"Regenerate …"；旧工程有该文件因跑过 register | 与 D4"init=最小可跑完整产品"不符；用户 init 后直接 dev 遇 warn/解析缺失（难排查） | **系统级方案（声明→派生模型）**：① 派生产物 = 声明的纯函数（生成函数已存在：host-metro-config + renderModuleRegistry），统一为一个"声明→派生"再生成原语；② 触发点 = init 收尾 + `rn module register`（声明变更）+ `rn dev` 预检（兜底）；③ init 必生成，保证 init 产物即完整产品（D4）；④ metro 对缺失 resolver **fail-closed（报错）**而非 warn 降级（平台包解析是工业壳必须项）；⑤ 写入架构文档（声明→派生） | 待修复 |
@@ -24,7 +24,7 @@
 | F16 | P3 开发环 | S2 | `rn dev` 复用已占用端口的 Metro **不校验工程身份**：8081 上残留的是旧工程（onboarding-industrial）的 Metro，新工程 `rn dev` 直接"already running"复用 → HMR/开发打到错误工程的内容，且无任何告警 | 实机：PID 30615 cwd=onboarding-industrial；`rn dev` 报 "Metro already running on :8081" | 多工程并行开发时静默连错服务器；开发内容错误难排查 | 见 T4（运行时身份校验：复用任何长驻基础设施前校验工程身份，身份不符即报错，不静默复用） | 待修复 |
 | F17 | P3 开发环 | S2 | dev 与 release 的 Metro 配置**分裂**：`rn dev` 用模块 Metro（`.rn/metro/main.config.cjs`，resolver=默认，**未加载 host-resolver**），只能构建模块入口（`/modules/main/index.bundle` ✓）；宿主壳入口（`/index.bundle`）因 `@client-platform/shell-core` 解析失败报 UnableToResolveError，且**错误无指引**（用户不知道 dev 正确入口是模块路径） | 实机：`/modules/main/index.bundle` 4MB 成功；`/index.bundle` 报 shell-core 无法解析；main.config.cjs 无 host-resolver 引用 | dev 环与宿主壳之间配置分裂：若 dev attach 需宿主壳（ShellHost 进图）则闭环断；请求错误入口得到误导性错误 | 见 T3/T2：统一 dev/release 的 resolver 契约（dev 模块 Metro 也加载 host-resolver 或明确 dev 只服务模块入口）；对错误入口给出语义化指引（"dev 服务模块入口 /modules/main/index.bundle"）；确认 `rn dev --android` attach 加载的入口并保证可构建 | 待修复 |
 | F18 | P4 宿主工业化 | S2 | `apply-ota-to-project.mjs` 往 package.json 加**死依赖** `@client-platform/rn-core: workspace:*`（rn-core 已拆分不存在；`workspace:*` 是 pnpm 协议 npm 无法解析）→ 工业工程跑 apply-ota 后 npm install 必然失败；头部注释也写旧包名 | 脚本 136-138 行硬编码 [shell-core, rn-core]；实机工程已有 core/shell-core/rn-engine:0.1.0（init 已加，guard 跳过 shell-core，但 rn-core 必被新加） | 跑 apply-ota 破坏工程可安装性（npm install 挂）；死包名残留 | 见 T3/T2：apply-ota 依赖处理与平台包清单同步——删除 rn-core；对已在工程中的平台包跳过；版本用真实发布版本（如 0.1.0）而非 workspace:* | 待修复 |
-| F19 | P4 宿主工业化（release 卫生） | S3 | fresh init 未烘焙 release 卫生硬化：`debuggableVariants` 保持注释态（默认含 debug），release 是否得到 `--dev false` bundle 未由模板保证——旧 drill 曾实测 release 出现 dev=true 需手动置 `debuggableVariants = []` | 实机 build.gradle 第 24 行仍注释；D4 要求 init=完整产品 | release 若带 dev=true，OTA 被 ShellHost `if (__DEV__) return` 跳过——发布态受污染 | |构建后验证 bundle `__DEV__`；实机 0（未复现）——保持待设备侧确认（ShellHost `__DEV__` 守卫）| 待设备确认 |
+| F19 | P4 宿主工业化（release 卫生） | S3 | fresh init 未烘焙 release 卫生硬化：`debuggableVariants` 保持注释态（默认含 debug），release 是否得到 `--dev false` bundle 未由模板保证——旧 drill 曾实测 release 出现 dev=true 需手动置 `debuggableVariants = []` | 实机 build.gradle 第 24 行仍注释；D4 要求 init=完整产品 | release 若带 dev=true，OTA 被 ShellHost `if (__DEV__) return` 跳过——发布态受污染 | | 构建后验证 bundle `__DEV__`；实机 0（未复现）——保持待设备侧确认（ShellHost `__DEV__` 守卫） | 待设备确认 |
 | F20 | P4 宿主工业化（OTA 网络） | S3 | fresh init 缺 `network_security_config.xml`（loopback 明文）且 manifest 无 `android:networkSecurityConfig`——release 合并后 cleartext 被禁，设备经 `adb reverse` 拉 `http://127.0.0.1:7430` 会被拒（旧 drill 实测需补此配置） | 实机 `ls res/xml/network_security_config.xml` 缺失；manifest application 无该属性 | 设备 OTA（loopback 明文）在新工程直接不可用——D4 缺口；**实锤（v2 复验）**：SEAM-2 修好 F23 后设备仍无法下载，补 network_security_config 后即通 | 模板默认带 network_security_config（loopback-only 明文）+ manifest 属性；或 init 按需生成 | 待修复 |
 | F21 | P5 交付链（输出） | S4 | validate 检查 ID 双前缀：`packages/core/src/release-hygiene.ts` 检查自带 `release-` 前缀（如 `release-dev-support-dir`），`validate.ts:129` 又拼 `release-${h.id}` → 输出 `release-release-dev-support-dir` | 实机 ship validate 输出 3 个 release-release-* id | ID 冗余，可读性/机器消费污染 | 去重前缀：validate 不再二次拼接（或 hygiene 去掉自带前缀），统一单前缀 | 待修复 |
 | F22 | P5 交付链（字段语义） | S4 | `stage` 字段语义混淆：promote 后候选放入 `registry.production` 数组（泳道=production），但候选 `stage` 字段被设为 `"promote"`（流水线步骤名）——用户读输出误以为"没到 production" | `candidate-store.ts:355 stage: "promote"`；实机 promote 输出 stage=promote 但 action=promote_staging_to_production | 输出/文档语义歧义：stage（流水线步骤）与 lane（泳道）混用 | 候选对象增加显式 `lane` 字段（或重命名 stage→deliveryStage/pipelineStep），promote 输出同时显示 lane=production；文档明确 stage=流水线步骤、泳道=数组成员 | 待修复 |
@@ -37,7 +37,7 @@
 **方法要求**：所有 finding 的修复方案**禁止点对点补丁**，必须收敛到系统级主题（T1–T4）展开；ticket 按主题开，不按单条 finding 开。
 
 | 主题 | 抽象（站在哪一层） | 收敛的 finding | 系统级解 |
-|------|--------------------|----------------|----------|
+| ------ | -------------------- | ---------------- | ---------- |
 | **T1 信任根子系统** | 签名/验签不是一个功能，是**受管子系统**：生成(HSM) → 规范存放(托管/双人) → 烘焙(声明驱动) → 签名 → 轮换/吊销(证书链)。上游=信任源(负责人/HSM)，下游=设备验签链/CP 签名，中间=烘焙管线 | F01 · F02 · F05 · F06 | 平台把"信任根生命周期"建为一等子系统（D3 证书链+HSM）；lab 自动化与生产 HITL 同一子系统；F01/F02/F05/F06 是它缺失的切片 |
 | **T2 工具链生命周期与用户表面** | 安装/卸载/升级是一条**统一生命周期**（pi/rustup 模型：单一 home + npm-bin 主路径 + 一键卸载），且**用户表面语义化**：命令名、输出、产物路径全部指向真实语义，不泄漏内部分类学/ADR 代号/失效路径 | F03 · F07 · F08 · F09 · F10 · F11 · F12 · F15 | 工具链生命周期作为一等设计层（get-rn.sh/rn self 统一）；用户表面三层审计：命令名语义（F09/F10）、输出语义（F11）、产物路径真实（F12/F15）；F03/F07/F08 为生命周期闭环 |
 | **T3 声明→派生产物系统** | 注册表/host-resolver 等派生物是声明的**纯函数输出**：单一再生成原语，触发点 = init 收尾 / 声明变更 / dev 预检；init 产物即完整产品（D4）；生成质量统一（去重） | F13 · F14 | 声明→派生再生成原语（host-metro-config + renderModuleRegistry 统一）；init 必生成（D4）；派生物生成质量门禁 |
@@ -50,7 +50,7 @@
 > 每个系统级主题必须**锚定行业通用方法论 + 中大型复杂业务实际场景**，再谈实现。
 
 | 主题 | 行业方法论（工业级依据） | 中大型复杂业务实际场景 | 平台服务形态 |
-|------|--------------------------|------------------------|--------------|
+| ------ | -------------------------- | ------------------------ | -------------- |
 | **T1 信任根子系统** | 供应链安全：SLSA 框架 / Sigstore（cosign）· PKI+HSM 密码学边界 | 多业务线/多 App 企业：每业务独立签名密钥，负责人或 HSM 集中保管；审计必须能答"谁能发生产、钥在哪、包改没改过"（金融/监管/政企采购必问） | **信任根即服务**：生成(HSM/离线)→规范存放(托管/双人)→烘焙(声明驱动)→签名→轮换/吊销(证书链)一条链路；lab 自动化与生产 HITL 同一子系统；企业采购第一道门是安全模型（对标 Sigstore/商店签名） |
 | **T2 工具链生命周期与用户表面** | 平台工程 golden path（Backstage 理念：开发者零摩擦拿到标准路径）· rustup/pnpm 工具分发模型 · 12-factor 可处置性（干净启停） | 数千开发者 onboarding：CLI 是平台第一接触面；中大型组织要求受控的工具链版本分发/升级（SRE 统一管控，禁止各装各的）；命令/输出/路径语义一致是"规模化协作"前提 | **工具链即受管产品**：统一安装/卸载/升级生命周期（pi 模型：npm-bin 主路径 + 一键卸载）+ 语义化用户表面（命令名/输出/产物路径三层审计）；企业级分发与升级通道 |
 | **T3 声明→派生产物系统** | 声明式/契约驱动：IaC / GitOps（声明状态→生成产物）· Backstage catalog · K8s CRD+controller 模式 | 几十个业务模块并行：模块登记走**声明变更**而非改壳代码；注册表/resolver 自动再生成；壳永不被业务绑架（多团队迭代不互相阻塞）；模块增删改是"声明编辑"不是"架构改动" | **派生产物管线**：声明（manifest/dev-session/模块清单）→ 单一再生成原语 → 注册表/resolver；触发点 = init 收尾/声明变更/dev 预检；init 产物即完整产品（D4） |
@@ -65,13 +65,15 @@
 自动化消除的是**非必要体力步骤**，不是信任角色：
 
 | 环节 | Lab/测试密钥（自动化） | 生产密钥（HITL，ADR-017/018） |
-|------|------------------------|------------------------------|
+| ------ | ------------------------ | ------------------------------ |
 | 生成 | `ship keygen` 一条命令 | 离线生成、负责人保管、异地备份 |
 | 烘焙 | apply-ota 参数化自动写公钥 | 公钥烘焙可自动；"用哪把"由人定 |
 | 签名注入 | `RN_DELIVERY_SIGN_KEY_FILE` 自动 | 负责人授权注入、批准发布 |
+
 ## 信任根连续性（Q1 补充：人员变更）
 
 发布负责人转岗/离职不是风险：
+
 - **可用性靠托管**：私钥 age 加密异地备份（与 ADR-014 DR 同流程），解密权由另一人（托管人）持有——双人保管、解密权分离。
 - **安全性靠轮换**：转岗/离职 = 授权终止 → 触发 K1→K2 轮换（ADR-018 一次免重装轮换），旧负责人副本立即失效。
 - 两个机制都独立于"那个人"。
@@ -110,6 +112,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 > 演练完（2026-09-10）开 4 张系统级 ticket。每张含四要素：行业方法论依据 · 目标业务场景 · 平台服务形态 · 收敛 finding。
 
 ### TICKET T1 — 信任根子系统（信任根即服务）
+
 - **方法论**：SLSA / Sigstore · PKI+HSM 密码学边界
 - **场景**：多业务线/多 App 企业审计——谁能发生产、钥在哪、包改没改过
 - **形态**：生成(HSM/离线) → 规范存放(托管/双人) → 烘焙(声明驱动) → 签名 → 轮换/吊销(证书链)，lab 自动化 + 生产 HITL 同一子系统
@@ -117,6 +120,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - **工作项**：① `ship keygen [--label] [--rotate] [--hsm]` ② 规范 keys 目录（`~/.client-platform/keys`） ③ apply-ota `--pubkey-hex` ④ 证书链验签/吊销端点（CP）/烘焙根 CA ⑤ ADR-017/018 修订
 
 ### TICKET T2 — 工具链生命周期与用户表面（工具链即受管产品）
+
 - **方法论**：平台工程 golden path · rustup/pnpm 分发模型 · 12-factor 可处置性
 - **场景**：数千开发者 onboarding；SRE 受控分发升级；命令/输出/路径语义一致
 - **形态**：统一安装/卸载/升级（pi 模型）+ 语义化用户表面（命令/输出/路径三层审计）
@@ -124,6 +128,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - **工作项**：get-rn.sh/rn self 统一生命周期；`rn init` 默认完整产品 + `--pure`/`--demo` 降档；输出重写；模板烘焙（release 卫生 + 网络安全 + CP 基址配置）
 
 ### TICKET T3 — 声明→派生产物系统
+
 - **方法论**：IaC / GitOps · Backstage catalog · K8s CRD+controller
 - **场景**：几十业务模块并行；模块登记走声明变更，壳不被业务绑架
 - **形态**：派生产物管线——声明（manifest/dev-session/模块清单）→ 单一再生成原语 → 注册表/resolver；init 完整（D4）
@@ -131,6 +136,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - **工作项**：① 声明→派生原语（init 收尾/register/dev 预检触发）② metro 缺失 resolver fail-closed ③ dev 模块 Metro 加载 host-resolver ④ 错误入口语义化指引
 
 ### TICKET T4 — 运行时身份校验
+
 - **方法论**：零信任（never trust, always verify）· SPIFFE/mTLS 理念下沉
 - **场景**：多工程/多环境并行（dev/staging/灰度）防串线
 - **形态**：基础设施身份校验原语——端口/进程/服务 → 工程身份，复用前强制校验
@@ -138,6 +144,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - **工作项**：端口→工程根/指纹校验；复用前身份不符即报错并指出占用方；覆盖 Metro/CP/设备
 
 ### 附：产品意图基线（D4）
+
 `rn init` 默认 = 最小可跑完整链路（工业壳 + 模块 + OTA 适配 + host-resolver + 平台包链接 + **CP 基址可配置**），全角色可用；`--pure`/`--demo` 显式降档。所有 T1–T4 修复须对齐 D4。
 
 ---
@@ -149,7 +156,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 ### 五个系统级根因（R1–R5）
 
 | 接缝 | 本质 | 收敛 finding | 关键性 |
-|------|------|--------------|--------|
+| ------ | ------ | -------------- | -------- |
 | **R1 契约-实现一致性** | ADR/文档承诺的能力，生成物/模板/CLI 默认没跟上 → 每换新工程重踩旧坑 | F01 F04 F05 F06 F19 F20 | 高（信任/卫生漂移） |
 | **R2 配置/派生物接缝** | 运行时参数（公钥/CP基址/resolver/release卫生）无单一事实源 + 统一生成/注入点 + 质量门禁 | F02 F13 F14 F17 F18 **F23** | **最高（F23=S1 枢纽）** |
 | **R3 用户表面契约** | 命令名/帮助/输出/JSON字段：语义化、不泄漏内部、指向真实产物 | F09 F10 F11 F12 F15 F21 F22 | 高（onboarding 摩擦） |
@@ -178,7 +185,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 ### 开图（按接缝，替代 T1–T4 初稿）
 
 | Ticket | 接缝 | 收敛 | 级联 |
-|--------|------|------|------|
+| -------- | ------ | ------ | ------ |
 | **SEAM-1** | R1 契约-实现一致性 | F01 F04 F05 F06 F19 F20 | 依赖 SEAM-2（配置注入） | **#247** |
 | **SEAM-2** | R2 配置/派生物管线 | F02 F13 F14 F17 F18 F23 | 枢纽，先做 | **#246** |
 | **SEAM-3** | R3 用户表面契约 | F09 F10 F11 F12 F15 F21 F22 | 依赖 SEAM-2（输出真实产物） | **#248** |
@@ -188,6 +195,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 **执行顺序建议**：SEAM-2（枢纽，解 S1）→ SEAM-1（信任根，级联大）→ SEAM-4（生命周期安全）→ SEAM-3（用户表面）→ SEAM-5（身份校验）。每个接缝按"契约→实现→探针"闭环交付。
 
 ## SEAM 实现状态（2026-09-10 更新）
+
 - **SEAM-2 (#246) 已关单**：F23/F13/F14/F18/F02/F17 全部实现 + 真机复验 PASS（303 测试）。
 - **SEAM-1 (#247) 进行中**：F20 ✅（模板烘焙网络安全配置）· F01 ✅（ship keygen）· F02 ✅（SEAM-2 内）· F19（未复现，release 卫生探针 TODO）· F04/F05/F06（**依赖 D3 证书链+HSM 大改造，明确延后**，范围见 #247）。
 - **SEAM-4 (#249) 完成**：F03（卸载保护+home 隔离）· F07（self uninstall 补 ship）· F08（command -v 自检）· F12（init next-steps 真实路径）。
@@ -202,7 +210,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 > 用户问："是否已完全修复？是否做了细致端到端测试？" —— 如实回答：**否**。以下为逐条真实状态。
 
 | F | 状态 | 验证 |
-|---|------|------|
+| --- | ------ | ------ |
 | F01 | ✅ 已修（ship keygen + 规范 keys 目录） | CLI 冒烟 |
 | F02 | ✅ 已修（--pubkey-hex / --rca-pubkey-hex） | **设备 e2e**（烘焙→OTA） |
 | F03 | ✅ 已修（get-rn.sh 卸载保护 + keys 隔离） | 代码审查；**未做 install→uninstall 往返 e2e** |
@@ -229,20 +237,23 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 **未修复**：F05（HSM）· F06 剩余（HSM/CRL-OCSP）· F08 部分（nvm 版本）· F12 完全（CLI 输出压制）。
 
 ## F04 设备验收补测（2026-09-10）：吊销拒载 PASS
+
 - 设备端：`ship revoke --pubkey-hex <leaf>` → CP `/v1/crl` 含吊销钥 → 设备拉 CRL → **拒载**（`signing key revoked`），留基线无下载。
 - 过程发现 **F25（新）**：模板修复不自动回灌存量工程——v3 是 F04 模板修复前生成的，缺 fetchRevocations，需手动补。**根因**：shell 模板不是"声明→派生"管线的一部分（F13 只覆盖 registry/resolver/runtime）。修复方向：把 ShellHost 等壳模板纳入再生成原语（或模板版本标记 + 工程漂移检测），存量工程重新生成。
 - F04 状态更新：✅ 设备 e2e（拉 CRL + 吊销拒载）。
 
 ## 修复状态诚实审计 v2（2026-09-10，补测后）
+
 - **F04 ✅ 已修 + 设备 e2e（吊销拒载 PASS）**——之前"未验证"已闭合。
 - **F25（新）**：模板更新不回灌存量工程（S2，SEAM-3/F13 相关）。
 - 其余与审计 v1 一致：F05（HSM）未修 · F06 部分 · F08 部分 · F12 缓解 · F03/F07 未往返 e2e · F17 未 dev 宿主壳 e2e。
 
 ## 纪律修复：活体"已实现未验收/未修"清单（2026-09-10）
+>
 > 规则：done = 验收通过。本清单为唯一事实源，实现/验收每动一笔即时回填。
 
 | 项 | 状态 | 缺口 | 验收动作 |
-|----|------|------|----------|
+| ---- | ------ | ------ | ---------- |
 | F03 | ✅ 已验收 | 往返 e2e：卸载后 rn/ship 清空 + 密钥目录保全 + F03 保护触发；残留：rn self uninstall 的 rmSync 缺 .git 保护 → 已补 | 关闭 |
 | F07 | ✅ 已验收 | 往返 e2e：卸载后 rn/ship 链接全清（含 ship） | 关闭 |
 | F17 | ✅ 已验收 | v3 dev Metro /index.bundle 构建成功 4.28MB + shell-core | 关闭 |
@@ -255,7 +266,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 ## 修复完成收口（2026-09-10 连续执行，不中途确认）
 
 | F | 本轮完成 | 验证 |
-|---|---------|------|
+| --- | --------- | ------ |
 | F25 | ✅ 模板版本标记 + doctor 漂移检测 + `rn shell refresh` | 工程验证（v3: NEED→refresh→OK + fetchRevocations 补上）+ 单测 |
 | F12 | ✅ runStreaming outputFilter 剥掉 Community CLI 失效 Run instructions | 单测/tsc |
 | F08 | ✅ get-rn.sh 用活动 Node 的 npm link（bootstrap 前捕获） | 往返 e2e 顺证（command -v 已验） |
@@ -263,6 +274,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 | F06 | ✅ signer 后端接缝（pem\|hsm + RN_DELIVERY_HSM_SIGN_CMD 适配器契约 + 声而未配 fail-loud） | tsc/CLI |
 
 **至此 0to1-findings.md 全部 24 项（F01–F25）均有处理**：
+
 - 已修+验收：F01-F04 F07 F09-F11 F13-F18 F20-F23 F25
 - 未复现关闭：F19
 - 平台接缝+文档（HSM 硬件由外部适配器接）：F05/F06
@@ -270,3 +282,37 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - 缓解（F12 已剥输出）
 
 **验收纪律已生效**：done=验收通过；活体清单随实现即时回填；机械步骤后置校验；测试工件用当前模板刷新。
+
+---
+
+## 独立复核审计（2026-09-10 · #251–#255）
+
+> 触发：外部复核"台账 F01–F25 是否全部已修、是否有遗漏"。4 车道独立验证 + 逐条取证。
+> **结论：台账"全部已处理"基本属实（未发现假修复；core 136/136、其余 186/187 单测 PASS），但存在 8 项台账未覆盖的系统级遗漏（G1–G8），已开 5 张 ticket。**
+
+### 复核结论
+
+- 台账声明与代码一致：F01–F18、F20–F23、F25 全部 REAL（附证据见各修复 commit 与上文）。
+- 遗漏不在"修没修"，而在**覆盖盲区**：信任根/设备运行时/GF-BF 对称的默认壳接线。
+
+### GAP 清单（#251 元票 · 证据全表）
+
+| G | 严重度 | 一句话 | 修复 ticket |
+| --- | -------- | -------- | ------------- |
+| G1 | S2 | 崩溃环回滚**未接入默认工业壳**（仅 greenfield 参考模板接线）— 与 F04"契约在但壳不调用"同构 | #253 |
+| G2 | S2 | D4"init 就做 OTA 原生适配注入"**未实现**：`rn init` 不注入原生 OTA 模块，设备静默走基线 | #252 |
+| G3 | S2 | `/v1/crl` **无签名**，`verifyRevocationSeal` 设备路径零调用 — 中间人可清空吊销 | #253 |
+| G4 | S3 | Brownfield **完全无 OTA 接线**（ADR-016"GF/BF 共用"仅库层成立） | #254 |
+| G5 | S3 | iOS 原生 OTA 缺位（ADR-012 决策边界）— README 愿景/范围漂移 | #255 |
+| G6 | S3 | Postgres 控制面存储 contract-only（代码诚实自标）— 宣传需对齐 | #255 |
+| G7 | S4 | F13 修复不完整：metro 缺失 resolver 仍 warn 降级、dev 预检不触发再生成 | #252 |
+| G8 | S4 | F10 未彻底（--starter/--industrial 仍暴露）+ F19 关闭未硬化 + ADR-017/018 无 024 修订 + swp 入库等卫生 | #255 |
+
+### 元层面：台账与 tracker 脱节（必须对齐）
+
+- SEAM tickets **#246/#247/#248/#249/#250 在 GitHub 全部仍 OPEN**，台账却写"SEAM-2 已关单 / SEAM-3/4/5 完成"。
+- AGENTS.md：GitHub Issues 为权威源。**修复前先把台账"已关单"表述与 tracker 状态对齐**（SEAM-2/3/4/5 的内容大多真实落地，但"关单"动作未在 tracker 执行）。
+
+### 修复顺序（#251）
+
+G2 → G1 → G3 → G4/G7 → G8（F19/F10/ADR/卫生）→ 元层面 tracker 对齐。

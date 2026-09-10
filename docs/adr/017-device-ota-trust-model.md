@@ -29,7 +29,7 @@ Related: Map G #193（G1）、G0、ADR-016/018
 ## Principles compliance
 
 | Check | Answer |
-|-------|--------|
+| ------- | -------- |
 | **Plane** | Runtime SDK；契约仍 rn-core，交付仍 rn-delivery。 |
 | **YAGNI** | 用现成审计库 + 已有 PEM 签名分支，不新造密码原语。 |
 | **Door** | 验签语义 = 单向安全门（release 不可退回 stub），本 ADR 记录。 |
@@ -37,6 +37,15 @@ Related: Map G #193（G1）、G0、ADR-016/018
 | **GF/BF / topology** | rn-core 纯函数供任何宿主复用，协议单一。 |
 | **Blast radius** | P0 信任根；需真机 + verify-* 阻断测试。 |
 | **Evidence** | @noble/ed25519 + verify-* 探针 + 真机 e2e（G7）。 |
+
 ## Amendment (ADR-023, 2026-09-08)
 
 指纹权威来源由「core 常量」改为「引擎适配器 `runtimeIdentity()` 声明 + 发布侧密封 `host_context` 交叉校验」；`runtimeIdentity()` 只做匹配判断、不进信任链。信任链仍只认内建公钥验签 + 发布侧密封。
+
+## Amendment (ADR-024, 2026-09-10)
+
+**信任模型已迁移到 ADR-024（证书链 + HSM + CRL/OCSP），本文的自研「单叶钥 + 吊销清单」路径为兼容期（stage-0）路径。**
+
+- ADR-024 是设备端信任链的**权威**来源：设备验签链 = 烘焙根 CA 公钥 → X.509 leaf 证书 → Ed25519 seal；吊销走签名 CRL / OCSP（G3 已接线：设备先验 CRL seal 再信任 revoked 集合，fail-closed）。
+- 本文保留作为验签原语（`pem:ed25519:` seal、fail-closed、信任边界）的奠基描述；其「双公钥 K1/K2 并存 + 自研吊销清单」具体模型被 ADR-024 取代。
+- 迁移时序见 ADR-024 Amendment（stage-3：证书链默认、旧单钥下线）。

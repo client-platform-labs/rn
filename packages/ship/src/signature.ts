@@ -124,7 +124,10 @@ export function resolveSignerBackend(): SignerBackend {
 }
 
 /** Sign the seal payload via the configured backend (HSM adapter contract). */
-export function signSealPayload(payload: string): { signature: string; backend: SignerBackend } {
+export function signSealPayload(payload: string): {
+  signature: string;
+  backend: SignerBackend;
+} {
   const backend = resolveSignerBackend();
   if (backend === "hsm") {
     const cmd = process.env.RN_DELIVERY_HSM_SIGN_CMD;
@@ -134,9 +137,45 @@ export function signSealPayload(payload: string): { signature: string; backend: 
       );
     }
     const r = spawnSync(cmd, { input: payload, encoding: "utf8", shell: true });
-    if (r.status !== 0) throw new Error(`HSM sign failed: ${r.stderr?.slice(0, 200)}`);
+    if (r.status !== 0)
+      throw new Error(`HSM sign failed: ${r.stderr?.slice(0, 200)}`);
     return { signature: r.stdout.trim(), backend };
   }
   // pem backend — existing logic (resolved below by sealCandidateSignature)
   return { signature: "", backend };
+}
+
+/**
+ * G3 (ADR-024) — sign an ARBITRARY canonical payload (e.g. a CRL document)
+ * with the configured signer (PEM env key or HSM adapter), producing a
+ * `pem:ed25519:<base64>` signature. Fail-loud: no key configured → throws, so
+ * an unsigned CRL is never silently served (a device would reject it anyway).
+ * The public half of this key must be baked on devices (root CA in cert mode).
+ */
+export function signCanonicalPayload(payload: string): { signature: string } {
+  const backend = resolveSignerBackend();
+  if (backend === "hsm") {
+    const r = signSealPayload(payload);
+    return { signature: `pem:ed25519:${r.signature}` };
+  }
+  const pem = resolvePemMaterial();
+  if (!pem) {
+    throw new Error(
+      "CRL sign requires RN_DELIVERY_SIGN_KEY_PEM/FILE (or RN_DELIVERY_HSM_SIGN_CMD with RN_DELIVERY_SIGNER=hsm)",
+    );
+  }
+  try {
+    const key = createPrivateKey(pem);
+    if ((key.asymmetricKeyType ?? "").toLowerCase() !== "ed25519") {
+      throw new Error(
+        `CRL sign key type "${key.asymmetricKeyType}" unsupported (ed25519 required)`,
+      );
+    }
+    const sig = cryptoSign(null, Buffer.from(payload, "utf8"), key);
+    return { signature: `pem:ed25519:${sig.toString("base64")}` };
+  } catch (err) {
+    throw new Error(
+      `CRL sign failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }

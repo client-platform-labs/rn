@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { pullOtaUpdate } from "../dist/pull-ota.js";
-import type {
-  OtaNativeAdapter,
-  OtaSidecar,
-} from "../dist/ota-native.js";
+import type { OtaNativeAdapter, OtaSidecar } from "../dist/ota-native.js";
 import type { PullOtaClient } from "../dist/pull-ota.js";
 
 function native(overrides: Partial<OtaNativeAdapter> = {}): OtaNativeAdapter {
@@ -57,7 +54,11 @@ describe("pullOtaUpdate orchestration (ADR-014)", () => {
     const client: PullOtaClient = {
       verifySidecar: () => ({ ok: true, updateId: "u2" }),
       async fetchUpdate() {
-        return { hbcPath: "/t.hbc", sidecarPath: "/t.json", sidecar: manifest("u2") };
+        return {
+          hbcPath: "/t.hbc",
+          sidecarPath: "/t.json",
+          sidecar: manifest("u2"),
+        };
       },
       async installAndReload() {
         order.push("reload");
@@ -90,12 +91,9 @@ describe("pullOtaUpdate orchestration (ADR-014)", () => {
       },
       async installAndReload() {},
     };
-    const r = await pullOtaUpdate(
-      client,
-      native(),
-      "desk",
-      { fetchManifest: async () => manifest("u9") },
-    );
+    const r = await pullOtaUpdate(client, native(), "desk", {
+      fetchManifest: async () => manifest("u9"),
+    });
     assert.equal(r.status, "failed");
     if (r.status === "failed") assert.match(r.reason, /bad signature/);
     assert.equal(fetchCalls, 0);
@@ -148,5 +146,26 @@ describe("pullOtaUpdate orchestration (ADR-014)", () => {
     if (r.status === "failed") assert.match(r.reason, /revoked/);
     assert.deepEqual(seenRevoked, ["k1hex"]);
     assert.equal(fetchCalls, 0); // revoked → never fetches
+  });
+
+  it("G3: fails closed (never fetches) when CRL fetch/verify throws", async () => {
+    let fetchCalls = 0;
+    const client: PullOtaClient = {
+      verifySidecar: () => ({ ok: true, updateId: "u1" }),
+      async fetchUpdate() {
+        fetchCalls += 1;
+        return { hbcPath: "/t", sidecarPath: "/t", sidecar: {} };
+      },
+      async installAndReload() {},
+    };
+    const r = await pullOtaUpdate(client, native(), "desk", {
+      fetchManifest: async () => manifest("u9"),
+      fetchRevocations: async () => {
+        throw new Error("CRL seal invalid");
+      },
+    });
+    assert.equal(r.status, "failed");
+    if (r.status === "failed") assert.match(r.reason, /CRL seal invalid/);
+    assert.equal(fetchCalls, 0); // unsigned/invalid CRL → never fetch
   });
 });

@@ -5,7 +5,7 @@
  * against baked public keys (K1 + K2). Crypto runs in @noble/ed25519
  * (audited, pure JS, Hermes-safe) with a sync SHA-512 wired from
  * @noble/hashes at module load — Hermes has no WebCrypto subtle.
- */import { etc, verify } from "@noble/ed25519";
+ */ import { etc, verify } from "@noble/ed25519";
 import { sha512 } from "@noble/hashes/sha2.js";
 
 // Wire sync SHA-512 so `verify` works without crypto.subtle (Hermes has none).
@@ -20,7 +20,11 @@ function utf8Bytes(s: string): Uint8Array {
 
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.trim();
-  if (clean.length === 0 || clean.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(clean)) {
+  if (
+    clean.length === 0 ||
+    clean.length % 2 !== 0 ||
+    !/^[0-9a-fA-F]*$/.test(clean)
+  ) {
     throw new Error("ed25519-verify: invalid hex public key");
   }
   const out = new Uint8Array(clean.length / 2);
@@ -88,8 +92,32 @@ export function verifyRevocationSeal(
     return false;
   }
   try {
-    return verify(signature, utf8Bytes(canonicalPayload), hexToBytes(k2PublicKeyHex));
+    return verify(
+      signature,
+      utf8Bytes(canonicalPayload),
+      hexToBytes(k2PublicKeyHex),
+    );
   } catch {
     return false;
   }
+}
+
+/**
+ * G3 (ADR-024) — verify a revocation-list (CRL) seal over a canonical payload
+ * against ANY of the baked public keys. Returns true when at least one key
+ * verifies the seal; never throws (malformed seal/key/signature → false).
+ * This is the device-side fail-closed check: an unsigned or invalid CRL must
+ * never be trusted, so a forged/cleared revocation list is rejected.
+ */
+export function verifyRevocationSealAny(
+  seal: string,
+  canonicalPayload: string,
+  publicKeysHex: readonly string[],
+): boolean {
+  if (!seal.startsWith(PEM_SEAL_PREFIX) || publicKeysHex.length === 0) {
+    return false;
+  }
+  return publicKeysHex.some((keyHex) =>
+    verifyRevocationSeal(seal, canonicalPayload, keyHex),
+  );
 }

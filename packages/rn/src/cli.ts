@@ -1,18 +1,25 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Command, CommanderError } from "commander";
+import { Command, CommanderError, Option } from "commander";
 
 import { shouldLoadPluginCommands } from "./argv.js";
 import { runConfigValidate } from "./commands/config.js";
 import { runDemoAdd, runDemoRemove } from "./commands/demo.js";
-import { runDevSupportAdd, runDevSupportRemove } from "./commands/dev-support.js";
+import {
+  runDevSupportAdd,
+  runDevSupportRemove,
+} from "./commands/dev-support.js";
 import { runDev } from "./commands/dev.js";
 import { runDoctor } from "./commands/doctor.js";
 import { parseDoctorProfile } from "./brownfield-doctor.js";
 import { runHostAndroid } from "./commands/host-android.js";
 import { runInit, parseInitStarter } from "./commands/init.js";
-import { runModuleInit, runModuleLink, runModuleRegister } from "./commands/module.js";
+import {
+  runModuleInit,
+  runModuleLink,
+  runModuleRegister,
+} from "./commands/module.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runPluginList } from "./commands/plugin.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
@@ -28,10 +35,14 @@ import { registerCliCommandPlugins } from "./register-plugins.js";
 
 function packageVersion(): string {
   const pkgRoot = fileURLToPath(new URL("..", import.meta.url));
-  const pkg = JSON.parse(
-    readFileSync(path.join(pkgRoot, "package.json"), "utf8"),
-  ) as { version: string };
-  return pkg.version;
+  try {
+    const pkg = JSON.parse(
+      readFileSync(path.join(pkgRoot, "package.json"), "utf8"),
+    ) as { version: string };
+    return pkg.version;
+  } catch {
+    return "0.0.0";
+  }
 }
 
 function loggerFromArgv(argv: string[]): CliLogger {
@@ -46,7 +57,10 @@ export async function run(argv = process.argv): Promise<number> {
     .name("rn")
     .description("Client Platform Labs rn product CLI")
     .version(packageVersion())
-    .option("--json", "JSON on stdout; human logs on stderr; implies non-interactive")
+    .option(
+      "--json",
+      "JSON on stdout; human logs on stderr; implies non-interactive",
+    )
     .option("--non-interactive", "do not prompt; fail instead of asking")
     .showHelpAfterError()
     .exitOverride();
@@ -93,18 +107,26 @@ export async function run(argv = process.argv): Promise<number> {
     )
     .option("--check", "detect only (exit 1 if not ready)")
     .option("--dry-run", "print install plan without changes")
-    .option("--yes", "non-interactive install (required with --non-interactive)")
-    .action(async (opts: { check?: boolean; dryRun?: boolean; yes?: boolean }) => {
-      if (opts.check && opts.dryRun) {
-        throw new CliError("pass only one of --check or --dry-run", EXIT_USAGE);
-      }
-      const mode = opts.check ? "check" : opts.dryRun ? "dry-run" : "install";
-      await runHostAndroid({
-        logger: loggerFromArgv(argv),
-        mode,
-        yes: Boolean(opts.yes),
-      });
-    });
+    .option(
+      "--yes",
+      "non-interactive install (required with --non-interactive)",
+    )
+    .action(
+      async (opts: { check?: boolean; dryRun?: boolean; yes?: boolean }) => {
+        if (opts.check && opts.dryRun) {
+          throw new CliError(
+            "pass only one of --check or --dry-run",
+            EXIT_USAGE,
+          );
+        }
+        const mode = opts.check ? "check" : opts.dryRun ? "dry-run" : "install";
+        await runHostAndroid({
+          logger: loggerFromArgv(argv),
+          mode,
+          yes: Boolean(opts.yes),
+        });
+      },
+    );
 
   const selfCmd = program
     .command("self")
@@ -149,15 +171,20 @@ export async function run(argv = process.argv): Promise<number> {
       "force npm registry for Community CLI (also CLIENT_PLATFORM_NPM_REGISTRY)",
     )
     .option("--demo", "after init, implant the sample demo (rn demo add)")
-    .option("--pure", "clean shell only (no platform OTA/industrial content; explicit opt-out of the product default)")
     .option(
-      "--starter <name>",
-      "layout starter (default topology-b: shell + modules/main; inline-main: onboarding path A)",
-      "topology-b",
+      "--pure",
+      "clean shell only (no platform OTA/industrial content; explicit opt-out of the product default)",
     )
-    .option(
-      "--industrial",
-      "explicitly apply the industrial shell (the default product form; kept for compatibility)",
+    .addOption(
+      new Option("--starter <name>", "layout starter")
+        .default("topology-b")
+        .hideHelp(),
+    )
+    .addOption(
+      new Option(
+        "--industrial",
+        "explicitly apply the industrial shell",
+      ).hideHelp(),
     )
     .action(
       async (
@@ -200,13 +227,17 @@ export async function run(argv = process.argv): Promise<number> {
 
   const moduleCmd = program
     .command("module")
-    .description("Business module workspaces (ADR-005 topology B — not app-hosts)");
+    .description(
+      "Business module workspaces (ADR-005 topology B — not app-hosts)",
+    );
 
   // F25: `rn shell refresh` — regenerate the industrial shell from the CURRENT
   // template (template fixes propagate to existing projects; doctor flags drift).
   program
     .command("shell")
-    .description("Industrial shell maintenance (refresh from the current template)")
+    .description(
+      "Industrial shell maintenance (refresh from the current template)",
+    )
     .command("refresh")
     .description(
       "Regenerate shell files from the current template (idempotent; keeps dev-session/modules). Fixes template drift (F25).",
@@ -258,7 +289,12 @@ export async function run(argv = process.argv): Promise<number> {
     .action(
       async (
         moduleId: string,
-        opts: { moduleRoot?: string; metroPort?: number; entry?: string; dryRun?: boolean },
+        opts: {
+          moduleRoot?: string;
+          metroPort?: number;
+          entry?: string;
+          dryRun?: boolean;
+        },
       ) => {
         await runModuleLink({
           cwd: process.cwd(),
@@ -313,7 +349,9 @@ export async function run(argv = process.argv): Promise<number> {
 
   const devSupportCmd = program
     .command("dev-support")
-    .description("Debug affordance (FAB → RN Dev Menu); independent of sample demo");
+    .description(
+      "Debug affordance (FAB → RN Dev Menu); independent of sample demo",
+    );
   devSupportCmd
     .command("add")
     .description("Wrap App entry with DevSupportRoot (debug builds only)")
@@ -343,7 +381,10 @@ export async function run(argv = process.argv): Promise<number> {
       "Dev server & platform attach. `rn dev --android` starts Metro, installs, then keeps Metro running (Ctrl+C to stop).",
     )
     .option("--android", "build & install on Android (Metro orchestrated)")
-    .option("--ios", "build & install on iOS (darwin + Xcode; Metro orchestrated)")
+    .option(
+      "--ios",
+      "build & install on iOS (darwin + Xcode; Metro orchestrated)",
+    )
     .option("--metro-only", "Metro foreground only (same as bare `rn dev`)")
     .option(
       "--no-metro",
@@ -383,7 +424,9 @@ export async function run(argv = process.argv): Promise<number> {
         noActiveArchOnly?: boolean;
         modules?: string;
       }) => {
-        const platformFlags = [opts.android, opts.ios, opts.metroOnly].filter(Boolean);
+        const platformFlags = [opts.android, opts.ios, opts.metroOnly].filter(
+          Boolean,
+        );
         if (platformFlags.length > 1) {
           throw new CliError(
             "pass only one of --android, --ios, or --metro-only",
@@ -471,7 +514,10 @@ export async function run(argv = process.argv): Promise<number> {
 
 function handleError(err: unknown, logger: CliLogger): number {
   if (err instanceof CommanderError) {
-    if (err.code === "commander.helpDisplayed" || err.code === "commander.version") {
+    if (
+      err.code === "commander.helpDisplayed" ||
+      err.code === "commander.version"
+    ) {
       return EXIT_OK;
     }
     if (err.exitCode === 0) {

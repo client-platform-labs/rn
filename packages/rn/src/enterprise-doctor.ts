@@ -20,6 +20,7 @@ import {
 import { loadHostProfile, type BrownfieldCheck } from "./brownfield-doctor.js";
 import { metroModuleConfigPath } from "./metro-module-config.js";
 import { MODULES_DIR, moduleWorkspaceRoot } from "./module-workspace.js";
+import { nativeOtaAdapterPresent } from "./industrial-shell.js";
 
 const SAMPLE_DISPOSE_PROBE = path.join(
   "src",
@@ -28,24 +29,27 @@ const SAMPLE_DISPOSE_PROBE = path.join(
   "disposeProbe.ts",
 );
 
-const GLOBAL_POLLUTION_PATTERNS: Array<{ id: string; re: RegExp; hint: string }> =
-  [
-    {
-      id: "assign-global",
-      re: /\bglobal\s*\[\s*['"`]/,
-      hint: "avoid mutating global[...] from business modules",
-    },
-    {
-      id: "assign-globalThis",
-      re: /\bglobalThis\s*\.\s*\w+\s*=/,
-      hint: "avoid writing globalThis.* from business modules",
-    },
-    {
-      id: "window-pollute",
-      re: /\bwindow\s*\.\s*\w+\s*=/,
-      hint: "avoid writing window.* from business modules",
-    },
-  ];
+const GLOBAL_POLLUTION_PATTERNS: Array<{
+  id: string;
+  re: RegExp;
+  hint: string;
+}> = [
+  {
+    id: "assign-global",
+    re: /\bglobal\s*\[\s*['"`]/,
+    hint: "avoid mutating global[...] from business modules",
+  },
+  {
+    id: "assign-globalThis",
+    re: /\bglobalThis\s*\.\s*\w+\s*=/,
+    hint: "avoid writing globalThis.* from business modules",
+  },
+  {
+    id: "window-pollute",
+    re: /\bwindow\s*\.\s*\w+\s*=/,
+    hint: "avoid writing window.* from business modules",
+  },
+];
 
 function walkSourceFiles(root: string, out: string[], depth = 0): void {
   if (depth > 8 || !existsSync(root)) return;
@@ -109,9 +113,7 @@ function scanPollution(projectRoot: string): {
   return { ok: hits.length === 0, hits };
 }
 
-function collectReactNativeVersions(
-  projectRoot: string,
-): Map<string, string> {
+function collectReactNativeVersions(projectRoot: string): Map<string, string> {
   const versions = new Map<string, string>();
   const pkgPaths = [path.join(projectRoot, "package.json")];
   const modulesRoot = path.join(projectRoot, MODULES_DIR);
@@ -187,6 +189,22 @@ export function evaluateEnterpriseDoctor(options: {
       resolveShellChangeAction("hbc_bytecode").action === "block_promotion",
     summary: "shell-change → JS revalidate matrix present (P0.5)",
     blocking: true,
+  });
+
+  // G2/D4: the industrial product shell requires the native OTA adapter
+  // (OtaModule/OtaPackage). Blocking only when the project claims an android/
+  // tree; pure-JS / non-Android layouts treat it as N/A (not blocking).
+  const hasAndroidDir = existsSync(path.join(root, "android"));
+  const otaAdapterPresent = nativeOtaAdapterPresent(root);
+  checks.push({
+    id: "p0-native-ota-adapter",
+    ok: !hasAndroidDir || otaAdapterPresent,
+    summary: otaAdapterPresent
+      ? "native OTA adapter present (OtaModule/OtaPackage registered)"
+      : hasAndroidDir
+        ? "native OTA adapter MISSING — device OTA silently unavailable (D4/G2). Run: ship keygen --cert → apply-ota --rca-pubkey-hex <hex>"
+        : "no android/ — native OTA adapter N/A",
+    blocking: hasAndroidDir && !otaAdapterPresent,
   });
 
   if (isTopologyB) {

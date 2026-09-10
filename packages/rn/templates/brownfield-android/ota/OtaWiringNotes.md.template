@@ -1,0 +1,44 @@
+# BF 设备 OTA 接线（G4）— 同一 shell-core 客户端，BF 原生侧注入
+
+> 位置：`templates/brownfield-android/ota/` · 关联：ADR-016（GF/BF 共用 OTA 客户端）· ADR-017（信任边界）· `bf-native-ota` doctor 探针
+
+BF（Brownfield）宿主是**既有原生工程嵌入 RN**（非 `rn init` 产物）。设备 OTA 与 GF
+走**同一套** `@client-platform/shell-core` 客户端（`pullOtaUpdate` / `createOtaClient`），
+不新造第二套实现（如无必要，勿增实体）。BF 与 GF 的差异只在**原生适配器接线位置**。
+
+## 三步接线
+
+1. **复制原生适配器进 BF 宿主**
+   从 `packages/rn/templates/ota-android/` 复制 `OtaModule.kt.template` 与
+   `OtaPackage.kt.template` 到 BF 宿主原生源树（如 `android/app/src/main/java/<appId>/ota/`），
+   按模板头注释补全 package / 模块名。
+
+2. **在 BF 原生宿主注册 OtaPackage**
+   在 BF 宿主的 `Application`/package list（不是社区模板的 `MainApplication`）中注册
+   `OtaPackage`。若宿主用 autolinking / codegen，也可走 `PackageList` 等价注入点。
+
+3. **BF JS 壳调用 shell-core 客户端**
+   BF 的 JS 壳（原生宿主加载的 RN surface）在启动时调用
+   `pullOtaUpdate(client, native, moduleId, { lane, fetchManifest, fetchRevocations })`，
+   与 GF 的 `ShellHost.tsx` / `greenfield-ota/ReleaseOtaBoot.tsx` 同款——BF 只是
+   `NativeModules.Ota` 由宿主原生侧提供。
+
+## 信任边界（ADR-017，必守）
+
+- `getOtaPublicKeys()` 的公钥**烘焙在 APK 内**（res/raw 或 BuildConfig），绝不从 OTA 载荷读取。
+- 验签代码来自**随 APK 的 embedded shell-core 包**，绝不用 OTA 下载的 JS 去验 OTA 包。
+- 吊销清单（CRL）在设备验签前拉取并**验 seal**（G3），fail-closed：seal 无效 → 拒载。
+
+## doctor 探针
+
+`rn doctor --profile brownfield` 的 `bf-native-ota` 探针会检查：
+- `OtaModule.kt` / `OtaPackage.kt` 是否在原生源树；
+- 或 `*Application*.kt` 是否引用 `OtaPackage`；
+- 或 JS 壳是否引用 `NativeModules.Ota`。
+
+缺失 → `bf-native-ota` 为 NEED（非阻断，BF OTA 是增量能力，不影响 BF L4/L5 基线）。
+
+## HITL 待办（BF 设备 e2e）
+
+- [ ] BF 参考宿主真机：注入 OtaPackage → check → fetch → verify → install → reload 走通。
+- [ ] BF 与 GF 用**同一** shell-core 客户端实机对比（ADR-016 探针）。
