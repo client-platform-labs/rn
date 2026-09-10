@@ -190,3 +190,7 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 ## SEAM 实现状态（2026-09-10 更新）
 - **SEAM-2 (#246) 已关单**：F23/F13/F14/F18/F02/F17 全部实现 + 真机复验 PASS（303 测试）。
 - **SEAM-1 (#247) 进行中**：F20 ✅（模板烘焙网络安全配置）· F01 ✅（ship keygen）· F02 ✅（SEAM-2 内）· F19（未复现，release 卫生探针 TODO）· F04/F05/F06（**依赖 D3 证书链+HSM 大改造，明确延后**，范围见 #247）。
+- **SEAM-4 (#249) 完成**：F03（卸载保护+home 隔离）· F07（self uninstall 补 ship）· F08（command -v 自检）· F12（init next-steps 真实路径）。
+- **SEAM-3 (#248) 完成**：F09/F10（init 产品默认+--pure）· F11（输出语义化）· F12 · F15（detached Metro 日志落文件）· F21（check ID 去重）· F22（lane 字段）。
+- **SEAM-5 (#250) 完成**：F16（rn dev 复用前校验 Metro 工程身份）。
+- **SEAM-1 (#247) 部分完成**：F20/F01/F02 ✅；F19（未复现→release 卫生探针 TODO）；**F04/F05/F06 延后至 D3**（证书链+HSM 大改造，范围见 #247，需 ADR-017/018 修订 + core 验签链 + ship HSM 对接 + 模板根 CA + CP CRL/OCSP）。
