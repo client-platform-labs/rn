@@ -71,7 +71,7 @@ export function runKeygenCertChain(options: {
   rcaCertFile: string;
   rcaPubkeyHex: string;
 } {
-  const dir = options.dir;
+  const dir = path.resolve(options.dir);
   const label = options.label ?? "lab-sign-key";
   const rcaKey = path.join(dir, `${label}.rca.key`);
   const rcaCrt = path.join(dir, `${label}.rca.crt`);
