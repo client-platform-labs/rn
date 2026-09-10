@@ -87,6 +87,28 @@ export function isMetroRunning(port = DEFAULT_METRO_PORT): boolean {
   return r.status === 0 && r.stdout.includes("packager-status:running");
 }
 
+/**
+ * SEAM-5/F16: identify the project a running Metro serves by reading the
+ * listener process's working directory (lsof). Returns null when unknown.
+ */
+export function metroProjectRoot(port = DEFAULT_METRO_PORT): string | null {
+  const lsof = spawnSyncCapture("lsof", [
+    "-nP",
+    "-iTCP",
+    String(port),
+    "-sTCP:LISTEN",
+    "-Fc",
+  ]);
+  const pidLine = (lsof.stdout ?? "")
+    .split("\n")
+    .find((l) => l.startsWith("p"));
+  const pid = pidLine?.slice(1);
+  if (!pid) return null;
+  const cwd = spawnSyncCapture("lsof", ["-a", "-p", pid, "-d", "cwd", "-Fn"]);
+  const n = (cwd.stdout ?? "").split("\n").find((l) => l.startsWith("n"));
+  return n?.slice(1) ?? null;
+}
+
 function adbCapture(
   adbPath: string,
   args: string[],

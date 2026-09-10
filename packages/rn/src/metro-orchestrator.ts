@@ -14,6 +14,7 @@ import path from "node:path";
 import {
   DEFAULT_METRO_PORT,
   isMetroRunning,
+  metroProjectRoot,
 } from "./android-dev-bridge.js";
 import { CliError, EXIT_FAIL } from "./errors.js";
 import type { CliLogger } from "./logger.js";
@@ -122,6 +123,14 @@ export async function ensureMetroSession(options: {
   const port = options.port ?? DEFAULT_METRO_PORT;
 
   if (isMetroRunning(port)) {
+    // SEAM-5/F16: never silently reuse a Metro serving ANOTHER project.
+    const serving = metroProjectRoot(port);
+    if (serving && path.resolve(serving) !== path.resolve(options.projectRoot)) {
+      throw new CliError(
+        `port :${port} is serving a different project (${serving}) — stop it or use another port (SEAM-5/F16)`,
+        EXIT_FAIL,
+      );
+    }
     options.logger.writeHuman(`Metro already running on :${port}`);
     return { port, reused: true, startedByUs: false };
   }
