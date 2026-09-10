@@ -29,6 +29,13 @@ const pubkeyHex = (() => {
   const i = process.argv.indexOf("--pubkey-hex");
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1].trim() : "";
 })();
+// ADR-024 (D3): bake the root-CA public key (hex) as the device trust root
+// (cert mode) instead of a single leaf key.
+const rcaPubkeyHex = (() => {
+  const i = process.argv.indexOf("--rca-pubkey-hex");
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1].trim() : "";
+})();
+const bakeKey = rcaPubkeyHex || pubkeyHex;
 
 if (!existsSync(projectRoot)) {
   console.error("apply-ota: PROJECT_ROOT missing");
@@ -72,15 +79,17 @@ if (pkgPath && existsSync(templatesDir)) {
       // F02: parameterized pubkey bake (SEAM-2) — replaces the template default.
       if (
         name === "OtaModule.kt.template" &&
-        /^[0-9a-fA-F]{64}$/.test(pubkeyHex)
+        /^[0-9a-fA-F]{64}$/.test(bakeKey)
       ) {
         const baked = body.replace(
           /pushString\("([0-9a-fA-F]{64})"\)/,
-          `pushString("${pubkeyHex}")`,
+          `pushString("${bakeKey}")`,
         );
         if (baked !== body) {
           body = baked;
-          sh(`bake pubkey → OtaModule.getOtaPublicKeys (${pubkeyHex.slice(0, 8)}…)`);
+          sh(
+            `bake ${rcaPubkeyHex ? "root-CA" : "pubkey"} → OtaModule.getOtaPublicKeys (${bakeKey.slice(0, 8)}…)`,
+          );
         }
       }
       writeFileSync(out, body);
