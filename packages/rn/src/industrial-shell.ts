@@ -61,6 +61,40 @@ function defaultModuleIdFromManifest(projectRoot: string): string {
  * Writes App.tsx (→ ShellHost) + shell/{ShellHost,ModuleRegistry,hostContext,FailedUI,ota/slotPaths}
  * + links the platform packages (core/shell-core/rn-engine) so the shell resolves them.
  */
+/** F25: template version — bump when industrial shell templates change. Existing
+ * projects can detect drift and run `rn shell refresh` to regenerate. */
+export const INDUSTRIAL_TEMPLATE_VERSION = "2";
+
+/** Write the applied template version marker (.rn/template-version.json). */
+export function writeTemplateVersion(projectRoot: string): void {
+  const file = path.join(projectRoot, ".rn", "template-version.json");
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(
+    file,
+    `${JSON.stringify({ schemaVersion: 1, industrialTemplateVersion: INDUSTRIAL_TEMPLATE_VERSION }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+/** Read the project's applied template version (null when not industrial). */
+export function readTemplateVersion(projectRoot: string): string | null {
+  try {
+    const j = JSON.parse(
+      readFileSync(path.join(projectRoot, ".rn", "template-version.json"), "utf8"),
+    ) as { industrialTemplateVersion?: string };
+    return j.industrialTemplateVersion ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** F25: does this project's shell drift from the current template? */
+export function shellTemplateDrift(projectRoot: string): string | null {
+  const applied = readTemplateVersion(projectRoot);
+  if (applied === INDUSTRIAL_TEMPLATE_VERSION) return null;
+  return `shell template v${applied ?? "?"} → v${INDUSTRIAL_TEMPLATE_VERSION} (run: rn shell refresh)`;
+}
+
 export function applyIndustrialShell(projectRoot: string): void {
   if (!existsSync(path.join(projectRoot, "package.json"))) {
     throw new CliError("not a project root (package.json missing)", EXIT_FAIL);
@@ -97,6 +131,7 @@ export function applyIndustrialShell(projectRoot: string): void {
   // complete runnable chain (D4), and the OTA base URL has a config seam.
   ensureRuntimeConfig(projectRoot, {});
   regenerateDerivedArtifacts(projectRoot);
+  writeTemplateVersion(projectRoot);
 }
 
 /** F20: loopback-only cleartext for device OTA (127.0.0.1/localhost). */
@@ -168,4 +203,14 @@ function linkPlatformPackages(projectRoot: string): void {
   }
   pkg["dependencies"] = deps;
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
+}
+
+/**
+ * F25: regenerate the industrial shell from the CURRENT template (shell files +
+ * derived artifacts + template version). Existing projects can catch up with
+ * template fixes without re-initing. Refreshing is idempotent — it does not
+ * touch dev-session / modules / user business code.
+ */
+export function refreshIndustrialShell(projectRoot: string): void {
+  applyIndustrialShell(projectRoot);
 }

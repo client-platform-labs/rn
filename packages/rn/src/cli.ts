@@ -201,6 +201,26 @@ export async function run(argv = process.argv): Promise<number> {
   const moduleCmd = program
     .command("module")
     .description("Business module workspaces (ADR-005 topology B — not app-hosts)");
+
+  // F25: `rn shell refresh` — regenerate the industrial shell from the CURRENT
+  // template (template fixes propagate to existing projects; doctor flags drift).
+  program
+    .command("shell")
+    .description("Industrial shell maintenance (refresh from the current template)")
+    .command("refresh")
+    .description(
+      "Regenerate shell files from the current template (idempotent; keeps dev-session/modules). Fixes template drift (F25).",
+    )
+    .action(async () => {
+      const { refreshIndustrialShell, INDUSTRIAL_TEMPLATE_VERSION } =
+        await import("./industrial-shell.js");
+      const cwd = process.cwd();
+      refreshIndustrialShell(cwd);
+      loggerFromArgv(argv).writeHuman(
+        `✅ shell refreshed from template v${INDUSTRIAL_TEMPLATE_VERSION} — rerun rn doctor to confirm`,
+      );
+    });
+
   moduleCmd
     .command("init")
     .description("Scaffold modules/<id> and link into .rn/dev-session.jsonc")

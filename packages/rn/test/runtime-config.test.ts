@@ -14,7 +14,6 @@ import { describe, it } from "node:test";
 
 import type { DevSessionConfig } from "@client-platform/core";
 
-import { applyIndustrialShell } from "../dist/industrial-shell.js";
 import { applyTopologyBAfterInit } from "../dist/module-workspace.js";
 import { hostMetroResolverPath, renderHostMetroResolverCjs } from "../dist/host-metro-config.js";
 import {
@@ -26,6 +25,7 @@ import {
 } from "../dist/runtime-config.js";
 import { GENERATED_REGISTRY_RELATIVE } from "../dist/module-workspace.js";
 import { renderMetroModuleConfig } from "../dist/metro-module-config.js";
+import { applyIndustrialShell as applyIS, readTemplateVersion, shellTemplateDrift, INDUSTRIAL_TEMPLATE_VERSION } from "../dist/industrial-shell.js";
 
 const KEY = "93431af7918536fd567876d2da79d0dfdadaaec56d13a577ad2a312a0322a258";
 
@@ -84,7 +84,7 @@ describe("SEAM-2 runtime config seam (F23/F13)", () => {
     try {
       seedProject(root);
       applyTopologyBAfterInit(root);
-      applyIndustrialShell(root);
+      applyIS(root);
       assert.ok(
         existsSync(path.join(root, GENERATED_REGISTRY_RELATIVE)),
         "generated-registrations.ts",
@@ -152,5 +152,26 @@ describe("SEAM-2 F17: module Metro inherits host resolver", () => {
     assert.match(out, /host-resolver\.cjs/);
     assert.match(out, /watchFolders: hostResolver\.watchFolders/);
 
+  });
+});
+
+describe("F25 shell template refresh", () => {
+  it("applyIndustrialShell writes the version marker; refresh clears drift", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "rn-f25-"));
+    try {
+      seedProject(root);
+      applyTopologyBAfterInit(root);
+      applyIS(root);
+      assert.equal(readTemplateVersion(root), INDUSTRIAL_TEMPLATE_VERSION);
+      assert.equal(shellTemplateDrift(root), null);
+      // stale marker simulates an old project → drift detected
+      writeFileSync(
+        path.join(root, ".rn/template-version.json"),
+        JSON.stringify({ schemaVersion: 1, industrialTemplateVersion: "0" }),
+      );
+      assert.ok(shellTemplateDrift(root)?.includes("shell template"));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

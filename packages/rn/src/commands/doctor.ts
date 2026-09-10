@@ -46,6 +46,10 @@ import {
   type DoctorProfile,
 } from "../brownfield-doctor.js";
 import { evaluateEnterpriseDoctor } from "../enterprise-doctor.js";
+import {
+  INDUSTRIAL_TEMPLATE_VERSION,
+  shellTemplateDrift,
+} from "../industrial-shell.js";
 import { evaluateExpoDoctor } from "../expo-doctor.js";
 import {
   collectPreflightFindings,
@@ -395,6 +399,16 @@ export async function runDoctor(options: {
     }
 
     logger.writeHuman("");
+    {
+      // F25: shell template drift — template fixes don't propagate to existing projects.
+      const drift = shellTemplateDrift(cwd);
+      logger.writeHuman(
+        drift
+          ? `  [NEED] ${drift}`
+          : `  [OK  ] shell template is current (v${INDUSTRIAL_TEMPLATE_VERSION})`,
+      );
+    }
+
     logger.writeHuman("L3e Enterprise P0 gates (ADR-008)");
     for (const check of enterpriseChecks) {
       logger.writeHuman(
