@@ -29,12 +29,26 @@ const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
 const projectRoot = path.resolve(__dirname, "../..");
 const defaultConfig = getDefaultConfig(projectRoot);
 
+// SEAM-2/F17: inherit the host resolver (platform-package resolution) so the
+// module dev Metro resolves @client-platform/* exactly like the host shell —
+// one resolver contract for dev and release.
+let hostResolver = {};
+try {
+  hostResolver = require("./host-resolver.cjs").load();
+} catch (e) {
+  console.warn(
+    "[rn] host-resolver.cjs missing — platform packages may not resolve; run rn module register",
+  );
+}
+
 module.exports = mergeConfig(defaultConfig, {
   projectRoot,
   cacheVersion: "rn-module-${options.moduleId}",
   resetCache: false,
+  watchFolders: hostResolver.watchFolders ?? [],
   resolver: {
     ...defaultConfig.resolver,
+    ...(hostResolver.resolver ?? {}),
   },
   server: {
     ...defaultConfig.server,

@@ -25,6 +25,7 @@ import {
   writeRuntimeConfig,
 } from "../dist/runtime-config.js";
 import { GENERATED_REGISTRY_RELATIVE } from "../dist/module-workspace.js";
+import { renderMetroModuleConfig } from "../dist/metro-module-config.js";
 
 const KEY = "93431af7918536fd567876d2da79d0dfdadaaec56d13a577ad2a312a0322a258";
 
@@ -142,5 +143,14 @@ describe("SEAM-2 runtime config seam (F23/F13)", () => {
     } finally {
       rmSync(base, { recursive: true, force: true });
     }
+  });
+});
+
+describe("SEAM-2 F17: module Metro inherits host resolver", () => {
+  it("renderMetroModuleConfig merges host-resolver (unified dev/release contract)", () => {
+    const out = renderMetroModuleConfig({ moduleId: "main", entry: "index" });
+    assert.match(out, /host-resolver\.cjs/);
+    assert.match(out, /watchFolders: hostResolver\.watchFolders/);
+    assert.match(out, /extraNodeModules/);
   });
 });
