@@ -89,8 +89,19 @@ export function runKeygenCertChain(options: {
   run(["req", "-newkey", "ed25519", "-keyout", leafKey, "-out", leafCsr, "-nodes", "-subj", `/CN=${label}`]);
   run(["x509", "-req", "-in", leafCsr, "-CA", rcaCrt, "-CAkey", rcaKey, "-CAcreateserial", "-out", leafCrt, "-days", "365"]);
   chmodSync(leafKey, 0o600);
-  const der = spawnSync("openssl", ["x509", "-in", rcaCrt, "-outform", "DER"]);
-  const raw = new Uint8Array(der.stdout as unknown as ArrayBuffer);
+  // RCA raw Ed25519 public key = last 32 bytes of its SPKI DER (NOT the cert
+  // DER — the cert ends with the signature, not the key).
+  const pubPem = spawnSync(
+    "openssl",
+    ["x509", "-in", rcaCrt, "-pubkey", "-noout"],
+    { encoding: "utf8" },
+  );
+  const der = spawnSync(
+    "openssl",
+    ["pkey", "-pubin", "-outform", "DER"],
+    { input: pubPem.stdout },
+  );
+  const raw = der.stdout as unknown as Uint8Array;
   const rcaPubkeyHex = Array.from(raw.subarray(raw.length - 32))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
