@@ -82,6 +82,18 @@ export function ShellHost({
       const client = createOtaClient(native, { defaultModuleId: moduleId });
       const result = await pullOtaUpdate(client, native, moduleId, {
         lane: "production",
+        // ADR-024 (D3/F04): fetch the revocation list (CRL) before verifying —
+        // a revoked signing key is rejected even when the seal is valid.
+        fetchRevocations: async () => {
+          try {
+            const res = await fetch(`${base}/v1/crl`);
+            if (!res.ok) return [];
+            const body = (await res.json()) as { revoked?: string[] };
+            return body.revoked ?? [];
+          } catch {
+            return [];
+          }
+        },
         fetchManifest: async (mid, lane) => {
           const res = await fetch(`${base}/v1/js-updates/check?module=${mid}&lane=${lane}`);
           if (!res.ok) return null;

@@ -150,6 +150,7 @@ export function loadRegistrySqlite(projectRoot: string): DeliveryRegistry {
     kills,
     pauses,
     rollouts,
+    revocations: [],
     devices: deviceRecord,
   };
 }

@@ -21,6 +21,7 @@ import {
   listDeviceLanes,
   listInstallableCandidates,
   listJsUpdateCandidates,
+  listRevocations,
   loadRegistry,
   pauseModule,
   pauseRollout,
@@ -546,6 +547,15 @@ export function createControlPlane(options: {
             laneFilter,
             moduleFilter || undefined,
           ).map(withDownloadUrl),
+        });
+        return;
+      }
+
+      // ADR-024 (D3): CRL — revoked signing keys (hex); devices fetch before verify (F04).
+      if (req.method === "GET" && url.pathname === "/v1/crl") {
+        sendJson(res, 200, {
+          schemaVersion: 1,
+          revoked: listRevocations(projectRoot),
         });
         return;
       }

@@ -124,6 +124,7 @@ function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
     kills: raw.kills ?? [],
     pauses: raw.pauses ?? [],
     rollouts: raw.rollouts ?? [],
+    revocations: raw.revocations ?? [],
   };
 }
 

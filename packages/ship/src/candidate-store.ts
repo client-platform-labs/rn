@@ -80,6 +80,12 @@ export type DeliveryRegistry = {
   pauses: PauseRecord[];
   /** Map B B11 — thin P10 rollout_steps per digest/module. */
   rollouts: ReleaseRolloutState[];
+  /** ADR-024 (D3): revoked signing keys (pubkey hex) served via /v1/crl — device fail-closed. */
+  revocations: Array<{
+    public_key_hex: string;
+    reason?: string;
+    revoked_at: string;
+  }>;
 };
 
 export function deliveryDir(projectRoot: string): string {
@@ -167,6 +173,7 @@ export function emptyRegistry(): DeliveryRegistry {
     kills: [],
     pauses: [],
     rollouts: [],
+    revocations: [],
   };
 }
 
@@ -181,6 +188,7 @@ function normalizeRegistry(raw: DeliveryRegistry): DeliveryRegistry {
     kills: raw.kills ?? [],
     pauses: raw.pauses ?? [],
     rollouts: raw.rollouts ?? [],
+    revocations: raw.revocations ?? [],
   };
 }
 
@@ -581,4 +589,30 @@ export function tickRollout(
   upsertRollout(registry, result.state);
   saveRegistry(projectRoot, registry);
   return { registry, result };
+}
+
+/** ADR-024 (D3): record a revoked signing key (pubkey hex) served via /v1/crl. */
+export function addRevocation(
+  projectRoot: string,
+  input: { public_key_hex: string; reason?: string },
+): DeliveryRegistry {
+  const registry = loadRegistry(projectRoot);
+  const hex = input.public_key_hex.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(hex)) {
+    throw new Error(`invalid public_key_hex: ${input.public_key_hex}`);
+  }
+  if (!registry.revocations.some((r) => r.public_key_hex === hex)) {
+    registry.revocations.push({
+      public_key_hex: hex,
+      reason: input.reason,
+      revoked_at: new Date().toISOString(),
+    });
+    saveRegistry(projectRoot, registry);
+  }
+  return registry;
+}
+
+/** ADR-024: revoked signing keys (hex) for /v1/crl + device fail-closed checks. */
+export function listRevocations(projectRoot: string): string[] {
+  return loadRegistry(projectRoot).revocations.map((r) => r.public_key_hex);
 }

@@ -44,6 +44,8 @@ Commands:
     Same-artifact promote: staging → production (M6).
   block [--candidate <path>] [--reason <text>]
     Block candidate in registry (rollback drill).
+  revoke --pubkey-hex <64hex> [--reason <text>]
+    ADR-024 (D3): revoke a signing key (served via /v1/crl; devices fail-closed).
   signal record --module <id> --update-id <id> --kind crash|js_error|anr|perf|custom|e2e_fail [--detail <text>] [--digest <sha256>]
     Append quality signal (M9 / Map C C1 — e2e_fail blocks promote, not compile).
   signal list
@@ -68,6 +70,7 @@ const KNOWN = new Set([
   "update",
   "ingest-pack",
   "keygen",
+  "revoke",
   "ingest-host",
   "sign",
   "validate",
@@ -215,6 +218,21 @@ export async function run(argv = process.argv): Promise<number> {
         apkPath: apk,
         profile: parseProfile(rest) ?? "release",
       });
+      return EXIT_OK;
+    }
+
+    if (cmd === "revoke") {
+      const { addRevocation } = await import("./candidate-store.js");
+      const hex = requireFlag(
+        rest,
+        "--pubkey-hex",
+        "revoke: --pubkey-hex <64hex> required",
+      );
+      const reason = flagValue(rest, "--reason");
+      addRevocation(process.cwd(), { public_key_hex: hex, reason });
+      console.log(
+        JSON.stringify({ ok: true, action: "revoke", public_key_hex: hex }),
+      );
       return EXIT_OK;
     }
 
