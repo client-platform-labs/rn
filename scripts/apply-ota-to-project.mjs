@@ -36,6 +36,14 @@ const rcaPubkeyHex = (() => {
   return i >= 0 && process.argv[i + 1] ? process.argv[i + 1].trim() : "";
 })();
 const bakeKey = rcaPubkeyHex || pubkeyHex;
+// ADR-024 stage-3: baking must be explicit — without a key the OtaModule
+// would carry the template's stale default pubkey (silent wrong trust root).
+if (!/^[0-9a-fA-F]{64}$/.test(bakeKey)) {
+  console.error(
+    "apply-ota: a bake key is required — pass --rca-pubkey-hex <64hex> (cert mode, default) or --pubkey-hex <64hex> (legacy). Run: ship keygen",
+  );
+  process.exit(1);
+}
 
 if (!existsSync(projectRoot)) {
   console.error("apply-ota: PROJECT_ROOT missing");
