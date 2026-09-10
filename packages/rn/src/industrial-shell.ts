@@ -202,10 +202,14 @@ export function nativeOtaAdapterPresent(projectRoot: string): boolean {
 
 /**
  * F19 (G8): release-hygiene hardening — ensure android/app/build.gradle carries
- * an ACTIVE (uncommented) `debuggableVariants = []` so a release bundle is never
- * built with dev=true (ShellHost `if (__DEV__) return` would skip OTA).
- * Best-effort: uncomment an existing commented line, else insert after `android {`.
- * Never throws on unexpected gradle shapes.
+ * an ACTIVE (uncommented) `debuggableVariants` inside the `react {}` block so a
+ * release bundle is never skipped. In RN 0.87 the property lives on the `react`
+ * extension (ReactExtension.kt), NOT on `android {}` — inserting it under
+ * `android {` breaks the build (AGP: unknown property). The RN default is
+ * ['debug','debugOptimized'], which already bundles release with --dev false;
+ * this hardening makes the intent explicit and blocks accidental flavor edits.
+ * Best-effort: uncomment an existing commented line inside react {}, else insert
+ * after the `react {` opener. Never throws on unexpected gradle shapes.
  */
 export function bakeReleaseHygiene(projectRoot: string): void {
   const gradle = path.join(projectRoot, "android", "app", "build.gradle");
@@ -216,16 +220,21 @@ export function bakeReleaseHygiene(projectRoot: string): void {
   } catch {
     return;
   }
-  const active = /^\s*debuggableVariants\s*=\s*\[\]/m;
+  // Target the react {} block (where RN's ReactExtension.debbuggableVariants
+  // lives). An ACTIVE line anywhere in the file is fine — it just must not be
+  // the RN default comment that could be misread as intent to skip release.
+  const active = /^\s*debuggableVariants\s*=/m;
   if (active.test(body)) return;
-  const commented = /^\s*\/\/\s*debuggableVariants\s*=\s*\[\]/m;
+  const commented = /^\s*\/\/\s*debuggableVariants\s*=[^\n]*$/m;
   if (commented.test(body)) {
+    // Replace the WHOLE commented line (RN template: `// debuggableVariants =
+    // ["liteDebug", ...]`) — a prefix-only replace would leave the array tail.
     body = body.replace(commented, "    debuggableVariants = []");
   } else {
-    // No line at all — insert right after the `android {` block opener.
-    const open = /^android\s*\{$/m;
+    // No line at all — insert right after the `react {` block opener.
+    const open = /^react\s*\{$/m;
     if (open.test(body)) {
-      body = body.replace(open, "android {\n    debuggableVariants = []");
+      body = body.replace(open, "react {\n    debuggableVariants = []");
     } else {
       return;
     }
@@ -275,9 +284,14 @@ function bakeNetworkSecurityConfig(projectRoot: string): void {
  * platform workspace (local dev). A distributed platform publishes these instead.
  */
 function linkPlatformPackages(projectRoot: string): void {
+  // N9: locate the platform packages from the CLI's OWN repo root (this
+  // checkout / install home), not from an assumed sibling path under the
+  // project. A bare "../client-platform-labs/rn" default breaks any project
+  // that lives elsewhere (e.g. /tmp or a company workspace) — core/rn-engine
+  // silently never linked. CLIENT_PLATFORM_ROOT overrides when the CLI is a
+  // symlinked install pointing elsewhere.
   const platformRoot =
-    process.env.CLIENT_PLATFORM_ROOT ??
-    path.resolve(projectRoot, "..", "client-platform-labs", "rn");
+    process.env.CLIENT_PLATFORM_ROOT ?? path.resolve(__dirname, "../../..");
   const pkgPath = path.join(projectRoot, "package.json");
   if (!existsSync(pkgPath)) return;
   let pkg: Record<string, unknown>;

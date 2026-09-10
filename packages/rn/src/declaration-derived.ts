@@ -7,13 +7,12 @@
  * them all. Trigger points: rn init tail, rn module register, rn dev preflight.
  * Fixes F13 (init incomplete), F14 (generation quality), F23 (runtime config).
  */
-import path from "node:path";
-
 import { loadDevSessionConfig } from "./dev-session-config.js";
 import { writeHostMetroResolver } from "./host-metro-config.js";
 import { writeModuleRegistry } from "./module-workspace.js";
 import {
   GENERATED_RUNTIME_RELATIVE,
+  loadRuntimeConfig,
   writeGeneratedRuntime,
   writeRuntimeConfig,
   type RuntimeConfig,
@@ -43,11 +42,25 @@ export function regenerateDerivedArtifacts(projectRoot: string): void {
   writeGeneratedRuntime(projectRoot);
 }
 
-/** Write a default declared runtime config (init tail; keeps existing value). */
+/**
+ * Write the declared runtime config, PRESERVING existing values (init tail /
+ * shell refresh). N10: `rn shell refresh` (F25) regenerates templates and an
+ * unconditional overwrite would wipe the operator's cpBaseUrl — silently
+ * regressing F23 (device OTA dead). Only fill keys that are missing.
+ */
 export function ensureRuntimeConfig(
   projectRoot: string,
   cfg: RuntimeConfig = {},
 ): string {
-  const file = path.join(projectRoot, ".rn", "runtime.jsonc");
-  return writeRuntimeConfig(projectRoot, cfg);
+  const existing = loadRuntimeConfig(projectRoot);
+  const merged: RuntimeConfig = {
+    ...existing,
+    ...cfg,
+    cpBaseUrl: cfg.cpBaseUrl?.trim() ? cfg.cpBaseUrl : existing.cpBaseUrl,
+    otaPubKeys:
+      cfg.otaPubKeys && cfg.otaPubKeys.length > 0
+        ? cfg.otaPubKeys
+        : existing.otaPubKeys,
+  };
+  return writeRuntimeConfig(projectRoot, merged);
 }
