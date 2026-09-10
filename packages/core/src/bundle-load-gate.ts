@@ -41,6 +41,11 @@ export type BundleLoadArtifact = {
    * RCA, then the seal with the leaf key (cert mode). Absent = stage-0 direct.
    */
   certChain?: { leafCertPem: string; leafPubkeyHex: string };
+  /**
+   * ADR-024 stage-3: when true, a missing certChain is a hard failure (legacy
+   * single-key path disabled). Default false = sunset-window compatibility.
+   */
+  requireCert?: boolean;
   /** ADR-018 — keys revoked via a K2-signed revocation list; a matching key is rejected. */
   revokedPublicKeys?: readonly string[];
   /**
@@ -103,6 +108,18 @@ export function gateBundleLoad(
     // cert under the RCA, then the seal with the leaf key (multi-rotation
     // without touching devices). Absent certChain = stage-0 direct keys.
     const certChain = artifact.certChain;
+    // ADR-024 stage-3: sunset-window gate — requireCert disables the legacy
+    // single-key path (missing certChain = hard failure, fail-closed).
+    if (
+      artifact.requireCert &&
+      !(artifact.certChain && artifact.certChain.leafCertPem)
+    ) {
+      return {
+        ok: false,
+        signatureStatus: "invalid",
+        reason: `cert-chain required but absent for update_id=${artifact.candidate.update_id} (requireCert)`,
+      };
+    }
     let verifyKeys: readonly string[] | null =
       certChain && certChain.leafCertPem && certChain.leafPubkeyHex
         ? null

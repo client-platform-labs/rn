@@ -263,6 +263,29 @@ export async function run(argv = process.argv): Promise<number> {
         );
         return EXIT_OK;
       }
+      // ADR-024 stage-3: cert chain is the DEFAULT trust path; single-key is
+      // the legacy escape hatch (--legacy) during the sunset window.
+      if (!rest.includes("--legacy")) {
+        const chain = runKeygenCertChain({ dir, label: label ?? "lab-sign-key" });
+        console.log(
+          JSON.stringify(
+            {
+              ok: true,
+              action: "keygen-cert",
+              leaf_cert: chain.leafCertFile,
+              root_ca_cert: chain.rcaCertFile,
+              root_ca_public_key_hex: chain.rcaPubkeyHex,
+              next: [
+                `bake RCA pubkey (device trust root): apply-ota --rca-pubkey-hex ${chain.rcaPubkeyHex}`,
+                `sign with the leaf key: export RN_DELIVERY_SIGN_KEY_PEM=<dir>/lab.key + RN_DELIVERY_LEAF_CERT/PUBKEY_HEX`,
+              ],
+            },
+            null,
+            2,
+          ),
+        );
+        return EXIT_OK;
+      }
       printKeygenResult(runKeygen({ dir, label }));
       return EXIT_OK;
     }

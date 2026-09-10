@@ -159,3 +159,19 @@ describe("ADR-024 gateBundleLoad cert mode (seal signed by leaf, verified under 
     }
   });
 });
+
+describe("ADR-024 stage-3 requireCert (sunset gate)", () => {
+  it("fails when requireCert and no certChain (legacy path disabled)", () => {
+    const host = { artifact_line: "pure-rn-greenfield", runtime_fingerprint: { engine: { id: "react-native", version: "0.87.0+hermes-v1+newarch+codegen-locked", hermesVmIdentity: "h", hbcBytecodeVersion: 96, newArchFlags: { bridgeless: true, fabric: true, turboModules: true } }, nativeAbiSurfaceDigest: "sha256:abi" }, capability_set: [], hbcBytecodeVersion: 96, channel_js_allowed: true };
+    const base = {
+      candidate: { business_module: "main", update_id: "main-y", runtime_fingerprint: { engine: { id: "react-native", version: "0.87.0+hermes-v1+newarch+codegen-locked", hermesVmIdentity: "h", hbcBytecodeVersion: 96, newArchFlags: { bridgeless: true, fabric: true, turboModules: true } }, nativeAbiSurfaceDigest: "sha256:abi" }, hbcBytecodeVersion: 96, required_capabilities: [], target_artifact_lines: ["pure-rn-greenfield"], release_gate: "js-standard" },
+      signature: "pem:ed25519:AAAA", // never reached — requireCert fails first
+      release_id: "r", artifact_kind: "js-update", expectedDigest: "a".repeat(64),
+      publicKeys: ["00".repeat(32)],
+      requireCert: true,
+    };
+    const r = gateBundleLoad(base, host);
+    assert.equal(r.ok, false);
+    assert.match(JSON.stringify(r), /requireCert/);
+  });
+});

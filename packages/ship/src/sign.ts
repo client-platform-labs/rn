@@ -67,6 +67,20 @@ export async function runSign(options: {
     artifact_kind: candidate.artifact_kind,
   });
 
+  const leafCert = process.env.RN_DELIVERY_LEAF_CERT;
+  const leafPubHex = process.env.RN_DELIVERY_LEAF_PUBKEY_HEX;
+  const legacySign = process.env.RN_DELIVERY_LEGACY_SIGN === "1";
+  // ADR-024 stage-3: cert chain is the default sign path. A missing leaf cert
+  // is a hard failure unless the legacy single-key path is explicitly enabled
+  // (sunset window escape hatch).
+  if (!legacySign && (!leafCert || !leafPubHex)) {
+    throw new DeliveryError(
+      "sign requires the cert chain — set RN_DELIVERY_LEAF_CERT (PEM) + RN_DELIVERY_LEAF_PUBKEY_HEX " +
+        "(run: ship keygen, then sign with the leaf key). Set RN_DELIVERY_LEGACY_SIGN=1 to use the legacy single-key path.",
+      EXIT_FAIL,
+    );
+  }
+
   const signed: CandidateMetadata = {
     ...candidate,
     stage: "sign",
@@ -76,10 +90,10 @@ export async function runSign(options: {
     // (RN_DELIVERY_LEAF_CERT PEM + RN_DELIVERY_LEAF_PUBKEY_HEX). Devices verify
     // the seal under the baked root-CA via this chain.
     cert_chain:
-      process.env.RN_DELIVERY_LEAF_CERT && process.env.RN_DELIVERY_LEAF_PUBKEY_HEX
+      leafCert && leafPubHex
         ? {
-            leafCertPem: process.env.RN_DELIVERY_LEAF_CERT,
-            leafPubkeyHex: process.env.RN_DELIVERY_LEAF_PUBKEY_HEX,
+            leafCertPem: leafCert,
+            leafPubkeyHex: leafPubHex,
           }
         : undefined,
   };
