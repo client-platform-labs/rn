@@ -287,11 +287,15 @@ function linkPlatformPackages(projectRoot: string): void {
     return;
   }
   const deps = (pkg["dependencies"] as Record<string, string>) ?? {};
+  const platformRootAbs = path.resolve(platformRoot);
   for (const name of ["core", "shell-core", "rn-engine"]) {
     const scoped = `@client-platform/${name}`;
-    const src = path.join(platformRoot, "packages", name);
+    const src = path.join(platformRootAbs, "packages", name);
     if (!existsSync(src)) continue;
-    deps[scoped] = deps[scoped] ?? "0.1.0";
+    // N7: private workspace packages are NOT published to npm — a bare version
+    // spec makes `npm install` 404. Use a file: spec to the same source the
+    // symlink points at, so the package.json is resolvable standalone.
+    deps[scoped] = deps[scoped] ?? `file:${src}`;
     const dest = path.join(
       projectRoot,
       "node_modules",

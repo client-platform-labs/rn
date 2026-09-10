@@ -206,11 +206,24 @@ if (existsSync(pkgJson)) {
   } else {
     const deps = (pkg.dependencies = pkg.dependencies ?? {});
     const added = [];
-    // SEAM-2/F18: only the device-side OTA client dep, real version (not workspace:*,
-    // not the pre-split rn-core). Skip when already present.
+    // SEAM-2/F18 + N7: only the device-side OTA client dep. The package is a
+    // private workspace package NOT published to npm, so a bare "0.1.0" makes
+    // `npm install` 404. Resolve it via a `file:` spec to this repo (the same
+    // source the shell template imports) — same shape as init's
+    // linkPlatformPackages symlink. Skip when already present.
+    const shellCoreSpec = `file:${path.join(repoRoot, "packages", "shell-core")}`;
     for (const name of ["@client-platform/shell-core"]) {
-      if (!deps[name]) {
-        deps[name] = "0.1.0";
+      // N7: private workspace package is not published — a bare version ("0.1.0")
+      // 404s on npm install. Rewrite bare/workspace specs to the file: source;
+      // keep an already-correct file:/link: spec untouched.
+      const existing = deps[name];
+      if (!existing) {
+        deps[name] = shellCoreSpec;
+        added.push(name);
+      } else if (/^(file:|link:|workspace:)/.test(existing)) {
+        /* already resolvable locally — leave as-is */
+      } else {
+        deps[name] = shellCoreSpec;
         added.push(name);
       }
     }

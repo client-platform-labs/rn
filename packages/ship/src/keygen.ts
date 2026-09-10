@@ -73,6 +73,7 @@ export function runKeygenCertChain(options: {
 } {
   const dir = path.resolve(options.dir);
   const label = options.label ?? "lab-sign-key";
+  mkdirSync(dir, { recursive: true }); // N6: fresh keys dir must exist before openssl -cwd
   const rcaKey = path.join(dir, `${label}.rca.key`);
   const rcaCrt = path.join(dir, `${label}.rca.crt`);
   const leafKey = path.join(dir, `${label}.key`);
@@ -101,6 +102,9 @@ export function runKeygenCertChain(options: {
     ["pkey", "-pubin", "-outform", "DER"],
     { input: pubPem.stdout },
   );
+  // SAFETY: spawnSync returns Buffer (a Uint8Array subclass) for stdout when
+  // encoding is not set; the cast only widens to the array type so the
+  // subarray arithmetic is typed — the buffer itself is produced by openssl.
   const raw = der.stdout as unknown as Uint8Array;
   const rcaPubkeyHex = Array.from(raw.subarray(raw.length - 32))
     .map((b) => b.toString(16).padStart(2, "0"))
