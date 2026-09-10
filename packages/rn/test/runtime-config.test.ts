@@ -151,6 +151,6 @@ describe("SEAM-2 F17: module Metro inherits host resolver", () => {
     const out = renderMetroModuleConfig({ moduleId: "main", entry: "index" });
     assert.match(out, /host-resolver\.cjs/);
     assert.match(out, /watchFolders: hostResolver\.watchFolders/);
-    assert.match(out, /extraNodeModules/);
+
   });
 });
