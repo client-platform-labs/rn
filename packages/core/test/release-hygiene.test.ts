@@ -94,7 +94,6 @@ describe("release debuggable-variants hygiene (F19/G8)", () => {
     assert.equal(check?.blocking, false);
   });
 
-
   it("flags commented debuggableVariants", () => {
     const root = makeRoot("android {\n    // debuggableVariants = []\n}\n");
     const check = evaluateReleaseSourceHygiene(root).find(

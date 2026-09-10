@@ -54,16 +54,17 @@ async function refreshPublicKeys(native: OtaNativeAdapter): Promise<void> {
     const keys = (await (NativeModules.YourOta?.getOtaPublicKeysAsync?.() as
       | Promise<unknown>
       | undefined)) as unknown;
-    cachedPublicKeys = (keys == null ? [] : Array.from(keys as ArrayLike<string>)).filter(
-      (k): k is string => typeof k === "string" && k.length === 64,
-    );
+    cachedPublicKeys = (
+      keys == null ? [] : Array.from(keys as ArrayLike<string>)
+    ).filter((k): k is string => typeof k === "string" && k.length === 64);
   } catch {
     cachedPublicKeys = []; // stay empty → fail-closed at verify
   }
 
   // Patch the sync cache the adapter reads during verifySidecar.
   const base = native.getOtaPublicKeys.bind(native);
-  native.getOtaPublicKeys = () => cachedPublicKeys.length > 0 ? cachedPublicKeys : base();
+  native.getOtaPublicKeys = () =>
+    cachedPublicKeys.length > 0 ? cachedPublicKeys : base();
 }
 
 async function bootOta(moduleId: string): Promise<PullOtaResult> {
