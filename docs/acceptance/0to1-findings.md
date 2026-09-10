@@ -102,3 +102,40 @@
 - 事件（init 空目录拒）：P0 把 keys 放工程目录 → `rn init` 报 `cwd is not empty (keys)`。**结论**：init 空目录检查是正确安全设计（防覆盖，create-react-app/next 同款），**非平台缺陷**；真根因 = 平台无规范密钥位置（F01），密钥只能随手放。处理：keys 移工程外 `rn-0to1-drill-keys/`，工程目录恢复空。
 
 _（后续阶段发现的问题在此追加，保持本表为主索引。）_
+
+---
+
+## 开图计划（T1–T4 系统级 ticket）
+
+> 演练完（2026-09-10）开 4 张系统级 ticket。每张含四要素：行业方法论依据 · 目标业务场景 · 平台服务形态 · 收敛 finding。
+
+### TICKET T1 — 信任根子系统（信任根即服务）
+- **方法论**：SLSA / Sigstore · PKI+HSM 密码学边界
+- **场景**：多业务线/多 App 企业审计——谁能发生产、钥在哪、包改没改过
+- **形态**：生成(HSM/离线) → 规范存放(托管/双人) → 烘焙(声明驱动) → 签名 → 轮换/吊销(证书链)，lab 自动化 + 生产 HITL 同一子系统
+- **收敛**：F01（ship keygen + 规范 keys 位置）· F02（apply-ota 参数化烘焙）· F05（密钥托管/连续性平台化）· F06（**已决策 B**：证书链 + HSM + CRL/OCSP，弃自研双钥）
+- **工作项**：① `ship keygen [--label] [--rotate] [--hsm]` ② 规范 keys 目录（`~/.client-platform/keys`） ③ apply-ota `--pubkey-hex` ④ 证书链验签/吊销端点（CP）/烘焙根 CA ⑤ ADR-017/018 修订
+
+### TICKET T2 — 工具链生命周期与用户表面（工具链即受管产品）
+- **方法论**：平台工程 golden path · rustup/pnpm 分发模型 · 12-factor 可处置性
+- **场景**：数千开发者 onboarding；SRE 受控分发升级；命令/输出/路径语义一致
+- **形态**：统一安装/卸载/升级（pi 模型）+ 语义化用户表面（命令/输出/路径三层审计）
+- **收敛**：F03（安装 home 与密钥目录隔离）· F07（rn self uninstall 补全）· F08（pi 模型主路径 + command -v 自检）· F09（rn init 产品默认）· F10（分层命令去拓扑代号）· F11（输出语义化）· F12（run-instructions 真实路径）· F15（rn dev 前台/日志流）· F18（apply-ota 死依赖）· F19（release 卫生烘焙）· F20（network_security_config 模板化）· F23（**CP 基址配置注入点 + fail-loud**）
+- **工作项**：get-rn.sh/rn self 统一生命周期；`rn init` 默认完整产品 + `--pure`/`--demo` 降档；输出重写；模板烘焙（release 卫生 + 网络安全 + CP 基址配置）
+
+### TICKET T3 — 声明→派生产物系统
+- **方法论**：IaC / GitOps · Backstage catalog · K8s CRD+controller
+- **场景**：几十业务模块并行；模块登记走声明变更，壳不被业务绑架
+- **形态**：派生产物管线——声明（manifest/dev-session/模块清单）→ 单一再生成原语 → 注册表/resolver；init 完整（D4）
+- **收敛**：F13（init 必生成 host-resolver/注册表 + 再生成原语 + metro fail-closed）· F14（派生物去重）· F17（dev/release resolver 契约统一）
+- **工作项**：① 声明→派生原语（init 收尾/register/dev 预检触发）② metro 缺失 resolver fail-closed ③ dev 模块 Metro 加载 host-resolver ④ 错误入口语义化指引
+
+### TICKET T4 — 运行时身份校验
+- **方法论**：零信任（never trust, always verify）· SPIFFE/mTLS 理念下沉
+- **场景**：多工程/多环境并行（dev/staging/灰度）防串线
+- **形态**：基础设施身份校验原语——端口/进程/服务 → 工程身份，复用前强制校验
+- **收敛**：F16（rn dev 复用端口不校验工程身份）
+- **工作项**：端口→工程根/指纹校验；复用前身份不符即报错并指出占用方；覆盖 Metro/CP/设备
+
+### 附：产品意图基线（D4）
+`rn init` 默认 = 最小可跑完整链路（工业壳 + 模块 + OTA 适配 + host-resolver + 平台包链接 + **CP 基址可配置**），全角色可用；`--pure`/`--demo` 显式降档。所有 T1–T4 修复须对齐 D4。
