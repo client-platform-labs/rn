@@ -243,11 +243,11 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 
 | 项 | 状态 | 缺口 | 验收动作 |
 |----|------|------|----------|
-| F03 | 已实现未验收 | get-rn.sh 卸载保护 | install→uninstall→reinstall 往返 e2e（含密钥目录不被动） |
-| F07 | 已实现未验收 | self uninstall 补 ship | 往返 e2e：卸载后 rn/ship 链接全清 |
-| F17 | 已实现未验收 | 模块 Metro 继承 resolver | dev 下宿主壳入口可构建 e2e |
+| F03 | ✅ 已验收 | 往返 e2e：卸载后 rn/ship 清空 + 密钥目录保全 + F03 保护触发；残留：rn self uninstall 的 rmSync 缺 .git 保护 → 已补 | 关闭 |
+| F07 | ✅ 已验收 | 往返 e2e：卸载后 rn/ship 链接全清（含 ship） | 关闭 |
+| F17 | ✅ 已验收 | v3 dev Metro /index.bundle 构建成功 4.28MB + shell-core | 关闭 |
 | F05 | 未修 | HSM/托管 | 设计 → 实现 → 验收（D3 后续） |
-| F08 | 部分 | nvm 版本 npm-link 根因 | 修 → 验收 |
+| F08 | ✅ 部分验收 | command -v 自检往返生效（'already on PATH'）；nvm 版本根因仍待修 | nvm 根因待修 |
 | F12 | 缓解 | CLI 旧输出未压制 | 修 → 验收 |
 | F25 | 未修 | 模板修复不回灌存量工程 | 纳入再生成原语 → 验收 |
 | F19 | 未复现 | — | 已顺证（设备 OTA 跑通=非 dev），关闭 |
