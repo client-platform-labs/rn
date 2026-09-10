@@ -194,3 +194,4 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - **SEAM-3 (#248) 完成**：F09/F10（init 产品默认+--pure）· F11（输出语义化）· F12 · F15（detached Metro 日志落文件）· F21（check ID 去重）· F22（lane 字段）。
 - **SEAM-5 (#250) 完成**：F16（rn dev 复用前校验 Metro 工程身份）。
 - **SEAM-1 (#247) 部分完成**：F20/F01/F02 ✅；F19（未复现→release 卫生探针 TODO）；**F04/F05/F06 延后至 D3**（证书链+HSM 大改造，范围见 #247，需 ADR-017/018 修订 + core 验签链 + ship HSM 对接 + 模板根 CA + CP CRL/OCSP）。
+- **D3 设计已固化**：`docs/adr/024-cert-chain-hsm-signing.md`（proposed）——证书链+HSM 目标模型、验签链、各平面落地范围、4 阶段迁移路径、验证探针。F04/F05/F06 按此实施。
