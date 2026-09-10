@@ -65,7 +65,7 @@ if (pkgPath && existsSync(templatesDir)) {
     if (!dryRun) {
       mkdirSync(pkgPath, { recursive: true });
       // rewrite template package → <appId>.ota so MainApplication import resolves
-      const body = readFileSync(src, "utf8").replace(
+      let body = readFileSync(src, "utf8").replace(
         /^package\s+[\w.]+/m,
         `package ${appId}.ota`,
       );
