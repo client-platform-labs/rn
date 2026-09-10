@@ -195,3 +195,4 @@ _（后续阶段发现的问题在此追加，保持本表为主索引。）_
 - **SEAM-5 (#250) 完成**：F16（rn dev 复用前校验 Metro 工程身份）。
 - **SEAM-1 (#247) 部分完成**：F20/F01/F02 ✅；F19（未复现→release 卫生探针 TODO）；**F04/F05/F06 延后至 D3**（证书链+HSM 大改造，范围见 #247，需 ADR-017/018 修订 + core 验签链 + ship HSM 对接 + 模板根 CA + CP CRL/OCSP）。
 - **D3 设计已固化**：`docs/adr/024-cert-chain-hsm-signing.md`（proposed）——证书链+HSM 目标模型、验签链、各平面落地范围、4 阶段迁移路径、验证探针。F04/F05/F06 按此实施。
+- **D3 设备端到端 PASS（2026-09-10）**：cert 模式全链真机验证——keygen --cert（RCA+leaf）→ apply-ota --rca-pubkey-hex 烘焙 RCA → sign（leaf 私钥签 seal + 附带 cert_chain）→ CP 下发 manifest 带 cert_chain → 设备拉 CRL(/v1/crl, F04 生效) + manifest → **证书链验签（leaf→烘焙 RCA）+ leaf 验 seal** → 下载 → 重载 → 运行。附：期间发现并修复 keygen RCA 提取 bug（证书 DER 尾 ≠ SPKI 公钥）、v3 未配 cpBaseUrl 触发 F23 fail-loud（顺证）。
