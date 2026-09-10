@@ -10,6 +10,7 @@ export type DeviceJsUpdateManifest = {
   update_id: string;
   digest: string;
   signature?: string;
+  cert_chain?: { leafCertPem: string; leafPubkeyHex: string };
   release_id: string;
   artifact_kind: string;
   candidate: JsUpdateSidecar["candidate"];
@@ -65,6 +66,7 @@ export function buildDeviceJsUpdateManifest(
     update_id: sidecar.update_id,
     digest: sidecar.digest,
     signature: sidecar.signature ?? meta.signature,
+    cert_chain: sidecar.cert_chain,
     release_id: sidecar.release_id,
     artifact_kind: sidecar.artifact_kind,
     candidate: sidecar.candidate,

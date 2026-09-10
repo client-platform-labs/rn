@@ -21,6 +21,7 @@ export type JsUpdateSidecar = {
   bundle_path: string;
   digest: string;
   signature?: string;
+  cert_chain?: { leafCertPem: string; leafPubkeyHex: string };
   release_id: string;
   artifact_kind: string;
   candidate: JsUpdateCandidate;
@@ -75,6 +76,7 @@ export function writeJsUpdateSidecar(
     bundle_path: input.bundlePath,
     digest: input.metadata.digest,
     signature: input.metadata.signature,
+    cert_chain: input.metadata.cert_chain,
     release_id: input.metadata.release_id,
     artifact_kind: input.metadata.artifact_kind,
     candidate: buildJsUpdateCandidate({

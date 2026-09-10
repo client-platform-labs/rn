@@ -59,6 +59,7 @@ export function createOtaClient(
         // ADR-017: bridge returns a WritableNativeArray (not Array.isArray, no
         // iterator) — normalize with Array.from before any iteration in the gate.
         publicKeys: Array.from(native.getOtaPublicKeys() ?? []),
+        certChain: sidecar.cert_chain,
         revokedPublicKeys,
       },
       host,

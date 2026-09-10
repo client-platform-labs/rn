@@ -72,6 +72,16 @@ export async function runSign(options: {
     stage: "sign",
     signature: sealed.signature,
     supply_chain: supply,
+    // ADR-024 (D3) stage-1: attach the leaf cert chain when provided via env
+    // (RN_DELIVERY_LEAF_CERT PEM + RN_DELIVERY_LEAF_PUBKEY_HEX). Devices verify
+    // the seal under the baked root-CA via this chain.
+    cert_chain:
+      process.env.RN_DELIVERY_LEAF_CERT && process.env.RN_DELIVERY_LEAF_PUBKEY_HEX
+        ? {
+            leafCertPem: process.env.RN_DELIVERY_LEAF_CERT,
+            leafPubkeyHex: process.env.RN_DELIVERY_LEAF_PUBKEY_HEX,
+          }
+        : undefined,
   };
 
   if (

@@ -100,6 +100,8 @@ export interface CandidateMetadata {
   supply_chain?: DualSupplyChainInterfaces;
   /** Sealed payload signature (hex) — set at sign stage (M5). */
   signature?: string;
+  /** ADR-024 (D3) stage-1: leaf X.509 cert + signing key hex, served to devices. */
+  cert_chain?: { leafCertPem: string; leafPubkeyHex: string };
   /** Client selector sidecar (`JsUpdateCandidate` + paths) for js-update (M7). */
   sidecar_path?: string;
 }
