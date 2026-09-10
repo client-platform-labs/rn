@@ -148,7 +148,7 @@ describe("evaluateDeliveryValidate", () => {
     assert.equal(result.ok, false);
     assert.ok(
       result.checks.some(
-        (c) => c.id === "release-release-dev-support-dir" && !c.ok,
+        (c) => c.id === "release-dev-support-dir" && !c.ok,
       ),
     );
   });

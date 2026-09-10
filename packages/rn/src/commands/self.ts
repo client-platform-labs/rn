@@ -137,7 +137,7 @@ export async function runSelfUninstall(options: {
   const home = defaultInstallHome();
   const binDir = localBinDir();
 
-  for (const name of ["rn"] as const) {
+  for (const name of ["rn", "ship"] as const) {
     const link = path.join(binDir, name);
     try {
       if (existsSync(link)) {

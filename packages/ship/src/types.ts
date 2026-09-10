@@ -95,6 +95,8 @@ export interface CandidateMetadata {
   runtime_fingerprint_digest?: string;
   /** Furthest completed stage for this candidate (stage machine cursor). */
   stage: DeliveryStage;
+  /** Deployment lane (staging | production) — SEAM-3/F22: disambiguates stage (pipeline step) from lane. */
+  lane?: "staging" | "production";
   supply_chain?: DualSupplyChainInterfaces;
   /** Sealed payload signature (hex) — set at sign stage (M5). */
   signature?: string;

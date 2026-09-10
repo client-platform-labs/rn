@@ -294,7 +294,7 @@ export function promoteCandidateToStaging(
   candidate: CandidateMetadata,
 ): DeliveryRegistry {
   const registry = loadRegistry(projectRoot);
-  const promoted: CandidateMetadata = { ...candidate, stage: "promote" };
+  const promoted: CandidateMetadata = { ...candidate, stage: "promote", lane: "staging" };
   registry.staging = [
     ...registry.staging.filter((c) => c.digest !== promoted.digest),
     promoted,
@@ -352,7 +352,7 @@ export function promoteStagingToProduction(
   if (!staging) {
     throw new Error(`no staging candidate for digest ${digest}`);
   }
-  const production: CandidateMetadata = { ...staging, stage: "promote" };
+  const production: CandidateMetadata = { ...staging, stage: "promote", lane: "production" };
   registry.staging = registry.staging.filter((c) => c.digest !== digest);
   registry.production = [
     ...registry.production.filter((c) => c.digest !== digest),

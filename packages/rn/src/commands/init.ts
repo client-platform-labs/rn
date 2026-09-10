@@ -153,6 +153,7 @@ export async function runInit(options: {
   demo?: boolean;
   /** Default topology-b (ADR-005). Use inline-main for onboarding path A. */
   starter?: InitStarter;
+  pure?: boolean;
   /** Apply the industrial shell (ShellHost + ModuleRegistry + OTA gate) after init. */
   industrial?: boolean;
 }): Promise<void> {
@@ -208,7 +209,7 @@ export async function runInit(options: {
     npmRegistrySource: npm.registrySource,
     notes: [
       starter === "topology-b"
-        ? "Default starter=topology-b: shell App + modules/main (ADR-005 industrial GF)."
+        ? "默认 = 可运行完整产品：壳 + 业务模块 + OTA（rn init 即产品）."
         : "starter=inline-main: Community App stays in-tree (onboarding path A only).",
       "Hermes V1 + New Architecture are defaults on RN 0.87.x (no legacy arch).",
       "HarmonyOS is contract-reserved; A1 template targets ios+android only.",
@@ -291,13 +292,17 @@ export async function runInit(options: {
 
   if (starter === "topology-b") {
     const applied = applyTopologyBAfterInit(cwd);
-    options.logger.writeHuman(
-      `topology B: ${path.relative(cwd, applied.moduleRoot)} + shell ${path.basename(applied.appEntry)}`,
-    );
-    if (options.industrial) {
+    // SEAM-3/F09+F11 (D4): product by default — the industrial shell is the
+    // product, so `rn init` produces it unless --pure opts out. Output is
+    // semantic (no internal topology/ADR codes).
+    if (options.pure) {
+      options.logger.writeHuman(
+        `✅ 工程就绪（纯壳，无平台 OTA 能力）：${path.relative(cwd, applied.moduleRoot)} + ${path.basename(applied.appEntry)}`,
+      );
+    } else {
       applyIndustrialShell(cwd);
       options.logger.writeHuman(
-        "industrial shell: ShellHost + ModuleRegistry + OTA gate applied (ADR-021)",
+        "✅ 可运行的完整产品就绪：壳 + 业务模块 + OTA 能力（rn dev 开发 / ship 发布 / 设备 OTA）",
       );
     }
   } else {
@@ -334,9 +339,11 @@ export async function runInit(options: {
     options.logger.writeHuman(
       `Wrote ${path.join(cwd, MANIFEST_FILENAME)} (rnExactTuple=${tuple})`,
     );
-    options.logger.writeHuman(
-      "Next: rn doctor → rn dev → ship build --platform android",
-    );
+    // SEAM-3/F12: platform next-steps point at the real project root (the
+    // Community CLI's own run-instructions echo the pre-hoist stage path).
+    options.logger.writeHuman("Next (run from this project root):");
+    options.logger.writeHuman(`  cd ${cwd}`);
+    options.logger.writeHuman("  rn doctor → rn dev --android → ship build --platform android");
     options.logger.writeHuman(
       "Android device testing needs ANDROID_HOME + adb (platform-tools). iOS needs Xcode + pod install.",
     );

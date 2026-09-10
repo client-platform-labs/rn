@@ -197,8 +197,12 @@ export async function runDev(options: {
     }
 
     if (!options.android && !options.ios) {
+      const logs = sessions
+        .map((s) => (s.logFile ? path.relative(projectRoot, s.logFile) : null))
+        .filter(Boolean)
+        .join(", ");
       options.logger.writeHuman(
-        "Multi-Metro running (detached). Attach shell with `rn dev --android` or open modules in Dev Menu.",
+        `Multi-Metro running (detached). Logs: ${logs || ".rn/logs/metro-<port>.log"} (SEAM-3/F15). Attach shell with \`rn dev --android\` or open modules in Dev Menu.`,
       );
       return;
     }

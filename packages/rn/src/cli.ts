@@ -149,14 +149,15 @@ export async function run(argv = process.argv): Promise<number> {
       "force npm registry for Community CLI (also CLIENT_PLATFORM_NPM_REGISTRY)",
     )
     .option("--demo", "after init, implant the sample demo (rn demo add)")
+    .option("--pure", "clean shell only (no platform OTA/industrial content; explicit opt-out of the product default)")
     .option(
       "--starter <name>",
-      'topology-b (default, shell + modules/main) | inline-main (path A onboarding)',
+      "layout starter (default topology-b: shell + modules/main; inline-main: onboarding path A)",
       "topology-b",
     )
     .option(
       "--industrial",
-      "apply the industrial shell (ShellHost + ModuleRegistry + OTA gate) after init",
+      "explicitly apply the industrial shell (the default product form; kept for compatibility)",
     )
     .action(
       async (
@@ -167,6 +168,7 @@ export async function run(argv = process.argv): Promise<number> {
           isolatedNpmrc?: boolean;
           npmRegistry?: string;
           demo?: boolean;
+          pure?: boolean;
           starter?: string;
           industrial?: boolean;
         },
@@ -189,6 +191,7 @@ export async function run(argv = process.argv): Promise<number> {
           isolatedNpmrc: Boolean(opts.isolatedNpmrc),
           npmRegistry: opts.npmRegistry,
           demo: Boolean(opts.demo),
+          pure: Boolean(opts.pure),
           starter,
           industrial: Boolean(opts.industrial),
         });

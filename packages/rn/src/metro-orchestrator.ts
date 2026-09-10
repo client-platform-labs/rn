@@ -8,6 +8,8 @@
  * - Only `--stop-metro` tears down Metro we started (CI / ephemeral install).
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdirSync, openSync } from "node:fs";
+import path from "node:path";
 
 import {
   DEFAULT_METRO_PORT,
@@ -23,6 +25,8 @@ export interface MetroSession {
   /** We spawned Metro for this command. */
   startedByUs: boolean;
   child?: ChildProcess;
+  /** Detached mode log file (SEAM-3/F15) — logs are never lost to /dev/null. */
+  logFile?: string;
 }
 
 const METRO_START_TIMEOUT_MS = 120_000;
@@ -69,10 +73,25 @@ export function spawnMetroProcess(options: {
   if (options.metroConfig) {
     args.push("--config", options.metroConfig);
   }
+  // SEAM-3/F15: detached Metro must not lose logs to /dev/null — write them to
+  // .rn/logs/metro-<port>.log and surface the path in the session.
+  let stdio: "inherit" | Array<number | "ignore"> = "inherit";
+  let logFile: string | undefined;
+  if (options.detached) {
+    logFile = path.join(
+      options.projectRoot,
+      ".rn",
+      "logs",
+      `metro-${options.port}.log`,
+    );
+    mkdirSync(path.dirname(logFile), { recursive: true });
+    const fd = openSync(logFile, "a");
+    stdio = ["ignore", fd, fd];
+  }
   return spawn(options.npx, args, {
     cwd: options.projectRoot,
     env: options.env ?? process.env,
-    stdio: options.detached ? "ignore" : "inherit",
+    stdio,
     detached: Boolean(options.detached),
     shell: process.platform === "win32",
   });
@@ -125,6 +144,14 @@ export async function ensureMetroSession(options: {
     detached: options.detached,
     metroConfig: options.metroConfig,
   });
+  const logFile = options.detached
+    ? path.join(
+        options.projectRoot,
+        ".rn",
+        "logs",
+        `metro-${port}.log`,
+      )
+    : undefined;
 
   if (options.detached) {
     child.unref();
@@ -155,6 +182,7 @@ export async function ensureMetroSession(options: {
     reused: false,
     startedByUs: true,
     child,
+    logFile,
   };
 }
 

@@ -187,10 +187,13 @@ do_install() {
   (cd "$HOME_DIR" && pnpm install && pnpm build)
   link_bins
   log "install OK"
-  echo
-  echo "Next (new terminal, or: source $ENV_FILE):"
-  echo "  mkdir my-app && cd my-app"
-  echo "  rn init"
+  # SEAM-4/F08 (pi model): self-check whether the tool is already resolvable on
+  # the CURRENT terminal PATH (npm global bin is on PATH for every Node user).
+  if command -v rn >/dev/null 2>&1 && command -v ship >/dev/null 2>&1; then
+    echo "==> rn/ship already on PATH — run: rn doctor"
+  else
+    echo "==> activate this terminal: source $ENV_FILE   (new terminals work automatically)"
+  fi
   echo
   echo "Lifecycle:"
   echo "  rn doctor"
@@ -215,7 +218,14 @@ do_uninstall() {
   fi
   rm -f "$LOCAL_BIN/rn" "$LOCAL_BIN/ship"
   rm -f "$ENV_FILE"
-  rm -rf "$HOME_DIR"
+  # SEAM-4/F03: only remove the install home if it's actually our repo clone;
+  # never rm -rf a directory that holds keys/data (the old home collided with
+  # the signing-key dir). Keys now live in ~/.client-platform/keys (ship keygen).
+  if [[ -d "$HOME_DIR/.git" ]]; then
+    rm -rf "$HOME_DIR"
+  else
+    warn "install home $HOME_DIR is not a repo clone — leaving it (SEAM-4/F03)"
+  fi
   log "uninstall OK"
 }
 

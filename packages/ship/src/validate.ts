@@ -126,7 +126,9 @@ export function evaluateDeliveryValidate(options: {
   const hygiene = evaluateReleaseSourceHygiene(root);
   for (const h of hygiene) {
     checks.push({
-      id: `release-${h.id}`,
+      // SEAM-3/F21: hygiene checks already carry the release- prefix; don't
+      // re-prefix (was release-release-*).
+      id: h.id,
       ok: h.ok,
       summary: h.summary,
       blocking: h.blocking,
