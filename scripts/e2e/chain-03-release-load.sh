@@ -71,16 +71,16 @@ fi
 step "3.6 装包 + 启动（release 模式）"
 # 用 safe_install (lib.sh): push + pm install + 自动点 vivo 安全守护弹窗
 if [[ -n "$DIGEST" && -f "/tmp/e2e-host-$DIGEST.apk" ]]; then
-  if safe_install "/tmp/e2e-host-$DIGEST.apk" com.hermesgfapp; then
+  if safe_install "/tmp/e2e-host-$DIGEST.apk" ${E2E_HOST_PKG}; then
     ok "install Success (vivo popup auto-dismissed)"
   else
     warn "install FAIL (dismiss log: $(tail -5 /tmp/e2e-dismiss.log 2>/dev/null))"
     SKIPS=$((SKIPS+1))
   fi
 fi
-adb_dev shell am start -n com.hermesgfapp/.MainActivity >/dev/null 2>&1
+adb_dev shell am start -n ${E2E_HOST_PKG}/.MainActivity >/dev/null 2>&1
 sleep 3
-if adb_dev shell dumpsys activity activities 2>/dev/null | grep -q "com.hermesgfapp/.MainActivity"; then
+if adb_dev shell dumpsys activity activities 2>/dev/null | grep -q "${E2E_HOST_PKG}/.MainActivity"; then
   ok "MainActivity 在前台"
 else
   err "MainActivity 未起"; FAILS=$((FAILS+1))
@@ -96,7 +96,7 @@ fi
 
 step "3.8 APK 启动后未崩（logcat 5s 内无 FATAL）"
 # vivo Android 16 logcat -d 偶尔 hang，加 timeout 保护
-LOGCAT_TAIL=$(node "$E2E_REPO/scripts/e2e/with-timeout.mjs" adb -s "$E2E_DEVICE" logcat -d -t 200 --ms=15000 2>&1 | grep -E "FATAL|AndroidRuntime.*hermesgfapp" | head -5 || true)
+LOGCAT_TAIL=$(node "$E2E_REPO/scripts/e2e/with-timeout.mjs" adb -s "$E2E_DEVICE" logcat -d -t 200 --ms=15000 2>&1 | grep -E "FATAL|AndroidRuntime.*${E2E_HOST_PKG}" | head -5 || true)
 if [[ -z "$LOGCAT_TAIL" ]]; then
   ok "logcat 无 FATAL (或 logcat 不可用 — 跳过)"
 else

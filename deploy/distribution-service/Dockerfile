@@ -1,6 +1,10 @@
 # Map E L1 — Distribution Service (Node reference impl)
 # Build: docker build -f deploy/distribution-service/Dockerfile .
 # Context: repository root
+#
+# N12: package layout follows ADR-022 (core / rn-engine / shell-core) and the
+# rn-delivery → ship rename. The CP is `ship cp-serve`, which needs core +
+# rn-engine (ship's workspace deps). Keep this list in sync when packages move.
 
 FROM node:22-bookworm-slim AS build
 
@@ -8,17 +12,19 @@ WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json ./
-COPY packages/rn-core/package.json packages/rn-core/tsconfig.json packages/rn-core/
-COPY packages/rn-delivery/package.json packages/rn-delivery/tsconfig.json packages/rn-delivery/
+COPY packages/core/package.json packages/core/tsconfig.json packages/core/
+COPY packages/rn-engine/package.json packages/rn-engine/tsconfig.json packages/rn-engine/
+COPY packages/ship/package.json packages/ship/tsconfig.json packages/ship/
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-COPY packages/rn-core/src packages/rn-core/src
-COPY packages/rn-delivery/src packages/rn-delivery/src
-COPY packages/rn-delivery/bin packages/rn-delivery/bin
-COPY packages/rn-delivery/static packages/rn-delivery/static
+COPY packages/core/src packages/core/src
+COPY packages/rn-engine/src packages/rn-engine/src
+COPY packages/ship/src packages/ship/src
+COPY packages/ship/bin packages/ship/bin
+COPY packages/ship/static packages/ship/static
 
-RUN pnpm exec tsc -b packages/rn-core packages/rn-delivery
+RUN pnpm exec tsc -b packages/core packages/rn-engine packages/ship
 
 FROM node:22-bookworm-slim
 
@@ -30,15 +36,17 @@ ENV NODE_ENV=production \
 RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/rn-core/package.json packages/rn-core/
-COPY packages/rn-delivery/package.json packages/rn-delivery/
+COPY packages/core/package.json packages/core/
+COPY packages/rn-engine/package.json packages/rn-engine/
+COPY packages/ship/package.json packages/ship/
 
-RUN pnpm install --frozen-lockfile --ignore-scripts --filter @client-platform/rn-delivery...
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @client-platform/ship...
 
-COPY --from=build /repo/packages/rn-core/dist packages/rn-core/dist
-COPY --from=build /repo/packages/rn-delivery/dist packages/rn-delivery/dist
-COPY --from=build /repo/packages/rn-delivery/bin packages/rn-delivery/bin
-COPY --from=build /repo/packages/rn-delivery/static packages/rn-delivery/static
+COPY --from=build /repo/packages/core/dist packages/core/dist
+COPY --from=build /repo/packages/rn-engine/dist packages/rn-engine/dist
+COPY --from=build /repo/packages/ship/dist packages/ship/dist
+COPY --from=build /repo/packages/ship/bin packages/ship/bin
+COPY --from=build /repo/packages/ship/static packages/ship/static
 COPY deploy/distribution-service/entrypoint.sh /entrypoint.sh
 COPY deploy/distribution-service/normalize-registry-paths.mjs /app/deploy/distribution-service/normalize-registry-paths.mjs
 

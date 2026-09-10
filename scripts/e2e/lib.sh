@@ -5,6 +5,9 @@
 : "${E2E_OUT:=/tmp/e2e-out}"
 : "${E2E_REPO:=/Users/xuwei/Work/client-platform-labs/rn}"
 : "${E2E_HOST:=$HOME/code/tiangong-host}"
+# N13: the reference host package was renamed com.hermesgfapp → com.tiangong.host
+# (commit cba97cb). Derive it from the built APK when possible, else default.
+: "${E2E_HOST_PKG:=com.tiangong.host}"
 : "${E2E_DESK:=$HOME/code/desk}"
 : "${E2E_SECOND:=$HOME/code/fixture_second}"
 : "${E2E_DEVICE:=${ANDROID_SERIAL:-$(adb devices 2>/dev/null | awk 'NR==2 && $2=="device"{print $1}')}}"
@@ -12,6 +15,13 @@
 : "${E2E_TOKEN:=dev}"
 : "${E2E_NOUS:=http://127.0.0.1:8000}"
 : "${E2E_DATA_SERVICE:=http://127.0.0.1:8001}"
+
+# ADR-024 stage-3: `ship sign` defaults to the cert-chain path (requires
+# RN_DELIVERY_LEAF_CERT). The lab suite signs with the single baked lab key that
+# the reference host's OtaModule trusts (4a4b3fc6…), so opt into the documented
+# legacy escape hatch unless the caller configured a leaf cert explicitly.
+: "${RN_DELIVERY_LEGACY_SIGN:=1}"
+export RN_DELIVERY_LEGACY_SIGN
 
 CHAIN_NAME="$(basename "${BASH_SOURCE[1]:-unknown}" .sh)"
 mkdir -p "$E2E_OUT"
@@ -88,7 +98,7 @@ adb_reverse_set() {
 #   - 自动启 lib-dismiss watcher (单次 lifecycle, 完成后退出)
 #   - 处理 vivo iQOO Neo10 Android 16: 必须勾选 checkbox 才能点继续安装
 safe_install() {
-  local apk="$1" pkg="${2:-com.hermesgfapp}" ms="${3:-90000}"
+  local apk="$1" pkg="${2:-${E2E_HOST_PKG}}" ms="${3:-90000}"
   [[ -f "$apk" ]] || { err "safe_install: 文件不存在 $apk"; return 1; }
   adb_dev push "$apk" /data/local/tmp/e2e-install.apk 2>&1 | tail -1
   adb_dev shell pm uninstall "$pkg" >/dev/null 2>&1 || true

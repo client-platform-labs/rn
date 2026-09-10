@@ -44,16 +44,16 @@ for proj in "$E2E_DESK" "$E2E_SECOND"; do
   fi
 done
 
-step "2.4 Debug host 已装 com.hermesgfapp"
-if adb_dev shell pm list packages 2>/dev/null | grep -q com.hermesgfapp; then
-  ok "com.hermesgfapp installed"
+step "2.4 Debug host 已装 ${E2E_HOST_PKG}"
+if adb_dev shell pm list packages 2>/dev/null | grep -q ${E2E_HOST_PKG}; then
+  ok "${E2E_HOST_PKG} installed"
 else
-  warn "com.hermesgfapp 未装 — 装中"
+  warn "${E2E_HOST_PKG} 未装 — 装中"
   bash "$E2E_REPO/scripts/verify-map-e-tiangong-steel-thread.mjs" >/dev/null 2>&1 || true
   DIGEST=$(cp_get "/v1/candidates?lane=staging" | jq -r '.candidates[0].digest // empty')
   if [[ -n "$DIGEST" ]]; then
     curl -sf -o /tmp/e2e-host.apk "$E2E_CP/v1/artifacts/$DIGEST"
-    if safe_install /tmp/e2e-host.apk com.hermesgfapp; then
+    if safe_install /tmp/e2e-host.apk ${E2E_HOST_PKG}; then
       ok "host 安装 (auto-dismiss 弹窗已处理)"
     else
       err "host 安装失败 (dismiss log: $(tail -5 /tmp/e2e-dismiss.log 2>/dev/null))"

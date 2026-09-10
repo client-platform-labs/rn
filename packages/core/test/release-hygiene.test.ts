@@ -74,14 +74,15 @@ describe("release debuggable-variants hygiene (F19/G8)", () => {
     return root;
   }
 
-  it("flags missing build.gradle", () => {
+  it("flags missing debuggableVariants as ADVISORY (never blocking, N11)", () => {
     const root = makeRoot(null);
     const check = evaluateReleaseSourceHygiene(root).find(
       (c) => c.id === "release-debuggable-variants",
     );
     assert.ok(check);
     assert.equal(check?.ok, false);
-    assert.equal(check?.blocking, true);
+    // N11: absence is the safe RN default — advisory only, must not block releases.
+    assert.equal(check?.blocking, false);
   });
 
   it("non-Android project is N/A (not blocking)", () => {
@@ -94,13 +95,14 @@ describe("release debuggable-variants hygiene (F19/G8)", () => {
     assert.equal(check?.blocking, false);
   });
 
-  it("flags commented debuggableVariants", () => {
-    const root = makeRoot("android {\n    // debuggableVariants = []\n}\n");
+  it("flags commented debuggableVariants (advisory)", () => {
+    const root = makeRoot("react {\n    // debuggableVariants = []\n}\n");
     const check = evaluateReleaseSourceHygiene(root).find(
       (c) => c.id === "release-debuggable-variants",
     );
     assert.ok(check);
     assert.equal(check?.ok, false);
+    assert.equal(check?.blocking, false);
   });
 
   it("passes on active debuggableVariants = []", () => {

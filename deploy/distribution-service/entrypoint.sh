@@ -21,6 +21,7 @@ node /app/deploy/distribution-service/normalize-registry-paths.mjs "${ROOT}" 2>/
 
 export RN_CP_PROJECT="${ROOT}"
 
-exec node /app/packages/rn-delivery/bin/rn-delivery.mjs cp-serve \
+# N12: rn-delivery → ship rename; the CP is `ship cp-serve`.
+exec node /app/packages/ship/bin/ship.mjs cp-serve \
   --host "${HOST}" \
   --port "${PORT}"

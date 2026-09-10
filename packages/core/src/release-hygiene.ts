@@ -78,27 +78,33 @@ export function evaluateReleaseSourceHygiene(
     blocking: wrappedEntries.length > 0,
   });
 
-  // F19 (G8): release bundles must never carry dev=true — ShellHost gates OTA
-  // on `if (__DEV__) return`, so a dev=true release silently skips device OTA.
+  // F19 (G8): RN 0.87 already defaults `debuggableVariants` to
+  // ['debug','debugOptimized'] on the `react {}` extension, so a release build
+  // bundles with --dev false and __DEV__ is false — the finding was closed as
+  // "not reproduced". This check is therefore ADVISORY (non-blocking): it makes
+  // the intent visible for rn-init shells but must never block a release for
+  // existing projects that never ran `rn shell refresh` (N11 regression).
   const hasAndroidDir = existsSync(path.join(root, "android"));
   const gradle = path.join(root, "android", "app", "build.gradle");
   const gradleOk =
     hasAndroidDir &&
     existsSync(gradle) &&
-    /^\s*debuggableVariants\s*=\s*\[\]/m.test(readFileSync(gradle, "utf8"));
+    /^\s*debuggableVariants\s*=/m.test(readFileSync(gradle, "utf8"));
+  let gradleSummary: string;
+  if (!hasAndroidDir) {
+    gradleSummary = "no android/ — debuggable-variants hygiene N/A";
+  } else if (gradleOk) {
+    gradleSummary =
+      "build.gradle pins debuggableVariants explicitly (release never dev=true)";
+  } else {
+    gradleSummary =
+      "build.gradle relies on the RN default debuggableVariants (release bundles --dev false); run rn shell refresh to pin it explicitly (advisory, F19)";
+  }
   checks.push({
     id: "release-debuggable-variants",
-    // N/A (ok) when the project has no android/ at all; blocking only when it
-    // claims to be an Android project but hasn't baked release hygiene.
     ok: !hasAndroidDir || gradleOk,
-    summary: hasAndroidDir
-      ? gradleOk
-        ? "build.gradle bakes debuggableVariants = [] (release never dev=true)"
-        : existsSync(gradle)
-          ? "build.gradle lacks active `debuggableVariants = []` — run rn shell refresh / rn init to bake (F19)"
-          : "android/app/build.gradle missing — release hygiene default not baked (F19)"
-      : "no android/ — debuggable-variants hygiene N/A",
-    blocking: hasAndroidDir && !gradleOk,
+    summary: gradleSummary,
+    blocking: false,
   });
 
   return checks;

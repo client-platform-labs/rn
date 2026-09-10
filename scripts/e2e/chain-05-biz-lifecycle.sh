@@ -114,7 +114,7 @@ ok "kills 端点 rc=$RC"
 
 # ── F. 卸载 / 维护（已装时验证 卸载+重装 一致）──
 step "5.F.1 [维护] 设备上 desk/host app 状态"
-for pkg in com.hermesgfapp; do
+for pkg in ${E2E_HOST_PKG}; do
   if adb_dev shell pm list packages 2>/dev/null | grep -q "$pkg"; then
     ver=$(adb_dev shell dumpsys package "$pkg" 2>/dev/null | grep versionName | head -1)
     ok "$pkg 已装 — $ver"
@@ -127,7 +127,7 @@ done
 step "5.F.2 [维护] 升级路径（re-install）—— 不真做，只验 install 命令幂等"
 APK_PATH=$(ls -t /tmp/e2e-host-*.apk 2>/dev/null | head -1)
 if [[ -n "$APK_PATH" ]]; then
-  if safe_install "$APK_PATH" com.hermesgfapp; then
+  if safe_install "$APK_PATH" ${E2E_HOST_PKG}; then
     ok "re-install Success (vivo popup auto-dismissed)"
   else
     warn "re-install 异常"
