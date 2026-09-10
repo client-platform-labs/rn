@@ -144,3 +144,46 @@ G1–G8 代码未引入 e2e 回归；真机 case（G1-D1/G2-D1/G3-D1/G4-D1/G8-D1
 | R2 | S2 | 崩溃环计数器在 `no_update` 路径**不复位**：无更新待装的健康设备每次启动 +1，3 次后误触发回滚+reload 循环（greenfield 参考模板同缺陷） | 两个模板改为**任何完整启动**（installed/already_installed/no_update/failed）都 reset —— 只有启动中途崩溃才保留计数 |
 
 验证：328 tests / 0 fail 复跑 PASS；`verify-g3-crl-signed.mjs` + live CRL 复跑 PASS；tsc/governance clean；ShellHost + greenfield 模板 esbuild 语法 PASS。
+
+---
+
+## 真机端到端验收（2026-09-10 · 自主执行，无需人工介入）
+
+环境：真机 V2425A (Android 16) · 本机 CP + adb reverse · 本仓库最新 CLI（非安装副本）
+
+### 全链实测命令
+
+```bash
+rn init .                                   # 全新工业壳（本仓库最新模板）
+ship keygen --dir <keys> --cert             # RCA+leaf 证书链
+apply-ota-to-project.mjs <proj> --rca-pubkey-hex <RCA>   # 注入原生 OTA 适配器
+npm install                                 # file: 依赖解析
+cd android && ./gradlew :app:assembleRelease # release APK
+adb install -r app-release.apk
+adb reverse tcp:7430 tcp:7430 && ship serve --port 7430
+```
+
+### 真机验收结果（全部 PASS）
+
+| Case | 证据 | 结果 |
+| ------ | ------ | ------ |
+| **G2-U2/I1** | `rn init` 输出 fail-loud 指引（未注入原生适配器时不再虚假宣称"设备 OTA 就绪"） | ✅ |
+| **G2-I1** | 注入前 `rn doctor` → `[NEED] native OTA adapter MISSING`；注入后 → `[OK] native OTA adapter present` | ✅ |
+| **G8-U3** | OtaModule.kt 全零占位符 → 被真实 RCA `671f010a…` 替换 | ✅ |
+| **G3-D1（fail-closed）** | CP 下发 **unsigned** CRL → 设备仅命中 `GET /v1/crl`，**无** `/v1/js-updates/check` → CRL 闸门阻断 | ✅ |
+| **G3-D1（签名通过）** | CP 用 **RCA 私钥**签 CRL → 设备 `GET /v1/crl` **+** `GET /v1/js-updates/check?module=main&lane=production` → 通过闸门 | ✅ |
+| **G1-D1 / R2** | 连续 4 次启动 + 15s 观察：pid 稳定（28424→28424），**无回滚/reload 循环**（R2 修复前 3 次即误回滚） | ✅ |
+| **F19/G8** | `rn doctor` → `[OK] build.gradle bakes debuggableVariants = []`；gradle release 构建成功 | ✅ |
+| **G7/F13** | metro.config.js 缺失 resolver 时 **throw**（fail-closed）；host-resolver 生成完整 | ✅ |
+
+### 端到端测试抓到的新 bug（N6–N10，全部已修+验证）
+
+| 新增 | 严重度 | 根因 | 修复 |
+| ------ | -------- | ------ | ------ |
+| **N6** | S2 | `ship keygen --dir <fresh> --cert` 失败——`runKeygenCertChain` 未 mkdir keys 目录 | mkdirSync + 单测 |
+| **N7** | S2 | `@client-platform/shell-core@0.1.0` 未发布到 npm → 工程 npm install 404（F18 当年"用真实版本"的方案实测无效） | 依赖改 `file:` 协议指向本仓库源 |
+| **N8** | S2（构建阻断） | F19 的 `bakeReleaseHygiene` 把 `debuggableVariants = []` 插到 `android {}`，但 RN 0.87 该属性属于 `react {}` 扩展 → AGP 9.2 报 unknown property，**release 构建完全做不了** | 改插 `react {}` + 整行注释替换 |
+| **N9** | S2 | `linkPlatformPackages` 从假定的工程兄弟路径 + 错误层级（`../..` = packages/）定位平台仓库 → 工程不在该布局时 core/rn-engine 从未链接，Metro 解析 `@client-platform/core/ota` 失败 | 从 CLI 自身 `../../..` 定位 + env 覆盖 |
+| **N10** | S2（F23 回归） | `ensureRuntimeConfig` 每次 `shell refresh` 用 `{}` 覆盖声明配置，**冲掉运维配的 cpBaseUrl** → refresh 后设备 OTA 静默失效 | 改为 merge：保留已有值，只补缺失键 |
+
+**结论**：G1/G3/G7/F19/G2/G8 全部经真机 + 真实构建端到端验证；N6–N10 五个新 bug 均由本轮端到端测试发现并修复，其中 N8（构建阻断）、N9（解析失败）、N10（配置被冲掉）都是**此前单元测试无法暴露、只有真机全链才会显形**的缺陷——印证了"必须自己跑完整 e2e"的必要性。
