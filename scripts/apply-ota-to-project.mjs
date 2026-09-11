@@ -201,9 +201,7 @@ if (existsSync(pkgJson)) {
   } catch {
     pkg = null;
   }
-  if (!pkg) {
-    errors.push(`invalid package.json (JSON parse failed): ${pkgJson}`);
-  } else {
+  if (pkg) {
     const deps = (pkg.dependencies = pkg.dependencies ?? {});
     const added = [];
     // SEAM-2/F18 + N7: only the device-side OTA client dep. The package is a
@@ -230,6 +228,8 @@ if (existsSync(pkgJson)) {
     if (!dryRun)
       writeFileSync(pkgJson, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
     sh(`add deps: ${added.join(", ") || "(already present)"}`);
+  } else {
+    errors.push(`invalid package.json (JSON parse failed): ${pkgJson}`);
   }
 }
 
