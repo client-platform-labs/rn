@@ -239,3 +239,34 @@ adb reverse tcp:7430 tcp:7430 && ship serve --port 7430
 ### 端到端期间另发现（本仓库）
 
 - **N14**：`ship release` **不接受** `--digest/--kind/--lane`（帮助只列 `--platform/--candidate/--install`）——总是 release「last candidate」。e2e seed 脚本按 `--digest` 调用，导致 target 与预期不符。当前 seed 因 ingest 顺序恰好可用；建议为 `release` 接线 `--digest`（或让 seed 改用 `--candidate`）。
+
+---
+
+## 最终态：9-chain 真机套件 **10/10 PASS**（2026-09-11 · 并行修复后）
+
+```
+✓ 01-cli  ✓ 02-debug-multi-bundle  ✓ 03-release-load  ✓ 04-shell-lifecycle
+✓ 05-biz-lifecycle  ✓ 06-host-portal  ✓ 07-biz-portal  ✓ 08-update-strategy
+✓ 09-backend-services  ✓ 10-ios-lifecycle
+```
+
+两次独立复跑均 10/10；无 SKIP、无 FAIL。
+
+### 本阶段并行完成的三项
+
+| 项 | 根因 | 修复 |
+| ---- | ------ | ------ |
+| **chain-03**（参考宿主真 bug） | `OtaModule.resolveJsBundleFilePath()` 在**全新安装**（无 OTA prefs）时回退到 `assets://ota/<module>/index.hbc` —— 把**模块 bundle 当进程 bundle**；模块 bundle 只导出 `registerModule/getModuleApp`，从不注册根组件 → 启动即崩 `Invariant Violation: "tiangonghost" has not been registered`（commit cba97cb 引入；此前被设备上残留的 OTA prefs 掩盖，fresh install 一直是坏的） | 回退改为内嵌根 app bundle `assets://index.android.bundle`；附带 `react { entryFile = file("../../index.ts") }`（T5 改名后 gradle 找不到 index.js，release bundle 根本构建不出）。提交 tiangong-host `3bb49f8`/`7e5c48a` |
+| **chain-09 的 3 SKIP + chain-02 的 1 SKIP** | `data-service`(:8001) 未运行；:8081 Metro 未监听 | 原生 venv 起 data-service（Docker 拉取被环境阻断）；起多 Metro（8081/8082）。0 SKIP |
+| **chain-07 抖动** | CP 跑在 Docker bind-mount 上，宿主侧**新增** candidate 后容器可见延迟 ~200ms → 7.3 立刻回读撞窗口 | 7.3 有界轮询 ≤1.8s，**断言强度不变**（仍要求 ≥1 条）。提交 `2195165` |
+
+### N14（新发现，已修）
+
+`ship release` **静默忽略** `--digest/--kind`（只认 `--platform/--candidate/--install`）—— 总是 release「last candidate」。release 工具忽略指定制品是正确性隐患（e2e seed 按 `--digest` 调用，实际 release 了另一个 candidate，只是恰好可用）。
+**修复**：`pickCandidate` 支持 `{digest, kind}` 硬选择器（找不到即 **fail-loud**，绝不回退）；`runRelease` + CLI 接线 `--digest/--kind`（与 `ship promote --digest` 对齐）；单测覆盖。提交 `100975b`。
+
+### 诚实残余（非缺陷，已记录）
+
+1. `data-service` 以**原生 venv** 运行（本环境 Docker 拉取被阻断），与 `docker compose up data-service` 部署形态不同 —— chain 只要求 :8001 在线（已满足）。
+2. SKIP 清零依赖**无人监管的 nohup 进程**（data-service + Metro），重启即失效；长期应纳入套件 preflight / CI runner 常驻。
+3. 参考宿主 `tiangong-host` 是**独立 git 仓库**，其 2 个修复 commit 不在本仓库；本仓库工作树干净。
