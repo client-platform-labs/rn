@@ -26,7 +26,16 @@ else
 fi
 
 step "7.3 检索：按 module 查"
-COUNT=$(cp_get "/v1/js-updates?module=desk&lane=staging" | jq '.candidates | length')
+# The CP runs in Docker over a bind mount: a host-side write becomes visible to
+# the container with ~200ms delay (Docker Desktop on macOS). 7.2 just wrote the
+# staging entry, so poll briefly — the assertion still demands a real entry, it
+# only stops racing the mount's eventual consistency.
+COUNT=0
+for _ in 1 2 3 4 5 6; do
+  COUNT=$(cp_get "/v1/js-updates?module=desk&lane=staging" | jq '.candidates | length')
+  [[ "${COUNT:-0}" -ge 1 ]] && break
+  sleep 0.3
+done
 if [[ "${COUNT:-0}" -ge 1 ]]; then ok "desk lane=staging: $COUNT 条"
 else err "desk 无 js-update"; FAILS=$((FAILS+1)); fi
 
