@@ -216,3 +216,26 @@ adb reverse tcp:7430 tcp:7430 && ship serve --port 7430
 ### 唯一剩余：chain-03（参考宿主自身问题，非平台代码）
 
 `com.tiangong.host` release APK 在**全新安装**下启动即崩：`Invariant Violation: "tiangonghost" has not been registered`（`[ota] APP EVAL` → 未注册组件）。属参考宿主 `tiangong-host`（独立项目）的 OTA 运行时 bootstrap 设计（需先落 OTA bundle 或修内嵌基线），不在本平台仓库范围内。artifact 下载/装包步骤本轮已修复通过（N12）。
+
+---
+
+## 9-chain 全链 10/10 PASS（2026-09-11 · chain-03 修复后）
+
+### 结果：**10 PASS / 0 FAIL**（连续两次跑均为 10/10，确定性）
+
+```
+✓ 01-cli  ✓ 02-debug-multi-bundle  ✓ 03-release-load  ✓ 04-shell-lifecycle
+✓ 05-biz-lifecycle  ✓ 06-host-portal  ✓ 07-biz-portal  ✓ 08-update-strategy
+✓ 09-backend-services  ✓ 10-ios-lifecycle
+```
+
+### chain-03 根因与修复（参考宿主 `tiangong-host`，独立仓库）
+
+- **根因**：`OtaModule.resolveJsBundleFilePath()` 在全新安装（无 OTA prefs）时回退到 `assetBaselineFor(root)` = `assets://ota/<module>/index.hbc` —— **模块** bundle 被当成**进程** bundle。模块 bundle 只导出 `registerModule`/`getModuleApp`，从不注册根组件 → 全新安装启动即崩 `Invariant Violation: "tiangonghost" has not been registered`。由 commit cba97cb 引入（当时设备有 OTA prefs，掩盖了该路径，fresh install 一直坏）。
+- **修复**：回退改为内嵌根 app bundle `assets://index.android.bundle`（由 `index.ts → App → ShellHost` 注册根组件）。模块 bundle 仍由 shell 加载，绝不作进程 bundle。
+- 附带修复：`build.gradle` 的 `react { entryFile = file("../../index.ts") }`（T5 改名后 gradle 仍找 index.js → release bundle 构建失败）+ 重新生成派生 shell 产物。
+- 提交：tiangong-host `3bb49f8`（进程 bundle 修复）+ `7e5c48a`（entryFile + 派生产物）。
+
+### 端到端期间另发现（本仓库）
+
+- **N14**：`ship release` **不接受** `--digest/--kind/--lane`（帮助只列 `--platform/--candidate/--install`）——总是 release「last candidate」。e2e seed 脚本按 `--digest` 调用，导致 target 与预期不符。当前 seed 因 ingest 顺序恰好可用；建议为 `release` 接线 `--digest`（或让 seed 改用 `--candidate`）。
