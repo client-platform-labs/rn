@@ -77,6 +77,43 @@ describe("candidate store", () => {
     assert.ok(picked.supply_chain?.host?.sbom?.digest);
   });
 
+  it("N14: pickCandidate --digest is a hard selector (never silently falls back)", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "ship-pick-digest-"));
+    writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "demo" }),
+    );
+    const one = sampleCandidate(root);
+    writeBuildResults(root, [one]);
+    writeLastCandidate(root, one);
+
+    // matching digest is honoured
+    const hit = pickCandidate(root, undefined, undefined, { digest: one.digest });
+    assert.equal(hit.digest, one.digest);
+
+    // unknown digest → fail loud (was: silently released the last candidate)
+    assert.throws(
+      () => pickCandidate(root, undefined, undefined, { digest: "f".repeat(64) }),
+      /no candidate with digest/i,
+    );
+
+    // kind mismatch on a real digest → fail loud
+    assert.throws(
+      () =>
+        pickCandidate(root, undefined, undefined, {
+          digest: one.digest,
+          kind: "js-update",
+        }),
+      /not --kind/i,
+    );
+
+    // kind selector with no match → fail loud
+    assert.throws(
+      () => pickCandidate(root, undefined, undefined, { kind: "js-update" }),
+      /no js-update candidate/i,
+    );
+  });
+
   it("promotes to staging and blocks with rollback drill", () => {
     const root = mkdtempSync(path.join(tmpdir(), "ship-store-"));
     writeFileSync(

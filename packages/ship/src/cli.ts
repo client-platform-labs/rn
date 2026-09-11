@@ -38,7 +38,7 @@ Commands:
     Thin sign stage: digest-seal signature + stub SBOM slot (M5).
   validate [--candidate <path>]
     Release preflight: hygiene + metadata (+ signature for js-update).
-  release [--platform android|ios] [--candidate <path>] [--install]
+  release [--platform android|ios] [--candidate <path>] [--digest <sha256>] [--kind app-host|app-host-debug|js-update] [--install]
     Promote candidate to staging (file CP stub); --install for app-host APK only.
   promote [--digest <sha256>] [--candidate <path>]
     Same-artifact promote: staging → production (M6).
@@ -337,6 +337,10 @@ export async function run(argv = process.argv): Promise<number> {
         install: hasFlag(rest, "--install"),
         platform: parseReleasePlatform(rest),
         candidatePath: flagValue(rest, "--candidate"),
+        // N14: accept the same target selectors as `ship promote`; an explicit
+        // --digest/--kind that matches nothing fails loud (never ignored).
+        digest: flagValue(rest, "--digest"),
+        kind: flagValue(rest, "--kind"),
       });
       return EXIT_OK;
     }

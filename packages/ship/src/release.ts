@@ -16,12 +16,16 @@ export async function runRelease(options: {
   install?: boolean;
   platform?: DeliveryPlatform;
   candidatePath?: string;
+  /** N14: explicit target selectors (mirror `ship promote --digest`). */
+  digest?: string;
+  kind?: string;
 }): Promise<void> {
   const projectRoot = resolveProjectRoot(options.cwd);
   const candidate = pickCandidate(
     projectRoot,
     options.platform,
     options.candidatePath,
+    { digest: options.digest, kind: options.kind },
   );
 
   const profileGate = assertProfileAllowsStage(candidate.profile, "promote");
