@@ -93,5 +93,5 @@ export async function runMigrate(options: {
     options.logger.writeHuman(`  - ${risk}`);
   }
   options.logger.writeHuman("");
-  options.logger.writeHuman("note: dry-run only — no files modified (ADR-003)");
+  options.logger.writeHuman("note: dry-run only — no files modified");
 }

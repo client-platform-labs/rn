@@ -189,4 +189,22 @@ describe("evaluateDeliveryValidate", () => {
       ),
     );
   });
+
+  // SEAM-3/F21 acceptance probe: hygiene ids already carry the release-
+  // prefix; validate must never add it a second time (was release-release-*).
+  it("never double-prefixes check ids (no release-release-*)", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "ship-validate-"));
+    writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "demo" }),
+    );
+    const meta = sampleCandidate(root);
+    const result = evaluateDeliveryValidate({ projectRoot: root, candidate: meta });
+    for (const check of result.checks) {
+      assert.ok(
+        !check.id.startsWith("release-release-"),
+        `double-prefixed check id: ${check.id}`,
+      );
+    }
+  });
 });

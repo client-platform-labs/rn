@@ -11,6 +11,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, openSync } from "node:fs";
 import path from "node:path";
 
+import { assessListenerIdentity, foreignListenerMessage } from "@client-platform/core";
+
 import {
   DEFAULT_METRO_PORT,
   isMetroRunning,
@@ -125,9 +127,15 @@ export async function ensureMetroSession(options: {
   if (isMetroRunning(port)) {
     // SEAM-5/F16: never silently reuse a Metro serving ANOTHER project.
     const serving = metroProjectRoot(port);
-    if (serving && path.resolve(serving) !== path.resolve(options.projectRoot)) {
+    const identity = assessListenerIdentity(serving, options.projectRoot);
+    if (!identity.unknown && !identity.ok) {
       throw new CliError(
-        `port :${port} is serving a different project (${serving}) — stop it or use another port (SEAM-5/F16)`,
+        foreignListenerMessage({
+          service: "Metro",
+          port,
+          servingRoot: identity.servingRoot ?? serving ?? "unknown",
+          expectedRoot: options.projectRoot,
+        }),
         EXIT_FAIL,
       );
     }

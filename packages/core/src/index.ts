@@ -386,3 +386,11 @@ export {
   RELEASE_DEV_SUPPORT_STATE_FILE,
 } from "./release-hygiene.js";
 export type { ReleaseHygieneCheck } from "./release-hygiene.js";
+
+export {
+  parseLsofListeners,
+  parseLsofCwd,
+  assessListenerIdentity,
+  foreignListenerMessage,
+} from "./service-identity.js";
+export type { ListenerRecord } from "./service-identity.js";

@@ -5,6 +5,8 @@
  * USB-attached phones reach the host via `adb reverse`; this module owns that
  * contract so `rn dev`, `rn dev --android`, and `rn doctor` share one probe.
  */
+import { parseLsofCwd, parseLsofListeners } from "@client-platform/core";
+
 import { spawnSyncCapture } from "./process.js";
 
 export const DEFAULT_METRO_PORT = 8081;
@@ -90,6 +92,8 @@ export function isMetroRunning(port = DEFAULT_METRO_PORT): boolean {
 /**
  * SEAM-5/F16: identify the project a running Metro serves by reading the
  * listener process's working directory (lsof). Returns null when unknown.
+ * Parsing lives in @client-platform/core (service-identity) so the CP side
+ * reuses the same identity primitive.
  */
 export function metroProjectRoot(port = DEFAULT_METRO_PORT): string | null {
   const lsof = spawnSyncCapture("lsof", [
@@ -98,14 +102,19 @@ export function metroProjectRoot(port = DEFAULT_METRO_PORT): string | null {
     "-sTCP:LISTEN",
     "-Fc",
   ]);
-  const pidLine = (lsof.stdout ?? "")
-    .split("\n")
-    .find((l) => l.startsWith("p"));
-  const pid = pidLine?.slice(1);
-  if (!pid) return null;
-  const cwd = spawnSyncCapture("lsof", ["-a", "-p", pid, "-d", "cwd", "-Fn"]);
-  const n = (cwd.stdout ?? "").split("\n").find((l) => l.startsWith("n"));
-  return n?.slice(1) ?? null;
+  if (lsof.status !== 0) return null;
+  const listener = parseLsofListeners(lsof.stdout ?? "");
+  if (!listener) return null;
+  const cwd = spawnSyncCapture("lsof", [
+    "-a",
+    "-p",
+    listener.pid,
+    "-d",
+    "cwd",
+    "-Fn",
+  ]);
+  if (cwd.status !== 0) return null;
+  return parseLsofCwd(cwd.stdout ?? "");
 }
 
 function adbCapture(

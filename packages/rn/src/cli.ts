@@ -180,12 +180,6 @@ export async function run(argv = process.argv): Promise<number> {
         .default("topology-b")
         .hideHelp(),
     )
-    .addOption(
-      new Option(
-        "--industrial",
-        "explicitly apply the industrial shell",
-      ).hideHelp(),
-    )
     .action(
       async (
         directory: string | undefined,
@@ -197,7 +191,6 @@ export async function run(argv = process.argv): Promise<number> {
           demo?: boolean;
           pure?: boolean;
           starter?: string;
-          industrial?: boolean;
         },
       ) => {
         let starter;
@@ -220,7 +213,6 @@ export async function run(argv = process.argv): Promise<number> {
           demo: Boolean(opts.demo),
           pure: Boolean(opts.pure),
           starter,
-          industrial: Boolean(opts.industrial),
         });
       },
     );
@@ -228,7 +220,7 @@ export async function run(argv = process.argv): Promise<number> {
   const moduleCmd = program
     .command("module")
     .description(
-      "Business module workspaces (ADR-005 topology B — not app-hosts)",
+      "Business module workspaces (feature modules built and shipped independently of the native app)",
     );
 
   // F25: `rn shell refresh` — regenerate the industrial shell from the CURRENT
@@ -310,7 +302,7 @@ export async function run(argv = process.argv): Promise<number> {
   moduleCmd
     .command("register")
     .description(
-      "Regenerate shell/generated-registrations.ts from registered modules (ADR-021/D2)",
+      "Regenerate shell/generated-registrations.ts from registered modules",
     )
     .option("--dry-run", "print plan without changes")
     .action(async (opts: { dryRun?: boolean }) => {

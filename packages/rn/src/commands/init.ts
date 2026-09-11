@@ -92,8 +92,9 @@ function readReactNativeVersion(projectRoot: string): string {
 /** F12: strip the Community CLI's stale "Run instructions for …" block (its
  * paths point at the pre-hoist stage dir that no longer exists). The block is
  * the indented section after "Run instructions for Android/iOS/macOS:"; the
- * next unindented line ends it. */
-function stripStaleRunInstructions(): (chunk: string) => string {
+ * next unindented line ends it. Exported as the SEAM-3/F12 acceptance probe
+ * (the platform must never echo a cd path that doesn't exist post-hoist). */
+export function stripStaleRunInstructions(): (chunk: string) => string {
   let inBlock = false;
   return (chunk: string) => {
     let out = "";
@@ -188,8 +189,6 @@ export async function runInit(options: {
   /** Default topology-b (ADR-005). Use inline-main for onboarding path A. */
   starter?: InitStarter;
   pure?: boolean;
-  /** Apply the industrial shell (ShellHost + ModuleRegistry + OTA gate) after init. */
-  industrial?: boolean;
 }): Promise<void> {
   if (options.isolatedNpmrc && options.npmPolicy) {
     const parsed = parseNpmPolicyKind(options.npmPolicy);
@@ -246,7 +245,7 @@ export async function runInit(options: {
         ? "默认 = 可运行完整产品：壳 + 业务模块 + OTA（rn init 即产品）."
         : "starter=inline-main: Community App stays in-tree (onboarding path A only).",
       "Hermes V1 + New Architecture are defaults on RN 0.87.x (no legacy arch).",
-      "HarmonyOS is contract-reserved; A1 template targets ios+android only.",
+      "HarmonyOS is contract-reserved; generated native projects target ios+android only.",
       "Pods are skipped at init; run pod install on darwin before iOS device runs.",
       "Community CLI cannot init into cwd via absolute --directory; we stage then hoist.",
       npm.policy === "inherit"
@@ -264,7 +263,11 @@ export async function runInit(options: {
         : "init will orchestrate:",
     );
     options.logger.writeHuman(`  appName: ${appName}`);
-    options.logger.writeHuman(`  starter: ${starter} (${plan.topology})`);
+    options.logger.writeHuman(
+      options.pure
+        ? "  shape: clean shell only (--pure; no platform OTA content)"
+        : "  shape: runnable product — shell + business module + OTA-ready",
+    );
     options.logger.writeHuman(
       `  RN train: ${RN_GREENFIELD_MAJOR_MINOR}.x (pin ${RN_GREENFIELD_INIT_VERSION})`,
     );

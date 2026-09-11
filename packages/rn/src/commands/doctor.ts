@@ -390,7 +390,7 @@ export async function runDoctor(options: {
 
     if (profile === "expo") {
       logger.writeHuman("");
-      logger.writeHuman("L3x Expo interop (ADR-003 / map-a/#16)");
+      logger.writeHuman("Expo interop");
       for (const check of expoChecks) {
         logger.writeHuman(
           `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "WARN"}] ${check.summary}`,
@@ -409,7 +409,7 @@ export async function runDoctor(options: {
       );
     }
 
-    logger.writeHuman("L3e Enterprise P0 gates (ADR-008)");
+    logger.writeHuman("Enterprise readiness gates");
     for (const check of enterpriseChecks) {
       logger.writeHuman(
         `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,

@@ -48,6 +48,7 @@ import { runPromote } from "./promote.js";
 import { buildDeviceJsUpdateManifest } from "./device-manifest.js";
 import { pickCandidate } from "./release-shared.js";
 import { useSqliteRegistry } from "./registry-sqlite.js";
+import { assertPortServesProject } from "./port-identity.js";
 import { createLocalDirectoryArtifactStore } from "./artifact-store.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
 import {
@@ -1130,6 +1131,14 @@ export function createControlPlane(options: {
     serviceMode,
     listen: () =>
       new Promise((resolve, reject) => {
+        // SEAM-5/F16: refuse to bind when the port already serves ANOTHER
+        // project's CP (identify via the listener's working directory).
+        try {
+          assertPortServesProject("control-plane", port, projectRoot);
+        } catch (err) {
+          reject(err);
+          return;
+        }
         server.once("error", reject);
         server.listen(port, host, () => resolve());
       }),

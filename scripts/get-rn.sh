@@ -223,12 +223,35 @@ do_update() {
   fi
 }
 
+# SEAM-4/F07: remove the PATH marker block this installer added to shell
+# profiles. Mirrors rn self uninstall's removeProfileMarkers so the
+# get-rn.sh --uninstall fallback leaves no PATH pollution (acceptance probe:
+# install → uninstall → reinstall round-trip must leave the PATH clean).
+remove_profile_markers() {
+  local profiles=( "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bashrc" "$HOME/.bash_profile" )
+  local profile
+  for profile in "${profiles[@]}"; do
+    [[ -f "$profile" ]] || continue
+    grep -q "$MARKER" "$profile" 2>/dev/null || continue
+    local tmp
+    tmp="$(mktemp)"
+    awk '
+      /^# client-platform-rn-cli$/ { skip=1; next }
+      skip==1 && /^# Added by client-platform rn get-rn\.sh$/ { next }
+      skip==1 && /^export PATH="/ { next }
+      { skip=0; print }
+    ' "$profile" > "$tmp" && cat "$tmp" > "$profile"
+    rm -f "$tmp"
+  done
+}
+
 do_uninstall() {
   if have rn; then
     rn self uninstall --yes || true
   fi
   rm -f "$LOCAL_BIN/rn" "$LOCAL_BIN/ship"
   rm -f "$ENV_FILE"
+  remove_profile_markers
   # SEAM-4/F03: only remove the install home if it's actually our repo clone;
   # never rm -rf a directory that holds keys/data (the old home collided with
   # the signing-key dir). Keys now live in ~/.client-platform/keys (ship keygen).
