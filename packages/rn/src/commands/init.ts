@@ -31,6 +31,7 @@ import {
   applyIndustrialShell,
   nativeOtaAdapterPresent,
 } from "../industrial-shell.js";
+import { installNativeOtaAdapter } from "../native-ota-adapter.js";
 
 const COMMUNITY_CLI = "@react-native-community/cli@latest";
 
@@ -178,6 +179,43 @@ function hoistProjectToCwd(cwd: string, appName: string): void {
   rmSync(staged, { recursive: true, force: true });
 }
 
+/**
+ * The native half of `rn init`'s product step (#262).
+ *
+ * Installing the OTA adapter is init's own job (ADR-016) and the bake key must
+ * be explicit (ADR-024 stage-3), so with no key this installs nothing and just
+ * reports the truth — the caller prints the gap rather than silently shipping
+ * an unbaked trust root. Exported so the step is testable in-process: `runInit`
+ * itself orchestrates the Community CLI over the network, which no unit test
+ * can do.
+ */
+export function applyNativeOtaAdapterStep(options: {
+  projectRoot: string;
+  logger: CliLogger;
+  rcaPubkeyHex?: string;
+  pubkeyHex?: string;
+}): { installed: boolean; adapterPresent: boolean } {
+  const bakeKeyGiven =
+    Boolean(options.rcaPubkeyHex?.trim()) ||
+    Boolean(options.pubkeyHex?.trim());
+  let installed = false;
+  if (bakeKeyGiven) {
+    const result = installNativeOtaAdapter({
+      projectRoot: options.projectRoot,
+      rcaPubkeyHex: options.rcaPubkeyHex,
+      pubkeyHex: options.pubkeyHex,
+    });
+    for (const step of result.steps) {
+      options.logger.writeHuman(`  ${step}`);
+    }
+    installed = true;
+  }
+  return {
+    installed,
+    adapterPresent: nativeOtaAdapterPresent(options.projectRoot),
+  };
+}
+
 export async function runInit(options: {
   cwd: string;
   dryRun: boolean;
@@ -189,6 +227,14 @@ export async function runInit(options: {
   /** Default topology-b (ADR-005). Use inline-main for onboarding path A. */
   starter?: InitStarter;
   pure?: boolean;
+  /**
+   * Root-CA public key (hex, 64) to bake as the device trust root (#262).
+   * Omitting it leaves the native OTA adapter uninstalled: init then reports the
+   * gap loudly rather than shipping an unbaked trust root (ADR-024 stage-3).
+   */
+  rcaPubkeyHex?: string;
+  /** Legacy single signing key (hex, 64). Used only when rcaPubkeyHex is absent. */
+  pubkeyHex?: string;
 }): Promise<void> {
   if (options.isolatedNpmrc && options.npmPolicy) {
     const parsed = parseNpmPolicyKind(options.npmPolicy);
@@ -344,11 +390,19 @@ export async function runInit(options: {
       );
     } else {
       applyIndustrialShell(cwd);
-      // G2 (D4): init produces the JS OTA layer (ShellHost + generated-runtime),
-      // but the NATIVE OTA adapter (OtaModule/OtaPackage) is a separate bake step
-      // that needs a signing key (HITL, ADR-024). Fail-loud: never silently claim
-      // "device OTA ready" when the native side is missing.
-      if (nativeOtaAdapterPresent(cwd)) {
+      // G2 (D4) / #262: installing the native half is THIS step's own job, not a
+      // hint telling the operator to go run a package-external script (ADR-016
+      // already decided `rn init` links the OTA native template).
+      const native = applyNativeOtaAdapterStep({
+        projectRoot: cwd,
+        logger: options.logger,
+        rcaPubkeyHex: options.rcaPubkeyHex,
+        pubkeyHex: options.pubkeyHex,
+      });
+      // Probe and install agree by construction: this reads the same adapter
+      // shape the installer writes (G2 — never claim "device OTA ready" when the
+      // native side is missing).
+      if (native.adapterPresent) {
         options.logger.writeHuman(
           "✅ 可运行的完整产品就绪：壳 + 业务模块 + OTA（rn dev 开发 / ship 发布 / 设备 OTA）",
         );
@@ -362,7 +416,7 @@ export async function runInit(options: {
           "      ship keygen --cert   # 生成 RCA+leaf 证书链，输出 --rca-pubkey-hex",
         );
         options.logger.writeHuman(
-          "      apply-ota --rca-pubkey-hex <hex>   # 注入 OtaModule + 烘焙信任根到 APK",
+          "      node scripts/apply-ota-to-project.mjs . --rca-pubkey-hex <hex>   # 注入 OtaModule + 烘焙信任根到 APK",
         );
         options.logger.writeHuman(
           "    rn doctor 会持续提示该缺失直到注入完成（G2 探针）。",
