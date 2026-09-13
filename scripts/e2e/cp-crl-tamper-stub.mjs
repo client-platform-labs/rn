@@ -30,6 +30,7 @@
  * Usage:
  *   node scripts/e2e/cp-crl-tamper-stub.mjs [--port 4041] [--upstream http://127.0.0.1:4040]
  *        [--mode unsigned|tampered|http-404|ok] [--log /tmp/e2e-crl-stub.log]
+ *        [--crl-delay-ms 8000]   # hold /v1/crl open (any mode) — see crlDelayMs
  *
  * Prints `STUB_READY <port>` on stdout once listening, then one line per request
  * (`<METHOD> <path> <status>`) so a probe can assert what was actually asked for.
@@ -48,6 +49,19 @@ const port = Number(arg("port", "4041"));
 const upstream = arg("upstream", "http://127.0.0.1:4040").replace(/\/+$/, "");
 const mode = arg("mode", "unsigned");
 const logFile = arg("log", "");
+/**
+ * Hold the /v1/crl response for N ms, in EVERY mode (#268).
+ *
+ * Why it exists: the crash-loop leg needs launches that DIE mid-boot, i.e. after
+ * `recordStartupFailure` ran but before `resetStartupFailures` (which only runs on
+ * a COMPLETED boot). Killing on a timer is a race the harness loses — a 0.6s kill
+ * lands before the JS boot effect even runs (no increment) while an already-
+ * installed update finishes its pull in well under a second (reset runs). Holding
+ * the revocation list open turns "mid-pull" into a wide, deterministic window, so
+ * the injection lands on every launch.
+ */
+const crlDelayMs = Number(arg("crl-delay-ms", "0"));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 if (!MODES.has(mode)) {
   console.error(`cp-crl-tamper-stub: unknown --mode ${mode} (expected ${[...MODES].join("|")})`);
@@ -135,6 +149,8 @@ if (mode === "tampered") {
 
 const server = createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
+  // Either branch may hold the revocation list open; see crlDelayMs above.
+  const holdCrl = path === "/v1/crl" && crlDelayMs > 0;
   if (path !== "/v1/crl" || !degradeCrl) {
     // Transparent for everything else: the manifest, artifacts and health must
     // still work, otherwise a "no install" result would prove nothing.
@@ -145,11 +161,14 @@ const server = createServer(async (req, res) => {
         body: req.method === "GET" || req.method === "HEAD" ? undefined : req,
         duplex: "half",
       });
+      if (holdCrl) await sleep(crlDelayMs);
       res.writeHead(upstreamRes.status, {
         "content-type": upstreamRes.headers.get("content-type") ?? "application/json",
       });
       res.end(Buffer.from(await upstreamRes.arrayBuffer()));
-      log(`${req.method} ${req.url} ${upstreamRes.status} (passthrough)`);
+      log(
+        `${req.method} ${req.url} ${upstreamRes.status} (passthrough${holdCrl ? `, held ${crlDelayMs}ms` : ""})`,
+      );
     } catch (err) {
       res.writeHead(502, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: `stub upstream error: ${String(err)}` }));
@@ -159,9 +178,10 @@ const server = createServer(async (req, res) => {
   }
 
   const degraded = await degradedCrl();
+  if (holdCrl) await sleep(crlDelayMs);
   res.writeHead(degraded.status, { "content-type": "application/json" });
   res.end(degraded.body);
-  log(`${req.method} ${req.url} ${degraded.status} (${mode})`);
+  log(`${req.method} ${req.url} ${degraded.status} (${mode}${holdCrl ? `, held ${crlDelayMs}ms` : ""})`);
 });
 
 server.listen(port, "127.0.0.1", () => {
