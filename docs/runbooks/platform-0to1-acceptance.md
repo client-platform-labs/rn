@@ -108,7 +108,7 @@
 
 | 步骤 | 命令 | 毛细血管检查点 |
 |------|------|----------------|
-| OTA 适配注入 | `node scripts/apply-ota-to-project.mjs`（或模板自带） | 生成 `android/app/src/main/java/<pkg>/ota/{OtaModule,OtaPackage}.kt` |
+| OTA 适配注入 | `rn ota install --rca-pubkey-hex <hex>`（存量工程）；新工程用 `rn init --rca-pubkey-hex <hex>`（#265） | 生成 `android/app/src/main/java/<pkg>/ota/{OtaModule,OtaPackage}.kt` |
 | 密钥烘焙 | `grep getOtaPublicKeys OtaModule.kt` | 烘焙 lab 公钥 hex=64 位；`getName()="Ota"`；用 `Arguments.createArray()`（**非 arrayOf**，ADR-017 bridge 契约） |
 | 注册 | `grep OtaPackage MainApplication.kt` | OtaPackage 已加入 packageList |
 | 进程入口契约 | `grep getMainComponentName MainActivity.kt` + bundle 检查 | applicationId 与模块自注册一致 |

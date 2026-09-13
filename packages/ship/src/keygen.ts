@@ -126,7 +126,7 @@ export function printKeygenResult(r: {
         keys_dir: r.dir,
         public_key_hex: r.pubHex,
         next: [
-          `bake: apply-ota --pubkey-hex ${r.pubHex}`,
+          `bake: rn init --pubkey-hex ${r.pubHex} (new project) | rn ota install --pubkey-hex ${r.pubHex} (existing project)`,
           `sign: export RN_DELIVERY_SIGN_KEY_FILE=${r.keyFile}`,
         ],
       },

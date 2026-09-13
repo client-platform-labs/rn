@@ -57,7 +57,7 @@
 |------|------|------|----------|
 | `industrial-shell/` | **工业壳**（产品形态）：ShellHost + ModuleRegistry + hostContext + FailedUI + ota/slotPaths + 工业 `metro.config.js`（host-resolver）+ OTA gate + 平台包链接 + 声明式注册表 | 壳工程师（产品壳） | `rn init --starter topology-b --industrial` |
 | `greenfield-ota/` | GF release OTA 启动参考（`ReleaseOtaBoot`：同步 key cache、crash-loop 守卫、pullOtaUpdate 模板） | 壳工程师 | 参考模式（提取自真机验证的宿主） |
-| `ota-android/` | Kotlin OTA 原生模块模板（`Ota` 模块：文件槽 / active-path 持久化 / installed-update-id / reload / resolveJsBundleFilePath） | 壳工程师 | `apply-ota-to-project.mjs` 注入 |
+| `ota-android/` | Kotlin OTA 原生模块模板（`Ota` 模块：文件槽 / active-path 持久化 / installed-update-id / reload / resolveJsBundleFilePath） | 壳工程师 | `rn ota install --rca-pubkey-hex <hex>` 注入（#265；`rn init` 亦内建） |
 | `brownfield-android/` | BF 宿主原生骨架（SurfaceHost 桩、AAR 发布、xcframework） | 壳工程师 | `rn init --starter brownfield` / BF 迁移 |
 | `sample-demo/` | 教学样板（多模块演示、双 Metro） | rn 开发 | `rn init --demo` / `rn demo add` |
 | `dev-support/` | Debug 设施（FAB→DevMenu），release 卫生门禁要求移除 | rn 开发 | `rn dev-support` |
