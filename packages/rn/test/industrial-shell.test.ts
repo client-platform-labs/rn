@@ -2,9 +2,16 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
 import { applyIndustrialShell } from "../dist/industrial-shell.js";
+
+/** packages/rn root — for reading the shipped host templates. */
+const rnPackageRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 describe("applyIndustrialShell (工业壳生成化)", () => {
   it("writes ShellHost/ModuleRegistry/hostContext/slotPaths + App→ShellHost", () => {
@@ -64,25 +71,66 @@ describe("applyIndustrialShell (工业壳生成化)", () => {
     }
   });
 
-  it("G1: ShellHost wires crash-loop rollback (G1) + signed-CRL fail-closed (G3)", () => {
+  it("Map I #257: the generated shell delegates the boot sequence to shell-core", () => {
     const root = mkdtempSync(path.join(os.tmpdir(), "ind-"));
     try {
       writeFileSync(path.join(root, "package.json"), "{}", "utf8");
       applyIndustrialShell(root);
       const host = readFileSync(path.join(root, "shell/ShellHost.tsx"), "utf8");
-      // G1: crash-loop guard wired (contract in template, not just greenfield)
-      assert.match(host, /shouldRollbackOnCrashLoop/);
-      assert.match(host, /recordStartupFailure/);
-      assert.match(host, /resetStartupFailures/);
-      assert.match(host, /rollbackToEmbeddedBaseline/);
+      // The release boot sequence is shell-core policy now (Map I / #257), so
+      // this template is only a host adapter: all it must prove here is that it
+      // is wired to the shared module. The sequence itself — crash-loop
+      // rollback (G1/ADR-014) and signed-CRL fail-closed (G3/ADR-024) — is
+      // EXECUTED in packages/shell-core/test/boot.test.ts.
+      assert.match(host, /bootReleaseOta/);
+      assert.match(host, /@client-platform\/shell-core/); // copy→depend by construction
       // G8 hygiene: dead setOtaSidecar state removed
       assert.doesNotMatch(host, /setOtaSidecar/);
-      // G3: CRL is verified before trusting revoked list (fail-closed)
-      assert.match(host, /verifyRevocationSealAny/);
-      assert.match(host, /CRL seal invalid/);
-      assert.match(host, /CRL unsigned/);
       // resolveModuleSurface called without the dead otaSidecar arg
       assert.match(host, /resolveModuleSurface\(moduleId\)/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("Map I #257: neither host template re-inlines the boot sequence", () => {
+    // Anti-re-duplication guard. Delegating the sequence to shell-core is what
+    // makes the boot flow executable in a test at all; re-inlining it in either
+    // host would silently restore the drift that gave the two copies different
+    // security behaviour (signed-CRL verification existed in only one).
+    const root = mkdtempSync(path.join(os.tmpdir(), "ind-"));
+    try {
+      writeFileSync(path.join(root, "package.json"), "{}", "utf8");
+      applyIndustrialShell(root);
+      const adapters: Array<[string, string]> = [
+        ["industrial ShellHost", readFileSync(path.join(root, "shell/ShellHost.tsx"), "utf8")],
+        [
+          "greenfield ReleaseOtaBoot",
+          readFileSync(
+            path.join(rnPackageRoot, "templates/greenfield-ota/ReleaseOtaBoot.tsx"),
+            "utf8",
+          ),
+        ],
+      ];
+      const sequenceSymbols = [
+        "createOtaClient",
+        "pullOtaUpdate",
+        "shouldRollbackOnCrashLoop",
+        "recordStartupFailure",
+        "resetStartupFailures",
+        "verifyRevocationSealAny",
+        "rollbackToEmbeddedBaseline",
+        "/v1/crl",
+      ];
+      for (const [label, src] of adapters) {
+        assert.ok(src.includes("bootReleaseOta"), `${label} must call bootReleaseOta`);
+        for (const symbol of sequenceSymbols) {
+          assert.ok(
+            !src.includes(symbol),
+            `${label} must not re-inline the boot sequence (${symbol})`,
+          );
+        }
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

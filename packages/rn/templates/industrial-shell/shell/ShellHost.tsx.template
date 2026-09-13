@@ -5,11 +5,7 @@ import {
   initialWindowMetrics,
 } from "react-native-safe-area-context";
 import {
-  createOtaClient,
-  pullOtaUpdate,
-  shouldRollbackOnCrashLoop,
-  verifyRevocationSealAny,
-  type OtaSidecar,
+  bootReleaseOta,
   type OtaNativeAdapter,
 } from "@client-platform/shell-core";
 import { FailedUI } from "./FailedUI";
@@ -23,8 +19,12 @@ import { cpBaseUrl as declaredCpBaseUrl } from "./generated-runtime";
 /**
  * Industrial shell (ADR-021): resolves the active business module by id and runs
  * the device OTA flow via @client-platform/shell-core (copy→depend by
- * construction — no local OTA client copies). The native adapter is injected
- * once; `fetchOtaManifest` targets the control plane (ship serve).
+ * construction — no local OTA client copies, no local boot sequence).
+ *
+ * Map I / #257: this file is a HOST ADAPTER. The release boot sequence
+ * (crash-loop rollback ADR-014, signed-CRL revocation ADR-024, startup-counter
+ * reset) is shell-core policy, shared with the greenfield reference host
+ * (templates/greenfield-ota/ReleaseOtaBoot).
  */
 function getNativeAdapter(): OtaNativeAdapter {
   return NativeModules.Ota as OtaNativeAdapter;
@@ -55,85 +55,19 @@ export function ShellHost({
     if (__DEV__) return; // dev: baseline only, no OTA
     let cancelled = false;
     (async () => {
-      const native = getNativeAdapter();
-      // ADR-017 — pull baked pubkeys from native before verifying any OTA payload.
-      // The Kotlin @ReactMethod is async, but verifySidecar reads the adapter's
-      // synchronous getOtaPublicKeys() — patch it with the awaited cache (same
-      // contract as templates/greenfield-ota/ReleaseOtaBoot). Empty → fail-closed.
-      try {
-        const keys = await native.getOtaPublicKeys?.();
-        const keyArr =
-          keys == null
-            ? []
-            : Array.from(keys as ArrayLike<string>).filter(
-                (k): k is string => typeof k === "string" && k.length === 64,
-              );
-        native.getOtaPublicKeys = () => keyArr;
-      } catch {
-        /* stay empty → fail-closed */
-      }
-      const base = cpBaseUrl();
-      if (!base) {
-        console.warn(
-          "[OTA] control-plane base URL not configured — set cpBaseUrl in .rn/runtime.jsonc (SEAM-2) or __CP_BASE_URL__ at runtime; booting baseline",
-        );
-        if (!cancelled) setBootReady(true);
-        return;
-      }
-      const client = createOtaClient(native, { defaultModuleId: moduleId });
-      // G1/ADR-014: crash-loop guard — consecutive failed boots roll back to
-      // the embedded baseline before any OTA pull (same contract as
-      // templates/greenfield-ota/ReleaseOtaBoot).
-      const failCount = (await native.recordStartupFailure?.(moduleId)) ?? 0;
-      if (shouldRollbackOnCrashLoop(failCount)) {
-        try {
-          await client.rollbackToEmbeddedBaseline(moduleId);
-        } catch {
-          /* baseline fallback is best-effort */
-        }
-        if (!cancelled) setBootReady(true);
-        return;
-      }
-      const result = await pullOtaUpdate(client, native, moduleId, {
-        lane: "production",
-        // ADR-024 (D3/G3): fetch + VERIFY the signed revocation list (CRL)
-        // before verifying an update — a revoked signing key is rejected even
-        // when the seal is valid, and an unsigned/tampered CRL fails closed.
-        fetchRevocations: async () => {
-          const res = await fetch(`${base}/v1/crl`);
-          if (!res.ok) throw new Error(`CRL HTTP ${res.status}`);
-          const body = (await res.json()) as {
-            revoked?: string[];
-            payload?: string;
-            seal?: string | null;
-          };
-          if (!body || typeof body.seal !== "string" || typeof body.payload !== "string") {
-            throw new Error("CRL unsigned");
-          }
-          if (
-            !verifyRevocationSealAny(
-              body.seal,
-              body.payload,
-              Array.from(native.getOtaPublicKeys() ?? []),
-            )
-          ) {
-            throw new Error("CRL seal invalid");
-          }
-          return Array.isArray(body.revoked) ? body.revoked : [];
+      // This host supplies only its adapter: the native bridge, the
+      // control-plane base URL source and the install mode. Crash-loop
+      // rollback (G1/ADR-014) and signed-CRL verification (G3/ADR-024) are
+      // shared policy, so the two hosts cannot drift apart again.
+      const outcome = await bootReleaseOta(
+        {
+          native: getNativeAdapter(),
+          controlPlaneBaseUrl: cpBaseUrl(),
         },
-        fetchManifest: async (mid, lane) => {
-          const res = await fetch(`${base}/v1/js-updates/check?module=${mid}&lane=${lane}`);
-          if (!res.ok) return null;
-          const body = (await res.json()) as OtaSidecar;
-          return body;
-        },
-      });
-      // G1/ADR-014: ANY completed boot (installed / already_installed /
-      // no_update / failed) means the JS survived to this point — the previous
-      // launch did not crash, so the crash-loop counter resets. Only a boot
-      // that dies mid-flight (before this reset) keeps the counter rising.
-      await native.resetStartupFailures?.(moduleId);
-      if (result.status === "installed") return;
+        moduleId,
+      );
+      // An applied update reloads the process — stay in the loading state.
+      if (outcome.phase === "installed") return;
       if (!cancelled) setBootReady(true);
     })().catch(() => {
       if (!cancelled) setBootReady(true);
