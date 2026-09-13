@@ -20,6 +20,7 @@ import net from "node:net";
 import path from "node:path";
 
 import {
+  CAPTURE_LIMIT,
   createHarness,
   computeExitCode,
   emptyRegistry,
@@ -105,7 +106,17 @@ await h.run(async () => {
   });
   h.assertEq(p2.readRegistry().blocked[0].digest, "bd", "registry override honoured");
   h.assertContains(p2.read("sub/x.txt"), "hello", "extra string fixture file written");
-  h.assertEq(JSON.parse(p2.read("sub/obj.json")).nested, true, "extra JSON fixture file written");
+  const objFixture = (() => {
+    // Parse via a guarded helper so a malformed fixture reports as a FAILED
+    // check with its label, instead of escaping as an unhandled SyntaxError.
+    try {
+      return JSON.parse(p2.read("sub/obj.json"));
+    } catch {
+      return null;
+    }
+  })();
+  h.assertTruthy(objFixture !== null, "extra JSON fixture file is valid JSON");
+  h.assertEq(objFixture?.nested, true, "extra JSON fixture file written");
   h.assertTruthy(p2.exists("sub/x.txt"), "fixture exists() sees written files");
 
   child.cleanup();
@@ -362,13 +373,34 @@ await h.run(async () => {
   } catch {
     /* the assertion below reports the failure */
   }
-  // The audit payload is larger than the capture limit used to be; parsing it at
-  // all is the regression guard for silent truncation of machine-readable output.
-  h.assertTruthy(
-    orphanRun.stdout.length > 64 * 1024,
-    `audit payload exceeds the old 64KB capture cap (${orphanRun.stdout.length} bytes)`,
+  // Capture must not truncate machine-readable output. Asserted on a payload of
+  // KNOWN size rather than on the real audit payload: the audit's byte count
+  // depends on this checkout's absolute path length, so "the payload happens to
+  // exceed 64KB" passed locally and failed on CI at 63520 bytes (PR #267). The
+  // invariant is the boundary, not the payload.
+  const overOldCap = 96 * 1024;
+  const aboveOldCap = await h.runNode(
+    "-e",
+    [`process.stdout.write("x".repeat(${overOldCap}))`],
+    { timeoutMs: 30_000 },
   );
-  h.assertTruthy(!orphanRun.truncated, "the capture reports no truncation");
+  h.assertEq(
+    aboveOldCap.stdout.length,
+    overOldCap,
+    "a payload above the old 64KB cap is captured in full",
+  );
+  h.assertTruthy(!aboveOldCap.truncated, "no truncation below the capture limit");
+  // ...and the limit itself must be reported, never silently applied.
+  const aboveCap = await h.runNode(
+    "-e",
+    [`process.stdout.write("y".repeat(${CAPTURE_LIMIT + 4096}))`],
+    { timeoutMs: 60_000 },
+  );
+  h.assertTruthy(
+    aboveCap.truncated,
+    `exceeding the capture limit (${CAPTURE_LIMIT} bytes) is reported, not silent`,
+  );
+  h.assertTruthy(!orphanRun.truncated, "the audit payload is captured without truncation");
   h.assertEq(parsedOrphans.total, probes.length, "the audit covers every probe");
   h.assertEq(
     orphanRun.code,

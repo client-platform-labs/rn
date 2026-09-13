@@ -90,7 +90,11 @@ function paint(code, text) {
 
 // Generous, because probes emit machine-readable output (a full audit is 70KB+)
 // and a silently truncated payload parses as corrupt data.
-const CAPTURE_LIMIT = 4 * 1024 * 1024;
+/**
+ * Per-stream capture limit. Exported so the fixture's own probe can assert the
+ * truncation boundary against the real value instead of a copy of it.
+ */
+export const CAPTURE_LIMIT = 4 * 1024 * 1024;
 
 /**
  * Run a node script and capture both streams. Never throws on a non-zero exit —
@@ -203,7 +207,19 @@ function createProject(harness, options = {}) {
     name,
     deliveryDir,
     registryPath,
-    readRegistry: () => JSON.parse(readFileSync(registryPath, "utf8")),
+    readRegistry: () => {
+      const raw = readFileSync(registryPath, "utf8");
+      try {
+        return JSON.parse(raw);
+      } catch {
+        // A malformed fixture registry is a probe bug, not a product signal:
+        // name it so the failure points at the fixture instead of surfacing as
+        // a bare SyntaxError from deep inside a probe.
+        throw new Error(
+          `verify fixture: delivery registry is not valid JSON (${registryPath})`,
+        );
+      }
+    },
     writeRegistry: (reg) =>
       writeFileSync(registryPath, `${JSON.stringify(reg, null, 2)}\n`),
     read: (rel) => readFileSync(path.join(root, rel), "utf8"),
