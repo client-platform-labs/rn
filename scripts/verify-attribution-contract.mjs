@@ -12,17 +12,17 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 
 const { validateAttributionRecord } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/attribution-contract.js"),
+    path.join(repoRoot, "packages/core/dist/attribution-contract.js"),
   ).href
 );
 const { createQualitySignal } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/observability.js"),
+    path.join(repoRoot, "packages/core/dist/observability.js"),
   ).href
 );
 const { evaluateQualityPromoteGate } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/quality-promote-gate.js"),
+    path.join(repoRoot, "packages/core/dist/quality-promote-gate.js"),
   ).href
 );
 

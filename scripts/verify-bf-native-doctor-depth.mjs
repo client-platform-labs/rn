@@ -14,7 +14,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const exampleRoot = path.join(repoRoot, "examples/brownfield-host");
 
 const { defaultDualModuleDevSession } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/index.js")).href
+  pathToFileURL(path.join(repoRoot, "packages/core/dist/index.js")).href
 );
 const { evaluateBrownfieldDoctor } = await import(
   pathToFileURL(path.join(repoRoot, "packages/rn/dist/brownfield-doctor.js")).href

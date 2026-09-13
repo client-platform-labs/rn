@@ -15,7 +15,7 @@ const apkPath = process.argv[3] ? path.resolve(process.argv[3]) : undefined;
 
 const coreEntry = path.resolve(
   import.meta.dirname,
-  "../packages/rn-core/dist/release-hygiene.js",
+  "../packages/core/dist/release-hygiene.js",
 );
 const { evaluateReleaseSourceHygiene, scanApkReleaseHygiene } = await import(
   pathToFileURL(coreEntry).href

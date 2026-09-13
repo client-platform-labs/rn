@@ -128,9 +128,9 @@ try {
     console.log("OK module isolation — fixture_second untouched");
   }
 
-  // A5 wire via rn-core dist
+  // A5 wire via core dist (ADR-022: rn-core was split into core / rn-engine)
   const { excludeSlotsByBlockedUpdates, collectBlockedUpdateIds } = await import(
-    pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/index.js")).href
+    pathToFileURL(path.join(repoRoot, "packages/core/dist/index.js")).href
   );
   const blockedIds = collectBlockedUpdateIds({ kills: killsGet.body.kills });
   const slotsA = {

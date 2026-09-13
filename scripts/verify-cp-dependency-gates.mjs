@@ -49,7 +49,7 @@ const candidate = {
 };
 
 const { defaultGreenfieldFingerprint } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/greenfield.js"))
+  pathToFileURL(path.join(repoRoot, "packages/rn-engine/dist/greenfield.js"))
     .href
 );
 const fp = defaultGreenfieldFingerprint("0.87.0");

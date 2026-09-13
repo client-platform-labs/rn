@@ -19,7 +19,7 @@ function step(name, ok, detail) {
   console.log(`[OK] ${name}`);
 }
 
-const coreDist = path.join(repoRoot, "packages/rn-core/dist/rn-slo-budget.js");
+const coreDist = path.join(repoRoot, "packages/rn-engine/dist/rn-slo-budget.js");
 const {
   defaultRnSloProfile,
   evaluateRnSloBudget,
@@ -83,7 +83,7 @@ step(
 
 const test = spawnSync(
   process.execPath,
-  ["--test", path.join(repoRoot, "packages/rn-core/test/rn-slo-budget.test.ts")],
+  ["--test", path.join(repoRoot, "packages/rn-engine/test/rn-slo-budget.test.ts")],
   { cwd: repoRoot, encoding: "utf8" },
 );
 step("unit tests pass", test.status === 0, test.stderr || test.stdout);

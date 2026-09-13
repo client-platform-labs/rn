@@ -14,7 +14,7 @@ const {
   validateChannelProfileSet,
   isJsBlockedForChannel,
 } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/channel-profile.js"))
+  pathToFileURL(path.join(repoRoot, "packages/core/dist/channel-profile.js"))
     .href
 );
 

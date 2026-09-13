@@ -44,7 +44,7 @@ const candidate = {
 
 const { defaultFinanceComplianceProfile } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/compliance-profile.js"),
+    path.join(repoRoot, "packages/core/dist/compliance-profile.js"),
   ).href
 );
 const { saveComplianceProfileStore, saveExceptionLedger } = await import(

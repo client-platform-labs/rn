@@ -14,7 +14,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const projectRoot = path.resolve(process.argv[2] ?? process.cwd());
 
 const core = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/index.js")).href
+  pathToFileURL(path.join(repoRoot, "packages/core/dist/index.js")).href
 );
 
 const fingerprint = {
