@@ -11,11 +11,9 @@ import {
   MODULES_DIR,
   moduleWorkspaceRoot,
   scaffoldModuleWorkspace,
-  writeModuleRegistry,
 } from "../module-workspace.js";
 import { loadDevSessionConfig } from "../dev-session-config.js";
-import { writeHostMetroResolver } from "../host-metro-config.js";
-import { writeGeneratedRuntime } from "../runtime-config.js";
+import { regenerateDerivedArtifacts } from "../declaration-derived.js";
 
 const MODULE_ID_RE = /^[a-z][a-z0-9_-]{0,63}$/;
 
@@ -155,18 +153,19 @@ export async function runModuleRegister(options: {
     }
     return;
   }
-  const file = writeModuleRegistry(projectRoot, modules);
+  // #263: regeneration is the primitive's job — this command only triggers it
+  // and renders what it wrote. Writing the three artifacts here was a second
+  // entry point, which is how declaration and derived artifacts drift (F13).
+  const written = regenerateDerivedArtifacts(projectRoot);
   options.logger.writeHuman(
-    `Wrote generated registry: ${path.relative(projectRoot, file)}`,
+    `Wrote generated registry: ${path.relative(projectRoot, written.registry)}`,
   );
-  const resolver = writeHostMetroResolver(projectRoot);
+  if (written.hostResolver) {
+    options.logger.writeHuman(
+      `Wrote host Metro resolver: ${path.relative(projectRoot, written.hostResolver)}`,
+    );
+  }
   options.logger.writeHuman(
-    `Wrote host Metro resolver: ${path.relative(projectRoot, resolver)}`,
-  );
-  // SEAM-2 (F13/F23): module register also regenerates the runtime config
-  // derived artifact so declaration and derived artifacts stay in sync.
-  const runtime = writeGeneratedRuntime(projectRoot);
-  options.logger.writeHuman(
-    `Wrote generated runtime: ${path.relative(projectRoot, runtime)}`,
+    `Wrote generated runtime: ${path.relative(projectRoot, written.runtime)}`,
   );
 }

@@ -1,14 +1,9 @@
-import type { HostSelectorContext } from "@client-platform/core/ota";
+// #263: ONE definition of this seam lives in @client-platform/shell-core (shared
+// by the shell-core OTA client and by generated shells — one protocol, two
+// hosts). This file only re-exports it so the generated shell keeps its local
+// import graph, the same copy→depend-by-construction pattern as ShellHost.
+// Do not re-implement the body here: a local copy is how the generated shell
+// and shell-core drift apart.
+import { readHostContextFromSidecar } from "@client-platform/shell-core";
 
-/** Rebuild the host selector context from a sidecar's host_context block. */
-export function readHostContextFromSidecar(
-  sidecar: any,
-): HostSelectorContext | null {
-  const hc = sidecar?.host_context;
-  if (!hc) return null;
-  return {
-    runtime_fingerprint: hc.runtime_fingerprint,
-    capability_set: hc.capability_set ?? [],
-    artifact_line: hc.artifact_line,
-  };
-}
+export { readHostContextFromSidecar };
