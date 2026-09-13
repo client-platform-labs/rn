@@ -416,7 +416,7 @@ export async function runInit(options: {
           "      ship keygen --cert   # 生成 RCA+leaf 证书链，输出 --rca-pubkey-hex",
         );
         options.logger.writeHuman(
-          "      node scripts/apply-ota-to-project.mjs . --rca-pubkey-hex <hex>   # 注入 OtaModule + 烘焙信任根到 APK",
+          "      rn ota install --rca-pubkey-hex <hex>   # 注入 OtaModule + 烘焙信任根到 APK",
         );
         options.logger.writeHuman(
           "    rn doctor 会持续提示该缺失直到注入完成（G2 探针）。",

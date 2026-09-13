@@ -31,17 +31,8 @@ const SHELL_SRC_DIRS = [
 const RN_BIN = path.join(REPO_ROOT, "packages/rn/bin/rn.mjs");
 
 /**
- * Files owned by another in-flight lane that still print the phantom name. The
- * invariant is repo-wide; this list exists only so this lane does not have to
- * edit files it does not own, and it must be EMPTY once that lane lands (it
- * replaces the same hint text in enterprise-doctor.ts). Kept as a subset check
- * on purpose: an emptied list must not fail the probe.
+ * The form that could be copy-pasted: a bare verb immediately taking a flag.
  */
-const PENDING_OTHER_LANES: readonly string[] = [
-  "packages/rn/src/enterprise-doctor.ts",
-];
-
-/** The form that could be copy-pasted: a bare verb immediately taking a flag. */
 /* eslint-disable-next-line no-control-regex */
 const BARE_PHANTOM_RE = /\bapply-ota(?:-to-project\.mjs)?\s+--/;
 
@@ -129,7 +120,7 @@ describe("#265 — user surfaces name only real commands", () => {
       .sort();
 
     assert.deepEqual(
-      offenders.filter((f) => !PENDING_OTHER_LANES.includes(f)),
+      offenders,
       [],
       "a user-visible hint names a command that is not prefixed by a real bin",
     );

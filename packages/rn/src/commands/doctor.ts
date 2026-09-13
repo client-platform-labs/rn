@@ -300,6 +300,22 @@ export function shellTemplateDriftCheck(drift: string | null): DoctorCheck {
 }
 
 /**
+ * Whether this project actually HAS the industrial shell. F25 drift is only
+ * meaningful for those.
+ *
+ * `shellTemplateDrift` answers "does the applied template version differ from the
+ * current one" and returns a message whenever it does — including for a project
+ * with NO marker at all, which is the `rn init --pure` case (and this platform
+ * repo itself). Those projects would be told to "run rn shell refresh" forever,
+ * with no shell to refresh. Applicability is the caller's question, not the
+ * drift function's (#265) — nulling it inside shellTemplateDrift instead would
+ * hide genuine drift on pre-marker industrial shells.
+ */
+function isIndustrialShellProject(projectRoot: string): boolean {
+  return existsSync(path.join(projectRoot, "shell", "ShellHost.tsx"));
+}
+
+/**
  * Unified diagnostics: host layers L0–L2 + project contract L3 when present.
  * Does not mutate the machine.
  */
@@ -586,7 +602,7 @@ export async function runDoctor(options: {
     // identical to the four per-family loops this replaced.
     const sections: DoctorCheckSection[] = [];
     for (const family of activeFamilies) {
-      if (family.driftBefore) {
+      if (family.driftBefore && isIndustrialShellProject(cwd)) {
         sections.push({
           blankBefore: true,
           checks: [shellTemplateDriftCheck(shellTemplateDrift(cwd))],
