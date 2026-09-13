@@ -613,4 +613,138 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       relativePlane.restore();
     }
   });
+
+  // ── #269 residual: an update that was rolled back must not be re-applied ──
+
+  /**
+   * A control plane serving ONE candidate, plus a STATEFUL rolled-back marker.
+   * The marker is mutable on purpose: the probes must see the boot record it and
+   * later clear it, not merely hold it in memory for the duration of one call.
+   */
+  function rolledBackRig(updateId: string, marker: string | null) {
+    const signer = keypair();
+    const base = manifest();
+    const body = {
+      ...base,
+      update_id: updateId,
+      candidate: { ...base.candidate, update_id: updateId },
+      signature: updateSeal(signer.privateKey),
+    };
+    const rig = fakeNative({ pubKeys: [signer.pubHex] });
+    const state = { marker };
+    rig.adapter.getRolledBackUpdateId = async () => state.marker;
+    rig.adapter.setRolledBackUpdateId = async (_moduleId, id) => {
+      rig.calls.push(`setRolledBackUpdateId:${String(id)}`);
+      state.marker = id;
+    };
+    const plane = installFetch((url) => {
+      if (url.startsWith(`${BASE}/v1/js-updates/check`)) return { status: 200, body };
+      if (url === `${BASE}/v1/crl`) {
+        return { status: 200, body: crlDoc(signer.privateKey, []) };
+      }
+      if (url === body.url) return { status: 200, bytes: new Uint8Array([1, 2, 3, 4]) };
+      return undefined;
+    });
+    return { rig, plane, state, body };
+  }
+
+  it("#269: a rolled-back update_id is NOT re-pulled or re-applied", async () => {
+    const { rig, plane, state, body } = rolledBackRig("u-bad", "u-bad");
+    try {
+      const outcome = await bootReleaseOta(
+        { native: rig.adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      // It was genuinely considered and refused — not skipped for another reason.
+      assert.ok(
+        plane.urls.some((u) => u.startsWith(`${BASE}/v1/js-updates/check`)),
+        "the boot must still ASK the control plane (otherwise this proves nothing)",
+      );
+      assert.notEqual(outcome.result?.status, "installed");
+      // The bad artifact was never fetched and nothing was marked installed.
+      assert.ok(!plane.urls.includes(body.url), "the rolled-back artifact must not be downloaded");
+      assert.ok(!rig.calls.includes("setInstalledUpdateId"));
+      assert.equal(state.marker, "u-bad", "the marker must not be cleared by a refusal");
+      // The refusal is visible to a field engineer (release console is silent).
+      assert.ok(
+        rig.logs.some((m) => m.includes("refusing known-bad update_id=u-bad")),
+        `expected a refusal diagnostic, got: ${JSON.stringify(rig.logs)}`,
+      );
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("#269: a NEWER candidate is still accepted, and clears the marker", async () => {
+    const { rig, plane, state } = rolledBackRig("u-new", "u-bad");
+    try {
+      const outcome = await bootReleaseOta(
+        { native: rig.adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "installed");
+      assert.equal(outcome.result?.updateId, "u-new");
+      // The marker must be CLEARED for a different update — otherwise the fix
+      // would have replaced one trap with another.
+      assert.ok(
+        rig.calls.includes("setRolledBackUpdateId:null"),
+        `expected the marker to be cleared, got: ${JSON.stringify(rig.calls)}`,
+      );
+      assert.equal(state.marker, null);
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("#269: a host WITHOUT the marker methods still boots (graceful degradation)", async () => {
+    // Optional by contract: bookkeeping must never fail a boot. fakeNative does
+    // not define the rolled-back methods at all, which is exactly such a host.
+    const signer = keypair();
+    const { adapter } = fakeNative({ pubKeys: [signer.pubHex] });
+    assert.equal(adapter.getRolledBackUpdateId, undefined);
+    const plane = installFetch(happyPlane(signer.privateKey));
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "installed");
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("#269: the rollback RECORDS the rejected id in native state, before the reload", async () => {
+    // The marker must survive the reload, so it has to be written before
+    // `rollbackToEmbeddedBaseline` (which ends in reload()) — the same ordering
+    // constraint #268 established for the crash counter.
+    const { adapter, calls, persisted } = fakeNative({
+      failures: 3,
+      pubKeys: [],
+      installedId: "u-bad",
+    });
+    adapter.setRolledBackUpdateId = async (_moduleId, id) => {
+      calls.push(`setRolledBackUpdateId:${String(id)}`);
+    };
+    const plane = installFetch(() => undefined);
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.skippedReason, "crash_loop_rollback");
+      const recorded = calls.indexOf("setRolledBackUpdateId:u-bad");
+      assert.ok(recorded !== -1, `marker not recorded: ${JSON.stringify(calls)}`);
+      assert.ok(
+        recorded < calls.indexOf("reload"),
+        "the marker must be written BEFORE the reload that ends the rollback",
+      );
+      // The stale "installed" fact is cleared: the device runs the baseline now.
+      assert.deepEqual(persisted, [""]);
+      // #268 invariant kept: the counter is still cleared on the rollback path.
+      assert.ok(calls.includes("resetStartupFailures"));
+    } finally {
+      plane.restore();
+    }
+  });
 });
