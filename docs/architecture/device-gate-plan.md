@@ -44,7 +44,7 @@
 
 | # | Chain | 覆盖 | 门禁后收益 |
 |---|-------|------|-----------|
-| 01 | CLI 工具链 | `rn` / `rn-delivery` 公开面 · POLA · help 完整性 | 公共 CLI 每次改动有机器兜底 |
+| 01 | CLI 工具链 | `rn` / `ship` 公开面 · POLA · help 完整性 | 公共 CLI 每次改动有机器兜底 |
 | 02 | Debug 包多离线包 | adb reverse 6 端口 · 多 Metro · 多 bundle | Metro/调试链路回归检测 |
 | 03 | Release 壳加载 | registry · APK/JS 拉取 · 装包启动 · 无 FATAL | release 壳装上真机即最高信噪 |
 | 04 | 壳全生命周期 | 新建/调试/部署/运维 | 七阶段合同真实闭环 |
@@ -53,6 +53,7 @@
 | 07 | 离线包管理平台 | /portal/js · 注册/检索/catalog | 平台目录面回归 |
 | 08 | 离线包更新策略 | staging/production lane · Kill Switch · digest | 灰度/回滚策略回归 |
 | 09 | 后台服务 | CP/Distribution/Nous · 跨服务 | 后台联通回归 |
+| 11 | OTA 信任链真机验收 ★ | 崩溃环回滚 · 篡改 CRL 拒载 · 两宿主请求集差异 | 设备信任链的最后一段，只能真机闭合 |
 
 ### 1.2 边界（本门禁管什么 / 不管什么）
 
