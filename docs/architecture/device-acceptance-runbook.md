@@ -457,3 +457,31 @@ ship promote  --digest <D>                                    # → production
 **诚实标注**：02 与 09 是**前置缺失**导致的显式 SKIP（SKIP≠PASS），不是通过。
 - 02 需要先起 Metro（`rn dev` 多 Metro）；本轮未起。
 - 09 需要 data-service（容器）在 :8001；该容器栈本轮由另一条 lane 持有，未抢占。
+### 全链单次扫描（一次性、权威结果）
+
+```bash
+CP_BASE=http://127.0.0.1:4150 E2E_CP_LOG=/tmp/e2e-cp-4150.log \
+  bash scripts/e2e/run-all.sh            # → rc=0
+```
+
+| Chain | 结果 |
+|---|---|
+| 01-cli · 02-debug-multi-bundle · 03-release-load · 04-shell-lifecycle · 05-biz-lifecycle | ✅ PASS |
+| 06-host-portal · 07-biz-portal · 08-update-strategy · 10-ios-lifecycle · 11-ota-trust | ✅ PASS |
+| 09-backend-services | ⊘ **SKIP**（3 个探针因 `data-service` :8001 未起而显式跳过；其余全绿） |
+
+**10 PASS · 1 SKIP · 0 FAIL。**
+
+chain-11 在该轮中的设备腿证据（第三次独立复现）：
+
+```
+✓ pending candidates in production: 1
+11.B1 ✓ 更新已下载并生效：/v1/artifacts 命中 1 次（CRL 2 次）
+11.B2 ✓ 设备确实请求了被降级的 /v1/crl（stub 命中 6 次）→ 拒绝来自验签而非跳过
+      ✓ fail-closed 生效：篡改 CRL 后未请求 manifest/artifact（check=0 artifact=0）
+      ✓ 应用仍在基线可运行（fail-closed 不是崩壳）
+11.A  ✓ 注入已确认落地：4/4 次启动在计数递增后、完成前被杀（阈值 3）
+      ✓ 回滚：设备自报 skippedReason=crash_loop_rollback
+```
+
+**为什么 09 仍是 SKIP**：`data-service` 由另一条 lane 的容器栈持有（`deploy/distribution-service/docker-compose.yml`），启动它可能 reconcile/重建那条 lane 正在做 DR 演练的栈 —— 因此**刻意不抢占**，按"SKIP≠PASS"如实记录。
