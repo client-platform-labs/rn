@@ -61,8 +61,13 @@ function defaultModuleIdFromManifest(projectRoot: string): string {
  * + links the platform packages (core/shell-core/rn-engine) so the shell resolves them.
  */
 /** F25: template version — bump when industrial shell templates change. Existing
- * projects can detect drift and run `rn shell refresh` to regenerate. */
-export const INDUSTRIAL_TEMPLATE_VERSION = "3";
+ * projects can detect drift and run `rn shell refresh` to regenerate.
+ *
+ * v4 (#257/#263): the shell templates no longer inline the release OTA boot
+ * sequence (now one shell-core module) and hostContext.ts re-exports the single
+ * shell-core definition instead of copying it. Projects generated at v3 keep
+ * both stale copies, so the drift check must fire for them (F25). */
+export const INDUSTRIAL_TEMPLATE_VERSION = "4";
 
 /** Write the applied template version marker (.rn/template-version.json). */
 export function writeTemplateVersion(projectRoot: string): void {
