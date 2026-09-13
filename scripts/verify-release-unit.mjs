@@ -10,7 +10,7 @@ import { pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const mod = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/release-unit.js")).href
+  pathToFileURL(path.join(repoRoot, "packages/core/dist/release-unit.js")).href
 );
 
 function step(name, ok, detail) {

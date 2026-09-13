@@ -99,8 +99,14 @@ try {
   }
   console.log("OK GET after PUT");
 
-  const { gateBundleLoad, defaultGreenfieldFingerprint } = await import(
-    pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/index.js")).href
+  const { gateBundleLoad } = await import(
+    pathToFileURL(path.join(repoRoot, "packages/core/dist/index.js")).href
+  );
+  // ADR-022 split: the greenfield fingerprint helper moved to the engine
+  // adapter package, so it is a separate import rather than a second symbol
+  // from the contract package.
+  const { defaultGreenfieldFingerprint } = await import(
+    pathToFileURL(path.join(repoRoot, "packages/rn-engine/dist/index.js")).href
   );
   const fp = defaultGreenfieldFingerprint("0.87.0");
   const host = {

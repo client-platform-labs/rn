@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const mod = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/compliance-profile.js"),
+    path.join(repoRoot, "packages/core/dist/compliance-profile.js"),
   ).href
 );
 

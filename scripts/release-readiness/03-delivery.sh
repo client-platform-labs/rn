@@ -11,10 +11,11 @@ cd "$REPO_ROOT"
 echo "── 03 Delivery ────────────────────────────────────"
 
 FAIL=0
+SKIPS=0
 
 # 1. ship 二进制
 echo "[1/5] ship 入口 …"
-if [[ -f "$REPO_ROOT/packages/ship/bin/ship.js" ]] \
+if [[ -f "$REPO_ROOT/packages/ship/bin/ship.mjs" ]] \
 || [[ -d "$REPO_ROOT/packages/ship" ]]; then
   echo "  ✓ ship 包存在"
 else
@@ -56,11 +57,15 @@ fi
 
 # 5. promote 同物晋级
 echo "[5/5] 同物晋级 verify …"
-if [[ -f "$REPO_ROOT/scripts/verify-m3-gf.mjs" ]]; then
-  echo "  ✓ m3-gf verify 存在"
-else
-  echo "  ⚠ m3-gf verify 缺失"
-fi
+# #264: this step used to guard on scripts/verify-m3-gf.mjs, which never existed
+# on this branch — so it printed "⚠ m3-gf verify 缺失" forever and verified
+# nothing. The probe that actually covers same-artifact promote is
+# verify-cp-e2e-promote-gate.mjs; it already runs in stage 04, so this step is an
+# explicit, reported SKIP rather than a phantom check.
+echo "  ⊘ SKIP — no dedicated same-artifact promote probe in this stage"
+echo "    reason: the probe this step used to guard on was never created (see #264)"
+echo "    covered by: stage 04 runs scripts/verify-cp-e2e-promote-gate.mjs"
+SKIPS=$((SKIPS + 1))
 
 echo "───────────────────────────────────────────────────"
 if [[ ${FAIL:-0} -ne 0 ]]; then
@@ -68,4 +73,5 @@ if [[ ${FAIL:-0} -ne 0 ]]; then
   exit 3
 fi
 echo "PASS：Delivery 达上市前（合同齐；真 CycloneDX 见 #90 shelved）"
+[[ $SKIPS -gt 0 ]] && echo "  (${SKIPS} step(s) explicitly SKIPped — see the ⊘ lines above)"
 exit 0

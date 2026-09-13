@@ -14,7 +14,7 @@ const lane = process.argv.includes("--staging") ? "staging" : "production";
 
 const coreEntry = path.resolve(
   import.meta.dirname,
-  "../packages/rn-core/dist/index.js",
+  "../packages/core/dist/index.js",
 );
 const storeEntry = path.resolve(
   import.meta.dirname,

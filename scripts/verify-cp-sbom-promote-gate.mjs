@@ -71,7 +71,7 @@ function step(name, ok, detail) {
 
 const { evaluateSbomPromoteGate } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/sbom-promote-gate.js"),
+    path.join(repoRoot, "packages/core/dist/sbom-promote-gate.js"),
   ).href
 );
 

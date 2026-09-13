@@ -73,7 +73,7 @@ if (process.argv[2]) {
   console.log("[SKIP] full project — pass projectRoot after apply-brownfield-host-stub");
 }
 
-const coreEntry = path.resolve(repoRoot, "packages/rn-core/dist/index.js");
+const coreEntry = path.resolve(repoRoot, "packages/core/dist/index.js");
 const { createBrownfieldReferenceHost } = await import(
   pathToFileURL(coreEntry).href
 );
