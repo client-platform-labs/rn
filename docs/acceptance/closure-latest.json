@@ -1,0 +1,94 @@
+{
+  "generatedAt": "2026-09-13T15:58:01.442Z",
+  "durationMs": 14559,
+  "mode": "afk",
+  "maxRepairsPerGate": 3,
+  "capabilities": [
+    {
+      "name": "node>=22<25",
+      "available": true,
+      "note": "node 24.21.0"
+    },
+    {
+      "name": "android device",
+      "available": true,
+      "note": "10CEC62C7R000E3\tdevice"
+    },
+    {
+      "name": "docker daemon",
+      "available": false,
+      "note": "daemon not running"
+    },
+    {
+      "name": "caddy",
+      "available": true,
+      "note": "local dual-domain proxy"
+    },
+    {
+      "name": "downstream repos",
+      "available": true,
+      "note": "tiangong-host:ok desk:ok fixture_second:ok"
+    },
+    {
+      "name": "module HBC producer output",
+      "available": true,
+      "note": "/Users/xuwei/code/tiangong-host/.rn/ota-build/desk/index.hbc"
+    }
+  ],
+  "counts": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 2,
+    "blocked": 0,
+    "todo": 1
+  },
+  "gates": {
+    "S1": {
+      "state": "pass",
+      "ms": 5996,
+      "detail": "governance PASS · test: om ∅ (0.139875ms)\n  ✔ blocks debug-host from promote/submit (0.051125ms)\n  ✔ defaults js-update gates to js + cross-cutting (0.046375ms)\n✔ stage machine (0.328125ms)\n▶ candidate metadata\n  ✔ requires business_module for js-update (0.158125ms)\n  ✔ accepts debug-host app-host-debug compile output shape (0.056791ms)\n✔ candidate metadata (0.294125ms)\n▶ same-artifact promote\n  ✔ accepts identical sealed release digests (0.123125ms)\n  ✔ rejects digest mismatch and debug-host (0.051334ms)\n  ✔ requires matching business_module for js-update promote (0.086417ms)\n✔ same-artifact promote (0.359875ms)\n▶ dual SBOM/attest interfaces\n  ✔ keeps host and js_update slots independent (0.105959ms)\n✔ dual SBOM/attest interfaces (0.137ms)\n▶ ship validate check record (#260)\n  ✔ is the shared core record, in both directions (compile-time) (0.597708ms)\n✔ ship validate check record (#260) (1.143583ms)\nℹ tests 466\nℹ suites 157\nℹ pass 465\nℹ fail 0\nℹ cancelled 0\nℹ skipped 1\nℹ todo 0\nℹ duration_ms 3491.472709\n$ tsc -b && node --experimental-strip-types --test packages/core/test/*.test.ts packages/rn-engine/test/*.test.ts packages/shell-core/test/*.test.ts packages/rn/test/*.test.ts packages/ship/test/*.test.ts",
+      "kind": "afk",
+      "title": "platform gates: governance + pnpm test"
+    },
+    "S2": {
+      "state": "pass",
+      "ms": 3335,
+      "detail": "verify-plane rc=0 · harness rc=0\nexternal references (6) — host-side, not verified here:\n  ~ scripts/run-hermes-d0-loop.mjs:71 runs \"scripts/embed-baseline.mjs\" from an external cwd\n  ~ scripts/run-hermes-d1-loop.mjs:51 runs \"scripts/embed-baseline.mjs\" from an external cwd\n  ~ scripts/run-hermes-d1-loop.mjs:61 runs \"scripts/embed-baseline.mjs\" from an external cwd\n  ~ scripts/run-hermes-d2-loop.mjs:30 runs \"scripts/pack-business.mjs\" from an external cwd\n  ~ scripts/run-hermes-d2-loop.mjs:40 runs \"scripts/pack-business.mjs\" from an external cwd\n  ~ scripts/run-hermes-d2-loop.mjs:69 runs \"scripts/pack-business.mjs\" from an external cwd\n  note: phantom-external: 6 reference(s) run from a cwd outside this repo — they cannot be verified here, confirm the host checkout still has them\n  note: probe-orphans: 15/62 probes have no automated caller (triage backlog, not fatal): verify-bf-ios-stub.mjs, verify-cp-dependency-gates.mjs, verify-cp-dependency-manifest-api.mjs, verify-cp-device-lane.mjs, verify-cp-host-install-portal.mjs, verify-cp-js-offline-console.mjs, verify-dependency-gates.mjs, verify-dispose-probe.mjs, verify-distribution-compose.mjs, verify-distribution-ecs.mjs, verify-g3-crl-signed.mjs, verify-harness.mjs, verify-map-e-device-checkupdate.mjs, verify-map-e-portal-prototypes.mjs, verify-multi-metro-hmr.mjs\n  note: probe-external: 4 reference(s) resolve into another checkout (expected, not rot)\nverification-plane: PASS\nixture\n  ✓ verify-cp-service.mjs has no mkdtempSync\n  ✓ verify-cp-service.mjs has no async function fetchJson\n  ✓ verify-cp-service.mjs has no function step\n  ✓ verify-cp-stub-api.mjs imports the fixture\n  ✓ verify-cp-stub-api.mjs has no mkdtempSync\n  ✓ verify-cp-stub-api.mjs has no async function fetchJson\n  ✓ verify-cp-stub-api.mjs has no function step\n  ▸ the e2e harness resolves its repo from its own location\n  ✓ scripts/e2e/lib.sh must not default E2E_REPO to an absolute path\n  ✓ lib.sh derives its repo from its own location\n  ▸ the runner lists the fleet and runs a migrated probe\n  ✓ --list exits 0\n  ✓ --list enumerates every probe (62)\n  ✓ a payload above the old 64KB cap is captured in full (98304)\n  ✓ no truncation below the capture limit\n  ✓ exceeding the capture limit (4194304 bytes) is reported, not silent\n  ✓ the audit payload is captured without truncation\n  ✓ the audit covers every probe (62)\n  ✓ dead wiring fails the audit, clean wiring passes it (0)\n  ✓ a bare probe name resolves and runs (0)\n  ✓ the migrated probe reported PASS\n  ✓ verify-harness: all PASS (146 checks)\n[probe] scripts/verify-harness.mjs\n[capture] -e: output exceeded 4194304 bytes and was truncated",
+      "kind": "afk",
+      "title": "verification plane: the anti-vacuity gates"
+    },
+    "S3": {
+      "state": "pass",
+      "ms": 4962,
+      "detail": "pts/verify-cp-e2e-promote-gate.mjs\n───────────────────────────────────────────────────\nPASS：Delivery 达上市前（合同齐；真 CycloneDX 见 #90 shelved）\n  (1 step(s) explicitly SKIPped — see the ⊘ lines above)\n\n═══════════════════════════════════════════════════\nStage 04 — Control Plane\n═══════════════════════════════════════════════════\n── 04 Control Plane ──────────────────────────────\n[1/6] 状态机迁移 verify …\n  ✓ rollout_steps pass\n[2/6] Kill/Pause by module …\n  ✓ Kill/Pause pass\n[3/6] Bearer 鉴权 …\n  ✓ CP auth pass\n[4/6] RBAC …\n  ✓ RBAC pass\n[5/6] rollout tick / breach pause …\n  ✓ rollout tick pass\n[6/6] planJsRollback …\n  ✓ planJsRollback pass\n───────────────────────────────────────────────────\nPASS：Control Plane 达上市前（breach pause 真触发依赖真观测后端，见 #90 shelved）\n\n═══════════════════════════════════════════════════\nStage 05 — Governance P0\n═══════════════════════════════════════════════════\n── 05 Governance ─────────────────────────────────\n[1/7] P0.1 destroy→dispose …\n  ✓ M10 Spine 闭合（dispose 链路证据）\n[2/7] P0.2 gateBundleLoad on real artifact …\n  ✓ A5 / gateBundleLoad pass\n[3/7] P0.3 pollution scan …\n  ✓ pollution scan 在 doctor L3e 内 (p0-global-pollution)\n[4/7] P0.4 quality_signal schema …\n  ✓ quality_signal / SLO budget 验证存在\n[5/7] P0.5 shell-change matrix …\n  ✓ 合同在 blueprint/11-artifact-version-compatibility.md + ADR-008\n[6/7] P0.6 doctor L3e …\n  ✓ examples/pure-rn-demo 存在（representative project）\n[7/7] compliance_profile dual-landing …\n  ✓ compliance pass\n───────────────────────────────────────────────────\nPASS：Governance 达上市前（GRC 真 SaaS 见 #90 shelved）\n\n═══════════════════════════════════════════════════\nReport\n═══════════════════════════════════════════════════\n# Release Readiness Report\n\n- 生成时间：2026-09-13T23:57:56+08:00\n- 仓库：/private/tmp/rn-cl\n- 退出策略：continue\n- 截至阶段：05\n\n| # | 阶段 | 状态 | 退出码 |\n|---|------|------|--------|\n| 00 | 工具链 / 权限 / 网络 | ✅ PASS | 0 |\n| 01 | 平台合同 L0 | ✅ PASS | 0 |\n| 02 | Runtime Host + A5 | ✅ PASS | 0 |\n| 03 | Delivery 七阶段 | ✅ PASS | 0 |\n| 04 | Control Plane | ✅ PASS | 0 |\n| 05 | Governance P0 | ✅ PASS | 0 |\n| 06 | iOS 预检 | SKIP (max) | — |\n| 07 | Android 预检 | SKIP (max) | — |\n| 08 | Harmony（默认 SKIP） | SKIP (max) | — |\n| 09 | 七渠 | SKIP (max) | — |\n\n## 总体\n✅ **全部通过** —— 平台产物达上市前\n\n下一步：按 `10-store-submit-checklist.md` 走企业侧动作（账号 / 资质 / 提审）。\n\n提示：加 --report 参数可将报告重定向到文件\n  bash scripts/release-readiness/run-all.sh --report > docs/hitl/release-readiness-$(date +%F).md",
+      "kind": "afk",
+      "title": "release-readiness stages (L0, device-less subset)"
+    },
+    "S4": {
+      "state": "pass",
+      "ms": 31,
+      "detail": "probes=0 dangling=0 orphans=0",
+      "kind": "afk",
+      "title": "probe fleet: dangling references + orphans"
+    },
+    "S5": {
+      "state": "skip",
+      "detail": "mode afk — run with --mode all to enable device/container gates",
+      "kind": "auto",
+      "title": "11 e2e chains on the real device"
+    },
+    "S7": {
+      "state": "skip",
+      "detail": "mode afk — run with --mode all to enable device/container gates",
+      "kind": "auto",
+      "title": "control-plane containers (compose + health)"
+    },
+    "S10": {
+      "state": "todo",
+      "detail": "product + external-vendor decisions; options comparison pending human choice",
+      "kind": "true-hitl",
+      "title": "HA / identity / HSM / telemetry-backend decisions"
+    }
+  },
+  "runLog": "/var/folders/zt/_qy322zn0zqbxrkw027t7ql40000gn/T/closure-loop-2026-09-13T15-57-46-883Z.jsonl"
+}
