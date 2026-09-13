@@ -126,6 +126,35 @@ safe_install() {
   return 1
 }
 
+# Resolve the Hermes bytecode (HBC) for a business module's js-update.
+#
+# The HBC is produced by the DOWNSTREAM HOST (its own RN/Hermes toolchain); this
+# repo only CONSUMES it via `ingest-pack --hbc`. These chains used to pass
+# `--bundle`, a flag ingest-pack does not accept, so it was silently ignored and
+# ingest-pack fell back to its DEFAULT path. A chain could therefore "pass"
+# against a stale local index.hbc that nothing could regenerate, and on a fresh
+# machine it failed with a message naming a host-side script this repo does not
+# ship.
+#
+# Emits the resolved path on success (rc 0). On failure emits a precise REASON on
+# stdout (rc 1) so callers can `skip_step` it — never a silent fallback:
+#   HBC="$(resolve_module_hbc desk)" || { skip_step "$HBC"; chain_done; }
+resolve_module_hbc() {
+  local module="$1"
+  local candidates=(
+    "${E2E_HBC:-}"
+    "$E2E_HOST/.rn/ota-build/$module/index.hbc"
+    "$E2E_HOST/.rn/ota-build/business-pack/$module/index.hbc"
+  )
+  local c
+  for c in "${candidates[@]}"; do
+    [[ -n "$c" && -f "$c" ]] && { printf '%s' "$c"; return 0; }
+  done
+  printf 'no HBC for module %s — the downstream host must produce it (its own pack-business/embed step), or set E2E_HBC; looked in: %s' \
+    "$module" "$(printf '%s ' "${candidates[@]}" | sed 's/ $//')"
+  return 1
+}
+
 # CP API
 cp_get() { # path -> body (echoed)
   curl -sf -H "Authorization: Bearer $E2E_TOKEN" "$E2E_CP$1"
