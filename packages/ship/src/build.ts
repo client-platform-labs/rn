@@ -28,6 +28,28 @@ import {
   commandExists,
 } from "./util.js";
 
+/**
+ * Engine toolchain command runner (gradlew / xcodebuild).
+ *
+ * This is an internal seam of `runBuild`, not part of the BuildBackend
+ * interface: it exists so the build orchestration (hygiene gate → task choice →
+ * artifact discovery) can be driven without a toolchain, per the BuildBackend
+ * wiring ticket (#261). Callers of the BuildBackend seam never see it.
+ */
+export type BuildCommandRunner = (
+  command: string,
+  args: string[],
+  options: { cwd: string; env?: Record<string, string> },
+) => Promise<number>;
+
+/** Engine toolchain side effects used by `runBuild`; defaults to the real ones. */
+export interface BuildEnv {
+  /** Android SDK root discovery (defaults to ANDROID_HOME / ANDROID_SDK_ROOT). */
+  androidSdkRoot?: () => string | undefined;
+  /** Toolchain command runner (defaults to the streaming subprocess runner). */
+  runCommand?: BuildCommandRunner;
+}
+
 export function androidAssembleGradleTask(
   profile: DeliveryProfile,
 ): "assembleDebug" | "assembleRelease" {
@@ -60,12 +82,19 @@ function findIosExecutable(appBundle: string, scheme: string): string | undefine
   return candidate ? path.join(appBundle, candidate.name) : undefined;
 }
 
-export async function runBuild(options: {
-  cwd: string;
-  platform?: "android" | "ios" | "all";
-  /** Reserved: debug-host (default for assembleDebug) vs release. */
-  profile?: DeliveryProfile;
-}): Promise<void> {
+export async function runBuild(
+  options: {
+    cwd: string;
+    platform?: "android" | "ios" | "all";
+    /** Reserved: debug-host (default for assembleDebug) vs release. */
+    profile?: DeliveryProfile;
+  },
+  env: BuildEnv = {},
+): Promise<void> {
+  const runCommand: BuildCommandRunner =
+    env.runCommand ??
+    ((command, args, cmdOptions) => runStreaming(command, args, cmdOptions));
+  const androidSdkRoot = env.androidSdkRoot ?? findAndroidSdkRoot;
   const projectRoot = resolveProjectRoot(options.cwd);
   const { releaseId, manifest } = loadManifestOrEmpty(projectRoot);
   const platform = options.platform ?? "all";
@@ -96,7 +125,7 @@ export async function runBuild(options: {
       }
       console.error("ship build: skip android (android/ missing)");
     } else {
-      const sdk = findAndroidSdkRoot();
+      const sdk = androidSdkRoot();
       if (!sdk) {
         throw new DeliveryError(
           "Android SDK missing (set ANDROID_HOME or ANDROID_SDK_ROOT). Install Android Studio SDK + platform-tools, then retry `ship build --platform android`.",
@@ -118,7 +147,7 @@ export async function runBuild(options: {
       console.error(
         `ship build: assembling Android ${profile === "release" ? "release" : "debug"} ${wantsRnModule ? "AAR" : "APK"} via Gradle (${assembleTask})…`,
       );
-      const code = await runStreaming(gradlew, [assembleTask], {
+      const code = await runCommand(gradlew, [assembleTask], {
         cwd: androidDir,
         env: {
           ANDROID_HOME: sdk,
@@ -232,7 +261,7 @@ export async function runBuild(options: {
       console.error(
         `ship build: xcodebuild ${iosConfiguration} (iphonesimulator — no store signing)…`,
       );
-      const code = await runStreaming("xcodebuild", args, { cwd: iosDir });
+      const code = await runCommand("xcodebuild", args, { cwd: iosDir });
       if (code !== 0) {
         throw new DeliveryError(
           `xcodebuild failed (exit ${code}). If pods are missing: cd ios && bundle exec pod install, then retry. Store submit is out of scope.`,

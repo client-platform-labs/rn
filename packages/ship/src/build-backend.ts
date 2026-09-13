@@ -11,7 +11,7 @@
  * extracts the shared utilities (DeliveryError / sha256File / manifest load)
  * into `core` — tracked in T9 (contract).
  */
-import { runBuild } from "./build.js";
+import { runBuild, type BuildEnv } from "./build.js";
 import { runUpdate } from "./update.js";
 import { runIngestPack } from "./ingest-pack.js";
 import type { DeliveryProfile } from "./types.js";
@@ -41,9 +41,25 @@ export interface BuildBackend {
   ingest(options: IngestOptions): Promise<void>;
 }
 
+/**
+ * Build a React Native BuildBackend.
+ *
+ * `buildEnv` injects the engine toolchain side effects of the `build`
+ * operation (command runner + Android SDK discovery) so `runBuild`'s
+ * orchestration — hygiene gate, gradle task choice, artifact discovery — can be
+ * driven without gradle/xcodebuild. That test adapter is the second adapter
+ * which makes this seam real rather than hypothetical (#261).
+ *
+ * `bundle` / `ingest` are orchestration over the project tree and need no
+ * injection today.
+ */
+export function createRnBuildBackend(buildEnv: BuildEnv = {}): BuildBackend {
+  return {
+    build: (options) => runBuild(options, buildEnv),
+    bundle: (options) => runUpdate(options),
+    ingest: (options) => runIngestPack(options),
+  };
+}
+
 /** The single React Native backend (default). */
-export const rnBuildBackend: BuildBackend = {
-  build: runBuild,
-  bundle: runUpdate,
-  ingest: runIngestPack,
-};
+export const rnBuildBackend: BuildBackend = createRnBuildBackend();
