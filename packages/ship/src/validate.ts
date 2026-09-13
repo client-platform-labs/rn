@@ -5,6 +5,7 @@ import {
   evaluateReleaseSourceHygiene,
   releaseSourceHygieneOk,
 } from "@client-platform/core";
+import type { DiagnosticCheck } from "@client-platform/core";
 
 import { validateCandidateMetadata } from "./candidate.js";
 import { readLastCandidate } from "./candidate-store.js";
@@ -14,12 +15,12 @@ import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
 
 const DIGEST_RE = /^[a-f0-9]{64}$/;
 
-export type DeliveryValidateCheck = {
-  id: string;
-  ok: boolean;
-  summary: string;
-  blocking: boolean;
-};
+/**
+ * Candidate-readiness check — the shared diagnostic record (#260).
+ * Aliased rather than re-declared: it is the same type as core's
+ * `DiagnosticCheck`, so `ship validate` and `rn doctor` cannot drift apart.
+ */
+export type DeliveryValidateCheck = DiagnosticCheck;
 
 export function evaluateCandidateReady(
   candidate: CandidateMetadata,

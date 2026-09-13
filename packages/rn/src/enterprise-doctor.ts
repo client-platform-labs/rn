@@ -228,7 +228,7 @@ export function evaluateEnterpriseDoctor(options: {
     summary: otaAdapterPresent
       ? "native OTA adapter present (OtaModule/OtaPackage registered)"
       : hasAndroidDir
-        ? "native OTA adapter MISSING — device OTA silently unavailable (D4/G2). Run: ship keygen --cert → apply-ota --rca-pubkey-hex <hex>"
+        ? "native OTA adapter MISSING — device OTA silently unavailable (D4/G2). Run: ship keygen --cert → rn ota install --rca-pubkey-hex <hex>"
         : "no android/ — native OTA adapter N/A",
     blocking: hasAndroidDir && !otaAdapterPresent,
   });

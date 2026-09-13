@@ -5,12 +5,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-export type ReleaseHygieneCheck = {
-  id: string;
-  ok: boolean;
-  summary: string;
-  blocking: boolean;
-};
+import type { DiagnosticCheck } from "./diagnostics.js";
+
+/**
+ * Release hygiene check — the shared diagnostic record (#260).
+ *
+ * Kept as a named alias because this is public API (`@client-platform/core`
+ * re-exports it) and because "release hygiene check" is this module's
+ * vocabulary; it is the SAME type as core's `DiagnosticCheck`, so the two can
+ * no longer drift.
+ */
+export type ReleaseHygieneCheck = DiagnosticCheck;
 
 /** Mirrors packages/rn dev-support constants — keep in sync. */
 export const RELEASE_DEV_SUPPORT_MODULE_DIR = "src/.rn-dev-support";
