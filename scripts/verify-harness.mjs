@@ -391,15 +391,23 @@ await h.run(async () => {
   );
   h.assertTruthy(!aboveOldCap.truncated, "no truncation below the capture limit");
   // ...and the limit itself must be reported, never silently applied.
+  // Payload is 2x the limit on purpose: the fixture flags truncation on the
+  // first data event AFTER the limit is reached, so a payload that only just
+  // exceeds the limit can finish without such an event (chunking-dependent —
+  // a limit+4KB payload passed locally and failed on CI, #267). Twice the limit
+  // guarantees further chunks arrive after the threshold, whatever the chunk size.
   const aboveCap = await h.runNode(
     "-e",
-    [`process.stdout.write("y".repeat(${CAPTURE_LIMIT + 4096}))`],
-    { timeoutMs: 60_000 },
+    [`process.stdout.write("y".repeat(${CAPTURE_LIMIT * 2}))`],
+    { timeoutMs: 120_000 },
   );
   h.assertTruthy(
     aboveCap.truncated,
     `exceeding the capture limit (${CAPTURE_LIMIT} bytes) is reported, not silent`,
   );
+  // The fixture also prints a `[capture] … and was truncated` warning to the
+  // PARENT's stderr (visible in this probe's own output), not into the child's
+  // captured stderr — so it is not asserted here.
   h.assertTruthy(!orphanRun.truncated, "the audit payload is captured without truncation");
   h.assertEq(parsedOrphans.total, probes.length, "the audit covers every probe");
   h.assertEq(
