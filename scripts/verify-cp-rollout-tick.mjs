@@ -2,32 +2,29 @@
 /**
  * Map C C5 — P10 tick: soak∧SLO → advance; SLO breach → pause.
  *
+ * Migrated onto the verify fixture (#259). The pre-seeded production candidate
+ * is passed as the project's registry, so the probe states its fixture instead
+ * of writing one; the hand-rolled `step()` exit-on-failure helper is the
+ * fixture's assertion + verdict.
+ *
  * Usage:
  *   node scripts/verify-cp-rollout-tick.mjs
+ *   node scripts/_run-verify.mjs cp-rollout-tick
  */
-import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
+import { createHarness, emptyRegistry } from "./lib/verify/fixture.mjs";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-c5-tick-"));
-const port = 18140 + Math.floor(Math.random() * 1000);
-const token = "map-c-tick-token";
-const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
-const digest = "tickdigest001";
+const h = createHarness({ name: "verify-cp-rollout-tick" });
 
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "c5-tick" }));
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify(
-    {
-      schemaVersion: 1,
-      staging: [],
+const DIGEST = "tickdigest001";
+
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-rollout-tick",
+    registry: {
+      ...emptyRegistry(),
       production: [
         {
-          digest,
+          digest: DIGEST,
           release_id: "r-tick",
           update_id: "desk-tick",
           business_module: "desk",
@@ -36,135 +33,53 @@ writeFileSync(
           stage: "promote",
         },
       ],
-      blocked: [],
-      kills: [],
-      pauses: [],
-      rollouts: [],
     },
-    null,
-    2,
-  ),
-);
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function fetchJson(url, init) {
-  const res = await fetch(url, init);
-  const body = await res.json().catch(() => ({}));
-  return { status: res.status, body };
-}
-
-function step(name, ok, detail) {
-  if (!ok) {
-    console.error(`[FAIL] ${name}${detail ? ` — ${detail}` : ""}`);
-    process.exit(1);
-  }
-  console.log(`[OK] ${name}`);
-}
-
-const base = `http://127.0.0.1:${port}`;
-const auth = {
-  "content-type": "application/json",
-  authorization: `Bearer ${token}`,
-};
-
-const child = spawn(
-  process.execPath,
-  [bin, "cp-serve", "--port", String(port), "--host", "127.0.0.1"],
-  {
-    cwd: projectRoot,
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, RN_CP_TOKEN: token, RN_CP_ROLE: "admin" },
-  },
-);
-
-try {
-  await sleep(800);
-
-  const start = await fetchJson(`${base}/v1/rollout/start`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      business_module: "desk",
-      digest,
-      min_soak_ms: 60_000,
-      sli_thresholds: { error_rate: 0.01 },
-    }),
   });
-  step("start rollout", start.status === 200, JSON.stringify(start.body));
+  const cp = await h.serve({ project: p, role: "admin", command: "cp-serve" });
 
-  const waitSli = await fetchJson(`${base}/v1/rollout/tick`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({ digest, now: "2026-09-01T00:02:00.000Z" }),
+  h.step("start a canary rollout");
+  const start = await cp.post("/v1/rollout/start", {
+    business_module: "desk",
+    digest: DIGEST,
+    min_soak_ms: 60_000,
+    sli_thresholds: { error_rate: 0.01 },
   });
-  step(
-    "tick waits for SLI",
-    waitSli.body.tick === "waiting_sli",
-    waitSli.body.detail,
-  );
+  h.assertStatus(start, 200, "POST /v1/rollout/start");
 
-  const breach = await fetchJson(`${base}/v1/rollout/tick`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      digest,
-      now: "2026-09-01T00:02:00.000Z",
-      sli: { error_rate: 0.09 },
-    }),
+  h.step("tick waits for SLI before advancing");
+  const waitSli = await cp.post("/v1/rollout/tick", {
+    digest: DIGEST,
+    now: "2026-09-01T00:02:00.000Z",
   });
-  step(
-    "tick pauses on SLO breach",
-    breach.body.tick === "paused_slo" && breach.body.rollout?.phase === "paused",
-    breach.body.detail,
-  );
+  h.assertEq(waitSli.body.tick, "waiting_sli", "no SLI yet → waiting_sli");
 
-  const resume = await fetchJson(`${base}/v1/rollout/resume`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({ digest }),
+  h.step("a breached SLI pauses the rollout");
+  const breach = await cp.post("/v1/rollout/tick", {
+    digest: DIGEST,
+    now: "2026-09-01T00:02:00.000Z",
+    sli: { error_rate: 0.09 },
   });
-  step("resume after breach", resume.status === 200, JSON.stringify(resume.body));
+  h.assertEq(breach.body.tick, "paused_slo", "breach tick reports paused_slo");
+  h.assertEq(breach.body.rollout?.phase, "paused", "the rollout is paused");
 
-  // Re-enter with known entered_at via start again after pause cleared by restarting steps:
-  // resume resets soak clock; advance with injected now past soak + good SLI.
+  h.step("resume resets the soak clock");
+  const resume = await cp.post("/v1/rollout/resume", { digest: DIGEST });
+  h.assertStatus(resume, 200, "POST /v1/rollout/resume");
+
   const entered = resume.body.rollout?.step_entered_at;
   const t0 = entered ? Date.parse(entered) : Date.now();
-  const later = new Date(t0 + 120_000).toISOString();
 
-  const waitSoak = await fetchJson(`${base}/v1/rollout/tick`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      digest,
-      now: new Date(t0 + 1000).toISOString(),
-      sli: { error_rate: 0.001 },
-    }),
+  const waitSoak = await cp.post("/v1/rollout/tick", {
+    digest: DIGEST,
+    now: new Date(t0 + 1000).toISOString(),
+    sli: { error_rate: 0.001 },
   });
-  step(
-    "tick waits soak",
-    waitSoak.body.tick === "waiting_soak",
-    waitSoak.body.detail,
-  );
+  h.assertEq(waitSoak.body.tick, "waiting_soak", "healthy but too early → waiting_soak");
 
-  const adv = await fetchJson(`${base}/v1/rollout/tick`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({
-      digest,
-      now: later,
-      sli: { error_rate: 0.001 },
-    }),
+  const advanced = await cp.post("/v1/rollout/tick", {
+    digest: DIGEST,
+    now: new Date(t0 + 120_000).toISOString(),
+    sli: { error_rate: 0.001 },
   });
-  step(
-    "tick auto-advances",
-    adv.body.tick === "advanced",
-    `${adv.body.tick} ${adv.body.detail}`,
-  );
-
-  console.log("PASS verify-cp-rollout-tick");
-} finally {
-  child.kill("SIGTERM");
-}
+  h.assertEq(advanced.body.tick, "advanced", "soak satisfied + healthy → advanced");
+});
