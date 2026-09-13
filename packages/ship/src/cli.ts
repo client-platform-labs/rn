@@ -27,7 +27,9 @@ Commands:
   update --module <id> [--profile release]
     Per-module js-update bundle (compile). Not Metro dev output.
   ingest-pack --module <id> [--hbc <path>]
-    Ingest pack-business HBC at assets/ota/<id>/index.hbc as js-update candidate.
+    Ingest a Hermes bytecode bundle (HBC) as a js-update candidate. The HBC is
+    produced by the downstream host's own RN toolchain (bundle -> hermesc); this
+    repo consumes it. Default path: android/app/src/main/assets/ota/<id>/index.hbc.
   keygen [--dir <keys-dir>] [--label <name>]
     Generate a lab Ed25519 signing keypair (canonical keys dir, 0600) and
     print the public-key hex for baking (SEAM-1/F01). Production stays HITL.

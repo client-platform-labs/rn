@@ -45,16 +45,23 @@ else
 fi
 
 # ── C. 热更新 / OTA ──
-step "5.C.1 [OTA] desk bundle build"
-# 必须在 host 仓跑 build（业务仓没 android/）
+step "5.C.1 [OTA] desk HBC（由下游宿主产出，本仓只消费）"
+# The HBC producer is HOST-side (its own RN/Hermes toolchain). `ship build pack
+# --out-dir` used to be called here, but ship has no `pack` subcommand and no
+# `--out-dir` flag — the step was a no-op that never failed, and the ingest below
+# then relied on ingest-pack's DEFAULT path. Produce-or-skip honestly.
 cd "$E2E_HOST"
-out=$(RN_CP_TOKEN="$E2E_TOKEN" node "$RD" build pack --module desk --out-dir "$E2E_HOST/.rn/ota-build/desk" 2>&1 | tail -3)
-if grep -qE "bundle|built|desk" <<< "$out"; then ok "pack desk OK"
-else warn "pack desk 输出异常（但可能已成功）: $out"; fi
+if [[ -f "$E2E_HOST/scripts/pack-business.mjs" ]]; then
+  node "$E2E_HOST/scripts/pack-business.mjs" --plugin host-embed --module desk >/dev/null 2>&1 || true
+fi
+HBC="$(resolve_module_hbc desk)" || { skip_step "$HBC"; chain_done; }
+ok "desk HBC: $HBC ($(wc -c < "$HBC" | tr -d ' ') bytes)"
 
-step "5.C.2 [OTA] bundle ingest-pack → sign → release (staging lane)"
+step "5.C.2 [OTA] HBC ingest-pack → sign → release (staging lane)"
 cd "$E2E_HOST"
-DIG=$(node "$RD" ingest-pack --module desk --bundle "$E2E_HOST/.rn/ota-build/desk/index.bundle" 2>&1 | grep -oE '[0-9a-f]{64}' | head -1)
+# --hbc, explicitly. (--bundle is not a flag; it was silently ignored and
+# ingest-pack fell back to a default path.)
+DIG=$(node "$RD" ingest-pack --module desk --hbc "$HBC" 2>&1 | grep -oE '[0-9a-f]{64}' | head -1)
 if [[ -n "$DIG" ]]; then
   ok "ingested digest=${DIG:0:12}..."
   cd "$E2E_HOST"

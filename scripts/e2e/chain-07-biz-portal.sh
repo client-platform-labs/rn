@@ -10,13 +10,13 @@ step "7.1 JS 发版台路径可达"
 RC=$(curl -s -o /dev/null -w '%{http_code}' "$E2E_CP/portal/js")
 ok "/portal/js rc=$RC"
 
-step "7.2 业务包注册：pack → ingest → sign → release"
-cd "$E2E_DESK"
-BUNDLE="$E2E_HOST/.rn/ota-build/desk/index.bundle"
-[[ -f "$BUNDLE" ]] || { err "无 desk bundle — chain 3/5 未跑过"; FAILS=$((FAILS+1)); chain_done; }
-
+step "7.2 业务包注册：HBC ingest → sign → release"
+# The HBC comes from the DOWNSTREAM HOST (see resolve_module_hbc in lib.sh);
+# `--bundle` is not an ingest-pack flag and was silently ignored, so this step
+# used to depend on whatever stale index.hbc happened to sit at the default path.
+HBC="$(resolve_module_hbc desk)" || { skip_step "$HBC"; chain_done; }
 cd "$E2E_HOST"
-ING=$(node "$RD" ingest-pack --module desk --bundle "$BUNDLE" 2>&1)
+ING=$(node "$RD" ingest-pack --module desk --hbc "$HBC" 2>&1)
 DIG=$(echo "$ING" | grep -oE '[0-9a-f]{64}' | head -1)
 if [[ -z "$DIG" ]]; then warn "无新 digest（可能已注册）"
 else

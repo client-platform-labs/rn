@@ -52,7 +52,11 @@ export async function runIngestPack(options: {
 
   if (!existsSync(hbcPath)) {
     throw new DeliveryError(
-      `ingest-pack: HBC missing at ${hbcPath} — run pack-business first`,
+      `ingest-pack: HBC missing at ${hbcPath}.\n` +
+        "The Hermes bytecode is produced by the DOWNSTREAM HOST's own RN toolchain " +
+        "(bundle → hermesc, e.g. that project's pack-business/embed step) — this " +
+        "repo consumes it, it does not compile it. Pass the produced file " +
+        "explicitly with --hbc <path>, or place it at the default path above.",
       EXIT_FAIL,
     );
   }
