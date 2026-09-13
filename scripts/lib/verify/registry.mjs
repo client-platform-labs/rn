@@ -7,10 +7,12 @@
  * silently with no caller. This module makes that visible: it DERIVES the
  * wiring from the automation sources instead of maintaining a second list.
  *
- * Reports three distinct facts:
+ * Reports four distinct facts:
  *   - references : non-comment occurrences of the probe in an automation source
  *   - orphans    : probes with zero such reference (nobody runs them)
  *   - dangling   : referenced probe names with no file on disk (a guard hides it)
+ *   - external   : referenced names qualified by a directory that is NOT this
+ *                  repo's `scripts/`, i.e. invoked in another checkout
  *
  * References inside comment lines are ignored: a probe named in a comment is
  * documentation, not an execution path.
@@ -60,7 +62,7 @@ function listDir(dir, filter) {
 }
 
 /** The automation sources that can reference a probe. */
-export function automationSources({ repoRoot = REPO_ROOT } = {}) {
+function automationSources({ repoRoot = REPO_ROOT } = {}) {
   const sources = [];
   for (const spec of AUTOMATION_SOURCES) {
     const dir = path.join(repoRoot, spec.dir);
@@ -132,6 +134,20 @@ export function findProbe(query, options = {}) {
 }
 
 /**
+ * The directory qualifier immediately before a probe reference, or "" when the
+ * reference is bare (`verify-foo.mjs`).
+ *
+ * Walks back from the match through path-ish characters only, so surrounding
+ * code (`node `, `path.join(shellApp, "`, backticks) does not leak in.
+ */
+function pathQualifier(text, index) {
+  const before = text.slice(Math.max(0, index - 120), index);
+  const token = /[A-Za-z0-9._$@{}/\\-]*$/.exec(before)?.[0] ?? "";
+  const slash = token.lastIndexOf("/");
+  return slash === -1 ? "" : token.slice(0, slash + 1);
+}
+
+/**
  * Audit the probe fleet: who runs, who does not, and which references point at
  * files that no longer exist.
  */
@@ -141,12 +157,25 @@ export function auditProbes({ repoRoot = REPO_ROOT } = {}) {
 
   // Dangling: a source names a verify-*.mjs that is not on disk. Such a
   // reference is usually guarded by `[[ -f ]]`, so it fails silently.
+  //
+  // EXTERNAL: the same name qualified by a foreign directory (e.g.
+  // `node shell/ota/verify-d1-slots.mjs` with `cwd: shellApp`) points into
+  // another checkout, so "not on disk here" is expected and must not be
+  // reported as rot — otherwise real dangling references drown in that noise.
+  // Detected structurally (the qualifier before the name), never by name list.
   const nameRe = /verify-[A-Za-z0-9._-]+\.mjs/g;
   const dangling = [];
+  const external = [];
   for (const source of automationSources({ repoRoot })) {
     for (const match of source.text.matchAll(nameRe)) {
       const base = match[0];
       if (existing.has(base)) continue;
+      const qualifier = pathQualifier(source.text, match.index);
+      if (qualifier && !/scripts\/$/.test(qualifier)) {
+        if (external.some((e) => e.base === base && e.source === source.rel)) continue;
+        external.push({ base, source: source.rel, kind: source.kind, qualifier });
+        continue;
+      }
       if (dangling.some((d) => d.base === base && d.source === source.rel)) continue;
       dangling.push({ base, source: source.rel, kind: source.kind });
     }
@@ -158,6 +187,7 @@ export function auditProbes({ repoRoot = REPO_ROOT } = {}) {
     orphans: probes.filter((p) => p.orphan),
     referenced: probes.filter((p) => !p.orphan),
     dangling,
+    external,
     probes,
   };
 }

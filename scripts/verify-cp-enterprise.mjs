@@ -2,157 +2,87 @@
 /**
  * Multi-tenant CP auth + /v1/metrics + /v1/sli smoke.
  *
- * Usage: node scripts/verify-cp-enterprise.mjs
+ * Migrated onto the verify fixture (#259). `cp-serve` is the CP-only entry
+ * (it honours RN_CP_PROJECT for cwd), so the fixture learned a `command` option
+ * rather than this probe keeping its own spawn. Multi-tenant auth is configured
+ * through RN_CP_TENANTS only — no global RN_CP_TOKEN, which would take over the
+ * single-token path.
+ *
+ * Usage:
+ *   node scripts/verify-cp-enterprise.mjs
+ *   node scripts/_run-verify.mjs cp-enterprise
  */
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { spawn } from "node:child_process";
-import { setTimeout as sleep } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
+import { createHarness } from "./lib/verify/fixture.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "cp-ent-"));
-mkdirSync(path.join(projectRoot, ".rn", "delivery"), { recursive: true });
-writeFileSync(
-  path.join(projectRoot, "package.json"),
-  JSON.stringify({ name: "cp-enterprise-demo" }),
-);
-writeFileSync(
-  path.join(projectRoot, ".rn", "delivery", "registry.json"),
-  JSON.stringify({
-    schemaVersion: 1,
-    staging: [],
-    production: [],
-    gray: [],
-    devices: {},
-    blocked: [],
-    kills: [],
-    pauses: [],
-    rollouts: [],
-  }),
-);
+const h = createHarness({ name: "verify-cp-enterprise" });
 
-const port = 14050 + Math.floor(Math.random() * 100);
-const tenants = JSON.stringify({ acme: "tok-acme", beta: "tok-beta" });
+const TENANTS = JSON.stringify({ acme: "tok-acme", beta: "tok-beta" });
 
-const child = spawn(
-  process.execPath,
-  [
-    path.join(root, "packages/ship/bin/ship.mjs"),
-    "cp-serve",
-    "--port",
-    String(port),
-    "--host",
-    "127.0.0.1",
-  ],
-  {
-    cwd: projectRoot,
-    env: {
-      ...process.env,
-      RN_CP_TENANTS: tenants,
-      RN_CP_ROLE: "admin",
-      RN_CP_PROJECT: projectRoot,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  },
-);
-
-let failed = false;
-function ok(msg) {
-  console.log(`OK ${msg}`);
-}
-function fail(msg) {
-  console.error(`FAIL ${msg}`);
-  failed = true;
+/** Headers for a tenant-scoped request (no tenant header → 401 by design). */
+function tenantHeaders(token, tenant) {
+  return {
+    "content-type": "application/json",
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...(tenant ? { "x-rn-tenant": tenant } : {}),
+  };
 }
 
-async function req(method, p, { token, tenant, body } = {}) {
-  const headers = { "content-type": "application/json" };
-  if (token) headers.authorization = `Bearer ${token}`;
-  if (tenant) headers["x-rn-tenant"] = tenant;
-  const res = await fetch(`http://127.0.0.1:${port}${p}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
+await h.run(async () => {
+  const p = h.project({ name: "cp-enterprise" });
+  const cp = await h.serve({
+    project: p,
+    role: "admin",
+    command: "cp-serve",
+    // No token: the tenant map IS the auth config here.
+    token: "",
+    env: { RN_CP_TOKEN: "", RN_CP_TENANTS: TENANTS, RN_CP_PROJECT: p.root },
   });
-  const text = await res.text();
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    json = text;
-  }
-  return { status: res.status, json, text };
-}
 
-try {
-  for (let i = 0; i < 40; i++) {
-    try {
-      const h = await fetch(`http://127.0.0.1:${port}/health`);
-      if (h.ok) break;
-    } catch {
-      /* retry */
-    }
-    await sleep(100);
-  }
+  h.step("service descriptor advertises the tenants");
+  const svc = await cp.json("/v1/service");
+  h.assertStatus(svc, 200, "GET /v1/service");
+  h.assertTruthy(
+    Array.isArray(svc.body.auth?.tenants),
+    "service.auth.tenants is a list",
+  );
 
-  const svc = await req("GET", "/v1/service");
-  if (svc.status === 200 && Array.isArray(svc.json?.auth?.tenants)) {
-    ok(`service.auth.tenants=${svc.json.auth.tenants.join(",")}`);
-  } else fail(`service auth tenants missing: ${JSON.stringify(svc.json?.auth)}`);
-
-  const noTenant = await req("POST", "/v1/promote", {
-    token: "tok-acme",
-    body: { digest: "x" },
+  h.step("multi-tenant bearer rules");
+  const noTenant = await cp.json("/v1/promote", {
+    method: "POST",
+    headers: tenantHeaders("tok-acme"),
+    body: JSON.stringify({ digest: "x" }),
   });
-  if (noTenant.status === 401) ok("multi-tenant: missing X-RN-Tenant → 401");
-  else fail(`expected 401 missing tenant, got ${noTenant.status}`);
+  h.assertStatus(noTenant, 401, "missing X-RN-Tenant is rejected");
 
-  const wrongTenant = await req("POST", "/v1/promote", {
-    token: "tok-acme",
-    tenant: "beta",
-    body: { digest: "x" },
+  const wrongTenant = await cp.json("/v1/promote", {
+    method: "POST",
+    headers: tenantHeaders("tok-acme", "beta"),
+    body: JSON.stringify({ digest: "x" }),
   });
-  if (wrongTenant.status === 401) ok("multi-tenant: wrong token for tenant → 401");
-  else fail(`expected 401 wrong tenant token, got ${wrongTenant.status}`);
+  h.assertStatus(wrongTenant, 401, "a token from another tenant is rejected");
 
-  const okTenant = await req("POST", "/v1/promote", {
-    token: "tok-acme",
-    tenant: "acme",
-    body: { digest: "deadbeef" },
+  const okTenant = await cp.json("/v1/promote", {
+    method: "POST",
+    headers: tenantHeaders("tok-acme", "acme"),
+    body: JSON.stringify({ digest: "deadbeef" }),
   });
-  // auth passes → handler 400 (digest missing)
-  if (okTenant.status === 400) ok("multi-tenant: acme token → handler (400)");
-  else fail(`expected 400 after auth, got ${okTenant.status}`);
+  // Auth passes, so the request reaches the handler and fails on the digest.
+  h.assertStatus(okTenant, 400, "the tenant's own token reaches the handler");
 
-  const metrics = await req("GET", "/v1/metrics");
-  if (
-    metrics.status === 200 &&
-    typeof metrics.text === "string" &&
-    metrics.text.includes("cp_http_denied_total")
-  ) {
-    ok("GET /v1/metrics prometheus text");
-  } else fail("metrics endpoint missing counters");
+  h.step("observability surface");
+  const metrics = await cp.text("/v1/metrics");
+  h.assertStatus(metrics, 200, "GET /v1/metrics");
+  h.assertContains(
+    metrics.body,
+    "cp_http_denied_total",
+    "metrics expose the denied-request counter",
+  );
 
-  const sli = await req("POST", "/v1/sli", {
-    token: "tok-acme",
-    tenant: "acme",
-    body: { digest: "deadbeef", sli: { crash_rate: 0.01 } },
+  const sli = await cp.json("/v1/sli", {
+    method: "POST",
+    headers: tenantHeaders("tok-acme", "acme"),
+    body: JSON.stringify({ digest: "deadbeef", sli: { crash_rate: 0.01 } }),
   });
-  if (sli.status === 200 && sli.json?.ok) ok("POST /v1/sli accepted");
-  else fail(`sli post failed: ${sli.status} ${JSON.stringify(sli.json)}`);
-
-  if (failed) {
-    console.error("verify-cp-enterprise: FAIL");
-    process.exit(1);
-  }
-  console.log("verify-cp-enterprise: PASS");
-} finally {
-  child.kill("SIGTERM");
-  try {
-    rmSync(projectRoot, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
-}
+  h.assertStatus(sli, 200, "POST /v1/sli");
+  h.assertTruthy(sli.body.ok, "sli write is accepted");
+});

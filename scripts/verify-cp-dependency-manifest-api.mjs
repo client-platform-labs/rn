@@ -2,112 +2,68 @@
 /**
  * Map E #103 — GET/PUT /v1/dependency-manifest + gateBundleLoad composition.
  *
+ * Migrated onto the verify fixture (#259). Covers the manifest API round-trip
+ * (empty → PUT → one), the composition gate it feeds, and the console section
+ * that projects it.
+ *
  * Usage:
  *   node scripts/verify-cp-dependency-manifest-api.mjs
+ *   node scripts/_run-verify.mjs cp-dependency-manifest-api
  */
-import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-e-dep-api-"));
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(
-  path.join(projectRoot, "package.json"),
-  JSON.stringify({ name: "e-dep-api" }),
+import { createHarness, REPO_ROOT } from "./lib/verify/fixture.mjs";
+
+const { gateBundleLoad } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/core/dist/index.js")).href
 );
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify({
-    schemaVersion: 1,
-    staging: [],
-    production: [],
-    blocked: [],
-    kills: [],
-    pauses: [],
-    rollouts: [],
-  }),
+// ADR-022 split: the greenfield fingerprint helper lives in the engine adapter
+// package, so it is a separate import rather than a second symbol from core.
+const { defaultGreenfieldFingerprint } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/rn-engine/dist/index.js")).href
 );
 
-const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
-const port = 18765 + Math.floor(Math.random() * 200);
+const h = createHarness({ name: "verify-cp-dependency-manifest-api" });
 
-const proc = spawn(
-  process.execPath,
-  [rd, "serve", "--port", String(port), "--host", "127.0.0.1"],
-  {
-    cwd: projectRoot,
-    env: { ...process.env, RN_CP_TOKEN: "test-token", RN_CP_ROLE: "admin" },
-    stdio: ["ignore", "pipe", "pipe"],
-  },
-);
-
-await new Promise((r) => setTimeout(r, 900));
-
-async function req(method, pathname, body) {
-  const res = await fetch(`http://127.0.0.1:${port}${pathname}`, {
-    method,
-    headers: {
-      authorization: "Bearer test-token",
-      "content-type": "application/json",
+const MANIFEST = {
+  dependencies: [
+    {
+      from_update_id: "js-chk-p184",
+      from_module: "checkout",
+      strength: "hard",
+      kind: "contract",
+      to_update_id: "js-base-p12",
     },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    json = text;
-  }
-  return { status: res.status, json };
-}
+  ],
+  version_labels: { "js-base-p12": "1.2.0" },
+  host_capability_set: ["PaymentTurbo"],
+};
 
-try {
-  const get0 = await req("GET", "/v1/dependency-manifest");
-  if (get0.status !== 200 || !Array.isArray(get0.json.dependencies)) {
-    console.error("GET empty fail", get0);
-    process.exit(1);
-  }
-  console.log("OK GET empty manifest");
+await h.run(async () => {
+  const p = h.project({ name: "cp-dependency-manifest-api" });
+  const cp = await h.serve({ project: p, role: "admin" });
 
-  const put = await req("PUT", "/v1/dependency-manifest", {
-    dependencies: [
-      {
-        from_update_id: "js-chk-p184",
-        from_module: "checkout",
-        strength: "hard",
-        kind: "contract",
-        to_update_id: "js-base-p12",
-      },
-    ],
-    version_labels: { "js-base-p12": "1.2.0" },
-    host_capability_set: ["PaymentTurbo"],
-  });
-  if (put.status !== 200 || !put.json.ok) {
-    console.error("PUT fail", put);
-    process.exit(1);
-  }
-  console.log("OK PUT manifest");
-
-  const get1 = await req("GET", "/v1/dependency-manifest");
-  if (get1.json.dependencies?.length !== 1) {
-    console.error("GET after PUT fail", get1);
-    process.exit(1);
-  }
-  console.log("OK GET after PUT");
-
-  const { gateBundleLoad } = await import(
-    pathToFileURL(path.join(repoRoot, "packages/core/dist/index.js")).href
+  h.step("manifest API round-trip");
+  const empty = await cp.json("/v1/dependency-manifest");
+  h.assertStatus(empty, 200, "GET /v1/dependency-manifest");
+  h.assertTruthy(
+    Array.isArray(empty.body.dependencies),
+    "an empty manifest still reports a dependencies list",
   );
-  // ADR-022 split: the greenfield fingerprint helper moved to the engine
-  // adapter package, so it is a separate import rather than a second symbol
-  // from the contract package.
-  const { defaultGreenfieldFingerprint } = await import(
-    pathToFileURL(path.join(repoRoot, "packages/rn-engine/dist/index.js")).href
-  );
+
+  const put = await cp.json("/v1/dependency-manifest", {
+    method: "PUT",
+    headers: cp.auth,
+    body: JSON.stringify(MANIFEST),
+  });
+  h.assertStatus(put, 200, "PUT /v1/dependency-manifest");
+  h.assertTruthy(put.body.ok, "the write is acknowledged");
+
+  const after = await cp.json("/v1/dependency-manifest");
+  h.assertEq(after.body.dependencies?.length, 1, "the written dependency is read back");
+
+  h.step("composition gate blocks an out-of-range peer");
   const fp = defaultGreenfieldFingerprint("0.87.0");
   const host = {
     runtime_fingerprint: fp,
@@ -134,7 +90,7 @@ try {
     target_artifact_lines: ["pure-rn-greenfield"],
     release_gate: "js-standard",
   };
-  const bad = gateBundleLoad(
+  const blocked = gateBundleLoad(
     {
       candidate: checkout,
       signature: "x",
@@ -154,30 +110,16 @@ try {
     },
     host,
   );
-  if (bad.ok) {
-    console.error("expected composition fail", bad);
-    process.exit(1);
-  }
-  console.log("OK gateBundleLoad composition blocks peer");
+  h.assertTruthy(!blocked.ok, "a peer below its range blocks the composition");
 
-  const consoleRes = await fetch(`http://127.0.0.1:${port}/`);
-  const html = await consoleRes.text();
-  if (
-    consoleRes.status !== 200 ||
-    !html.includes("依赖清单") ||
-    !html.includes("/v1/dependency-manifest") ||
-    !html.includes("btn-dep-save")
-  ) {
-    console.error(
-      "console missing deps section",
-      consoleRes.status,
-      html.slice(0, 200),
-    );
-    process.exit(1);
-  }
-  console.log("OK thin CP console projects dependency-manifest");
-
-  console.log("verify-cp-dependency-manifest-api: PASS");
-} finally {
-  proc.kill("SIGTERM");
-}
+  h.step("the console projects the dependency manifest");
+  const html = await cp.text("/");
+  h.assertStatus(html, 200, "GET /");
+  h.assertContains(html.body, "依赖清单", "console has the dependency section");
+  h.assertContains(
+    html.body,
+    "/v1/dependency-manifest",
+    "console references the manifest endpoint",
+  );
+  h.assertContains(html.body, "btn-dep-save", "console exposes the save control");
+});
