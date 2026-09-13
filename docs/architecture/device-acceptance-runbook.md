@@ -235,6 +235,57 @@ if (shouldRollbackOnCrashLoop(failCount)) {
 - 清 prefs 后 `installed_update_id` 一并丢失，于是任何 production 候选都会被视作 pending。
 - `pm clear` 会同时清掉业务数据（本 DUT 无业务数据，影响可忽略）。
 
+### 7.4 ✅ 安装腿（leg 1）实测通过 —— 此前只证明了"拒载"，未证明"能装"
+
+首次真机只证明了设备**拒绝**不可信更新（§7.2）。本次在真机上证明了**相反方向**：设备能**接受并安装**一个可信更新。
+
+**关键发现：DUT 烘焙的信任根，其私钥就在测试环境里**
+```
+DUT android/.../ota/OtaModule.kt: arr.pushString("71eb8a6c…0f23")
+/tmp/e2e-crl-keys/crl-signing-key.pem 的公钥 = 71eb8a6c…0f23   ← 同一把
+```
+即 CRL 签发钥与设备烘焙钥是同一把，因此**用它签的候选设备会信**。（上一轮 CP 里种子的候选由**未知**钥签，故真实 `gateBundleLoad` 对两把已知钥都返回 `Ed25519 signature verification failed`。）
+
+**候选必须走官方路径产出（并注意一个过时 flag）**
+```bash
+DIG=$(node ship.mjs ingest-pack --module main --hbc "$BUNDLE" | grep -oE '[0-9a-f]{64}' | head -1)
+RN_DELIVERY_LEGACY_SIGN=1 RN_DELIVERY_SIGN_KEY_FILE=/tmp/e2e-crl-keys/crl-signing-key.pem \
+  node ship.mjs sign --digest "$DIG" --kind js-update
+node ship.mjs release --digest "$DIG" --kind js-update
+node ship.mjs promote --digest "$DIG" --kind js-update --from staging --to production
+```
+⚠️ **`ingest-pack` 的参数是 `--hbc <path>`，不是 `--bundle`。** `scripts/e2e/chain-05-*.sh:57` 与 `chain-07-*.sh:19` 用的是 `--bundle` —— 该 flag 被忽略，于是回落到默认的 `<project>/android/app/src/main/assets/ota/<module>/index.hbc` 并报 "HBC missing … run pack-business first"（而 `scripts/pack-business.mjs` 在当前树中**已不存在**）。这两条链的 js-update 段落很可能因此失败或空转，值得单独核对。
+
+**JS 半（无设备即可验）—— PASS**
+```
+node scripts/e2e/verify-install-good-update-live.mjs \
+  --upstream http://127.0.0.1:4040 --module main --pubkey-hex 71eb8a6c…0f23
+→ rc=0   outcome: phase=installed status=installed
+  native calls: ensureModuleSlots → writeFileBase64(ota/main/staged/index.hbc)
+    → writeFileUtf8(staged/sidecar.json) → setInstalledUpdateId(main-0aad28133bed)
+    → setActiveBundlePathForModule → reload → resetStartupFailures
+```
+即用**真实的** `bootReleaseOta` 打**真实的** CP：CRL 拉取 → manifest → 验签 → 下载 → 摘要校验 → 落槽 → 持久化 → reload 全部走通。
+
+**设备半 —— PASS（两轮差分证据）**
+```
+CYCLE A（pm clear 后首启）:
+  GET /v1/crl                                  ← 先验吊销（fail-closed 顺序）
+  GET /v1/js-updates/check?module=main&lane=production
+  GET /v1/artifacts/0aad28133bed…3ba10e        ← 真的下载了
+  GET /v1/crl                                  ← 安装后 reload 的新一轮启动
+  GET /v1/js-updates/check?module=main&lane=production
+  （本轮无 artifact 下载 → 已安装，无需重拉）
+CYCLE B（force-stop 后重启，状态保留）:
+  GET /v1/crl
+  GET /v1/js-updates/check?module=main&lane=production
+  （无 artifact 下载 → installed_update_id 已持久化）
+app 存活: pid 3813 · logcat 无任何验签/安装错误
+```
+**判定**：首启下载 → 复位后不再下载，即 `installed_update_id` 已持久化、更新已生效。设备信任链（签名 CRL + 候选 seal）在真机上对**可信**输入放行，对**不可信**输入拒载（§7.2），两个方向都成立。
+
+**诚实边界**：release 包不可 `run-as`，因此**无法直接读出**持久化的 `installed_update_id` 字面值；上面的"后续启动不再下载"是其**行为证据**。日志里也看不到 JS 侧决策——原生 `logJs` 桥存在但生成壳从不调用（已开 **#271**）。
+
 ## 8. 结果回填（贴到 #268）
 
 ```text
