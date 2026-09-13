@@ -1,6 +1,6 @@
 import { runIngestHost } from "./ingest-host.js";
-import { runIngestPack } from "./ingest-pack.js";
-import { runBuild } from "./build.js";
+import { rnBuildBackend } from "./build-backend.js";
+import type { BuildBackend } from "./build-backend.js";
 import { runPromote } from "./promote.js";
 import { runBlock, runRelease } from "./release.js";
 import {
@@ -11,7 +11,6 @@ import {
 import { runSign } from "./sign.js";
 import { runCpServe, runServe } from "./serve.js";
 import type { DeliveryPlatform, DeliveryProfile } from "./types.js";
-import { runUpdate } from "./update.js";
 import { runValidate } from "./validate.js";
 import { DeliveryError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./util.js";
 
@@ -153,7 +152,20 @@ function requireFlag(args: string[], flag: string, hint: string): string {
   return value.trim();
 }
 
-export async function run(argv = process.argv): Promise<number> {
+/**
+ * Injected delivery dependencies (#261).
+ *
+ * `buildBackend` defaults to the real React Native backend; tests inject a fake
+ * to observe CLI dispatch without invoking gradle / xcodebuild.
+ */
+export interface ShipDeps {
+  buildBackend?: BuildBackend;
+}
+
+export async function run(
+  argv = process.argv,
+  deps: ShipDeps = {},
+): Promise<number> {
   const args = argv.slice(2);
   const help = args.includes("--help") || args.includes("-h");
 
@@ -179,9 +191,10 @@ export async function run(argv = process.argv): Promise<number> {
 
   try {
     const rest = args.slice(1);
+    const buildBackend = deps.buildBackend ?? rnBuildBackend;
 
     if (cmd === "build") {
-      await runBuild({
+      await buildBackend.build({
         cwd: process.cwd(),
         platform: parsePlatform(rest),
         profile: parseProfile(rest),
@@ -190,7 +203,7 @@ export async function run(argv = process.argv): Promise<number> {
     }
 
     if (cmd === "update") {
-      await runUpdate({
+      await buildBackend.bundle({
         cwd: process.cwd(),
         module: requireModule(rest),
         profile: parseProfile(rest) ?? "release",
@@ -199,7 +212,7 @@ export async function run(argv = process.argv): Promise<number> {
     }
 
     if (cmd === "ingest-pack") {
-      await runIngestPack({
+      await buildBackend.ingest({
         cwd: process.cwd(),
         module: requireModule(rest),
         hbcPath: flagValue(rest, "--hbc"),
@@ -208,6 +221,9 @@ export async function run(argv = process.argv): Promise<number> {
       return EXIT_OK;
     }
 
+    // Not part of the BuildBackend seam: this registers an APK that was already
+    // built (no compile step), so it is a delivery-plane ingest rather than an
+    // engine build operation (ADR-022).
     if (cmd === "ingest-host") {
       const apk = flagValue(rest, "--apk");
       if (!apk?.trim()) {
