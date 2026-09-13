@@ -198,9 +198,21 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       assert.ok(calls.includes("clearActiveBundlePathForModule"));
       assert.ok(calls.includes("setRootModuleId"));
       assert.ok(calls.includes("reload"));
-      // A rolled-back boot must NOT reset the counter — otherwise the guard
-      // would never reach its threshold again.
-      assert.ok(!calls.includes("resetStartupFailures"));
+      // #268: clearing the counter is part of the RECOVERY, and it must happen
+      // BEFORE the reload that ends the rollback — code after `reload()` is not
+      // guaranteed to run (the JS process restarts). Without this the rollback was
+      // a one-way trap: the device could never take another update, not even a fix.
+      // This assertion previously read `!calls.includes("resetStartupFailures")`,
+      // i.e. it encoded the defect as intended behaviour, which is why only a real
+      // device run found it.
+      assert.ok(
+        calls.includes("resetStartupFailures"),
+        "a rolled-back boot must clear the counter, or it traps the device",
+      );
+      assert.ok(
+        calls.indexOf("resetStartupFailures") < calls.indexOf("reload"),
+        "the counter must be cleared before the reload that ends the rollback",
+      );
       // No control-plane request at all.
       assert.deepEqual(plane.urls, []);
     } finally {
@@ -250,6 +262,59 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       assert.equal(outcome.phase, "baseline");
       assert.equal(outcome.result?.status, "no_update");
       assert.ok(calls.includes("resetStartupFailures"));
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("#268: a rolled-back boot RECOVERS — the next boot can take an update again", async () => {
+    // The counter is STATEFUL here: recordStartupFailure increments and returns the
+    // new count, resetStartupFailures zeroes it — the real native contract ("native
+    // persists the startup counter"). fakeNative returns a FIXED count, which cannot
+    // express the trap, and that is precisely why the defect survived every AFK probe
+    // and was only found by running it on hardware.
+    const signer = keypair();
+    const counter = { value: 2 }; // two launches already died; the next one reaches the budget
+    const calls: string[] = [];
+    const base = fakeNative({ pubKeys: [signer.pubHex] });
+    const adapter: OtaNativeAdapter = {
+      ...base.adapter,
+      recordStartupFailure: async () => {
+        calls.push("recordStartupFailure");
+        counter.value += 1;
+        return counter.value;
+      },
+      resetStartupFailures: async () => {
+        calls.push("resetStartupFailures");
+        counter.value = 0;
+      },
+    };
+    const plane = installFetch(happyPlane(signer.privateKey));
+    try {
+      // Boot 1: the budget is reached -> roll back, and clear the counter.
+      const first = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(first.skippedReason, "crash_loop_rollback");
+      assert.equal(
+        counter.value,
+        0,
+        "recovery: the rollback boot must leave the budget clear",
+      );
+      // Boot 2: because the budget was cleared, the device is NOT stuck — it can
+      // take an update again. Without the fix the counter stayed >= threshold and
+      // this boot rolled back forever (the one-way trap).
+      const second = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(
+        second.phase,
+        "installed",
+        "after a rollback the device must be able to take an update again",
+      );
+      assert.notEqual(second.skippedReason, "crash_loop_rollback");
     } finally {
       plane.restore();
     }

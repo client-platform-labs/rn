@@ -191,6 +191,19 @@ export async function bootReleaseOta(
     // BEFORE any pull — a boot that keeps dying must not keep retrying OTA.
     const failCount = (await native.recordStartupFailure?.(moduleId)) ?? 0;
     if (shouldRollbackOnCrashLoop(failCount)) {
+      // #268 (found only by running it on hardware): clearing the counter is part
+      // of the RECOVERY, and it must happen BEFORE the rollback —
+      // `rollbackToEmbeddedBaseline` ends in `native.reload()`, which restarts the
+      // JS process, so anything after it may never run. Leaving the counter set
+      // made this a ONE-WAY TRAP: once the budget was reached, every later launch
+      // rolled back again and the device could never take another update, not even
+      // a fix. Observed on device: 0 control-plane requests on every subsequent
+      // launch, recoverable only with `pm clear`.
+      //
+      // Bounded retry without bricking is what the industry does: CodePush and
+      // Expo Updates, and Android's own RescueParty, all clear the
+      // consecutive-failure counter once the rolled-back bundle is up.
+      await native.resetStartupFailures?.(moduleId);
       try {
         await client.rollbackToEmbeddedBaseline(moduleId);
       } catch {
