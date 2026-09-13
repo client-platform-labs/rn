@@ -399,6 +399,23 @@ await h.run(async () => {
     }
   }
 
+  // ——— the e2e harness must resolve the repo from its own location ———
+  // It used to default E2E_REPO to one developer's absolute main-checkout path,
+  // so sourcing lib.sh from a git worktree silently targeted THAT checkout: a
+  // lane's e2e run wrote its artifacts into the wrong tree and its commit would
+  // not have contained them (found while landing #268's follow-up).
+  h.step("the e2e harness resolves its repo from its own location");
+  const e2eLib = readFileSync(path.join(REPO_ROOT, "scripts/e2e/lib.sh"), "utf8");
+  h.assertTruthy(
+    !/E2E_REPO:=\//.test(e2eLib),
+    "scripts/e2e/lib.sh must not default E2E_REPO to an absolute path",
+  );
+  h.assertContains(
+    e2eLib,
+    "BASH_SOURCE",
+    "lib.sh derives its repo from its own location",
+  );
+
   // ——— the runner exposes and executes the fleet ———
   h.step("the runner lists the fleet and runs a migrated probe");
   const listed = await h.runNode(

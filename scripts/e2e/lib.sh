@@ -3,7 +3,14 @@
 
 # 全局变量（由 run-all.sh 注入）
 : "${E2E_OUT:=/tmp/e2e-out}"
-: "${E2E_REPO:=/Users/xuwei/Work/client-platform-labs/rn}"
+# The repo under test defaults to the checkout THIS script lives in, so the suite
+# can be run from a git worktree. It used to be hard-coded to one developer's
+# main checkout, which meant sourcing this file from anywhere silently targeted
+# that checkout: a lane's e2e run wrote its artifacts into the wrong tree and its
+# commit would not have contained them. Override with E2E_REPO=… to test another
+# checkout deliberately.
+_E2E_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+: "${E2E_REPO:=$(dirname "$(dirname "$_E2E_LIB_DIR")")}"
 : "${E2E_HOST:=$HOME/code/tiangong-host}"
 # N13: the reference host package was renamed com.hermesgfapp → com.tiangong.host
 # (commit cba97cb). Derive it from the built APK when possible, else default.
