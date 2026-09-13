@@ -175,6 +175,17 @@ export async function run(argv = process.argv): Promise<number> {
       "--pure",
       "clean shell only (no platform OTA/industrial content; explicit opt-out of the product default)",
     )
+    // #262 / ADR-016+024: the native OTA adapter is installed by init itself.
+    // The trust root is NEVER defaulted — no key means fail-loud, because a
+    // silently baked default is a silently wrong device trust anchor (F02).
+    .option(
+      "--rca-pubkey-hex <hex>",
+      "cert mode: bake this root-CA public key (64 hex) as the device trust root and install the native OTA adapter",
+    )
+    .option(
+      "--pubkey-hex <hex>",
+      "legacy mode: bake this single Ed25519 signing key (64 hex); used only when --rca-pubkey-hex is absent",
+    )
     .addOption(
       new Option("--starter <name>", "layout starter")
         .default("topology-b")
@@ -191,6 +202,8 @@ export async function run(argv = process.argv): Promise<number> {
           demo?: boolean;
           pure?: boolean;
           starter?: string;
+          rcaPubkeyHex?: string;
+          pubkeyHex?: string;
         },
       ) => {
         let starter;
@@ -213,6 +226,8 @@ export async function run(argv = process.argv): Promise<number> {
           demo: Boolean(opts.demo),
           pure: Boolean(opts.pure),
           starter,
+          rcaPubkeyHex: opts.rcaPubkeyHex,
+          pubkeyHex: opts.pubkeyHex,
         });
       },
     );
