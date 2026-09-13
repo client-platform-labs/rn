@@ -1,6 +1,8 @@
 /**
- * Map E — ingest D2 pack-business HBC + sidecar as js-update candidate.
- * For shell-plus-modules where business lives outside modules/<id>/.
+ * Map E — ingest a Hermes bytecode (HBC) bundle + sidecar as a js-update
+ * candidate. The HBC comes from the DOWNSTREAM HOST's own RN toolchain
+ * (bundle → hermesc), not from this repo. For shell-plus-modules where business
+ * lives outside modules/<id>/.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -54,9 +56,9 @@ export async function runIngestPack(options: {
     throw new DeliveryError(
       `ingest-pack: HBC missing at ${hbcPath}.\n` +
         "The Hermes bytecode is produced by the DOWNSTREAM HOST's own RN toolchain " +
-        "(bundle → hermesc, e.g. that project's pack-business/embed step) — this " +
-        "repo consumes it, it does not compile it. Pass the produced file " +
-        "explicitly with --hbc <path>, or place it at the default path above.",
+        "(bundle → hermesc) — this repo consumes it, it does not compile it. Pass " +
+        "the produced file explicitly with --hbc <path>, or place it at the default " +
+        "path above.",
       EXIT_FAIL,
     );
   }
