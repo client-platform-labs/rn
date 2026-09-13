@@ -246,12 +246,64 @@ function cpConsoleEnabled(): boolean {
   return raw !== "1" && raw !== "true" && raw !== "yes";
 }
 
+/** Route role: public routes carry no auth; mutate routes need bearer + mutate role. */
+export type CpRouteRole = "public" | "mutate";
+
+export type CpRouteMatch = { params: { id: string } };
+
+/**
+ * Everything a route handler may use — accepted, not created. Reaching for a
+ * request-scoped value through here is what lets a test drive a route
+ * in-process instead of spawning the CLI.
+ */
+export type CpRouteContext = {
+  req: IncomingMessage;
+  res: ServerResponse;
+  url: URL;
+  params: { id: string };
+  projectRoot: string;
+  /** Mutating role of the serving process (resolveCpRole()). */
+  role: string;
+  /** Authenticated tenant for this request; "" until applyPolicy resolves it. */
+  tenant: string;
+  /** Store access — one accessor, so handlers never load the registry themselves. */
+  registry: () => ReturnType<typeof loadRegistry>;
+  readBody: () => Promise<string>;
+  audit: (entry: Omit<CpAuditEntry, "ts">) => void;
+};
+
+/** A route: transport metadata (method + path) plus its handler, as data. */
+export type CpRoute = {
+  method: string;
+  /** Exact pathname, or a RegExp whose first group becomes ctx.params.id. */
+  path: string | RegExp;
+  role: CpRouteRole;
+  handler: (ctx: CpRouteContext) => Promise<void>;
+};
+
+/** Match a request against one route; null when the route does not apply. */
+export function matchCpRoute(
+  route: CpRoute,
+  method: string | undefined,
+  pathname: string,
+): CpRouteMatch | null {
+  if (route.method !== method) return null;
+  if (typeof route.path === "string") {
+    return route.path === pathname ? { params: { id: "" } } : null;
+  }
+  const m = route.path.exec(pathname);
+  if (!m) return null;
+  return { params: { id: decodeURIComponent(m[1] ?? "") } };
+}
+
 export type ControlPlaneHandle = {
   projectRoot: string;
   host: string;
   port: number;
   storage: "file" | "sqlite";
   serviceMode: "cli-serve" | "cp-serve";
+  /** The route table, exposed so tests can enumerate it without a process. */
+  routes: readonly CpRoute[];
   listen: () => Promise<void>;
   close: () => Promise<void>;
 };
@@ -274,58 +326,18 @@ export function createControlPlane(options: {
   const artifactStore = createLocalDirectoryArtifactStore(projectRoot);
   const cpAuthConfig = resolveCpAuthConfig();
   const cpRole = resolveCpRole();
-  /** Last authenticated tenant for the current request (set by requireCpAuth). */
-  let requestTenant = "default";
 
-  const server: Server = createServer(async (req, res) => {
-    const url = new URL(req.url ?? "/", `http://${host}`);
-    console.error(`[cp-access] ${req.method} ${url.pathname}${url.search}`);
-    requestTenant = "default";
-    try {
-      const requireCpAuth = () => {
-        const tenantHeader = req.headers["x-rn-tenant"];
-        const tenant =
-          typeof tenantHeader === "string" ? tenantHeader : undefined;
-        const auth = checkCpBearerAuth(
-          req.headers.authorization,
-          cpAuthConfig,
-          tenant,
-        );
-        if (!auth.ok) {
-          metrics.http_denied += 1;
-          appendAudit(projectRoot, {
-            method: req.method ?? "UNKNOWN",
-            path: url.pathname,
-            actor: "anonymous",
-            outcome: "denied",
-            detail: auth.error,
-            tenant,
-          });
-          sendJson(res, auth.status, { error: auth.error });
-          return false;
-        }
-        requestTenant = auth.tenant;
-        const role = checkCpMutatingRole(cpRole);
-        if (!role.ok) {
-          metrics.http_denied += 1;
-          appendAudit(projectRoot, {
-            method: req.method ?? "UNKNOWN",
-            path: url.pathname,
-            actor: `${cpRole}@${requestTenant}`,
-            outcome: "denied",
-            detail: role.error,
-            tenant: requestTenant,
-          });
-          sendJson(res, role.status, { error: role.error });
-          return false;
-        }
-        return true;
-      };
-
-      if (
-        req.method === "GET" &&
-        (url.pathname === "/" || url.pathname === "/console")
-      ) {
+  // ── route table + policy wrapper (C3 / #258) ─────────────────────────
+  // Transport only matches and dispatches. auth → role → audit live in
+  // exactly one place (applyPolicy). Handlers take a context instead of
+  // reaching into closure state, so a test can drive any route in process.
+  const cpRoutes: CpRoute[] = [
+    {
+      method: "GET",
+      path: /^\/(console)?$/,
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
         if (!cpConsoleEnabled()) {
           sendJson(res, 404, {
             error: "console_disabled",
@@ -335,12 +347,14 @@ export function createControlPlane(options: {
         }
         sendHtml(res, 200, loadConsoleHtml());
         return;
-      }
-
-      if (
-        req.method === "GET" &&
-        (url.pathname === "/portal" || url.pathname.startsWith("/portal/"))
-      ) {
+      },
+    },
+    {
+      method: "GET",
+      path: /^\/portal(\/.*)?$/,
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url } = ctx;
         if (!cpConsoleEnabled()) {
           sendJson(res, 404, {
             error: "console_disabled",
@@ -363,9 +377,14 @@ export function createControlPlane(options: {
         if (servePortalStatic(res, sub)) return;
         sendJson(res, 404, { error: "portal_not_found", path: url.pathname });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/health") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/health",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, projectRoot } = ctx;
         sendJson(res, 200, {
           ok: true,
           projectRoot,
@@ -373,9 +392,14 @@ export function createControlPlane(options: {
           api: CP_SERVICE_API,
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/ready") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/ready",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, projectRoot } = ctx;
         const deliveryDirPath = path.join(projectRoot, ".rn/delivery");
         const registryFile = useSqliteRegistry()
           ? path.join(deliveryDirPath, "registry.sqlite")
@@ -403,9 +427,14 @@ export function createControlPlane(options: {
           writable,
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/ota/revocations") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/ota/revocations",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
         // ADR-018 — K2-signed revocation list, published by the operator.
         // Format: { revoked: string[], payload: <canonical string>, seal: pem:ed25519:<b64> }
         // Device verifies seal with baked K2; a revoked key's signatures are rejected.
@@ -430,19 +459,28 @@ export function createControlPlane(options: {
         }
         sendJson(res, 200, doc);
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/metrics") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/metrics",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
         res.writeHead(200, {
           "content-type": "text/plain; version=0.0.4; charset=utf-8",
         });
         res.end(renderPrometheusMetrics());
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/sli") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/sli",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as {
               digest?: string;
@@ -463,13 +501,13 @@ export function createControlPlane(options: {
         const digest = body.digest.trim();
         metrics.last_sli[digest] = body.sli;
         metrics.sli_posts += 1;
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: `${cpRole}@${requestTenant}`,
+        actor: `${ctx.role}@${ctx.tenant}`,
           outcome: "ok",
-          detail: `digest=${digest} tick=${body.tick === true}`,
-          tenant: requestTenant,
+        detail: `digest=${digest} tick=${body.tick === true}`,
+          tenant: ctx.tenant,
         });
         if (body.tick === true) {
           const { registry, result } = tickRollout(projectRoot, digest, {
@@ -495,9 +533,14 @@ export function createControlPlane(options: {
           sli: body.sli,
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/service") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/service",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, projectRoot } = ctx;
         const labSoak = resolveCpMinSoakMs();
         const tenants = cpAuthConfig.tenants
           ? Object.keys(cpAuthConfig.tenants)
@@ -520,25 +563,35 @@ export function createControlPlane(options: {
           note: "thin CP — production storage = file | sqlite; Postgres is an unwired RDS/HA seam (ADR-013 / G9)",
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/candidates") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/candidates",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url } = ctx;
         const lane = url.searchParams.get("lane");
         const laneFilter = isValidLane(lane) ? lane : "all";
-        const registry = loadRegistry(projectRoot);
+        const registry = ctx.registry();
         sendJson(res, 200, {
           candidates: listInstallableCandidates(registry, laneFilter).map(
             withHostDownloadUrl,
           ),
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/js-updates") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/js-updates",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url } = ctx;
         const lane = url.searchParams.get("lane");
         const laneFilter = isValidLane(lane) ? lane : "all";
         const moduleFilter = url.searchParams.get("module") || undefined;
-        const registry = loadRegistry(projectRoot);
+        const registry = ctx.registry();
         sendJson(res, 200, {
           candidates: listJsUpdateCandidates(
             registry,
@@ -547,13 +600,18 @@ export function createControlPlane(options: {
           ).map(withDownloadUrl),
         });
         return;
-      }
-
-      // ADR-024 (D3/G3): CRL — revoked signing keys (hex); devices fetch before
-      // verify (F04). Signed doc: seal over canonical payload; device verifies
-      // with baked keys (verifyRevocationSealAny). An unsigned CRL (seal:null,
-      // no key configured) is served as-is; devices fail-closed and reject it.
-      if (req.method === "GET" && url.pathname === "/v1/crl") {
+      },
+    },
+    // ADR-024 (D3/G3): CRL — revoked signing keys (hex); devices fetch before
+    // verify (F04). Signed doc: seal over canonical payload; device verifies
+    // with baked keys (verifyRevocationSealAny). An unsigned CRL (seal:null,
+    // no key configured) is served as-is; devices fail-closed and reject it.
+    {
+      method: "GET",
+      path: "/v1/crl",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, projectRoot } = ctx;
         const crl = buildCrlDoc(projectRoot);
         if (crl.seal === null) {
           console.error(
@@ -562,9 +620,14 @@ export function createControlPlane(options: {
         }
         sendJson(res, 200, crl);
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/js-updates/check") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/js-updates/check",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { req, res, url, projectRoot } = ctx;
         const laneParam = url.searchParams.get("lane");
         const lane: "staging" | "production" =
           laneParam === "staging" ? "staging" : "production";
@@ -573,7 +636,7 @@ export function createControlPlane(options: {
           sendJson(res, 400, { error: "module query param required" });
           return;
         }
-        const registry = loadRegistry(projectRoot);
+        const registry = ctx.registry();
         const candidates = listJsUpdateCandidates(registry, lane, moduleId);
         // Newest production candidate wins (promote appends to the production
         // window as a rollback history; the last entry is the current release).
@@ -602,121 +665,157 @@ export function createControlPlane(options: {
         }
         sendJson(res, 200, manifest);
         return;
-      }
-
-      {
-        const artMatch = url.pathname.match(/^\/v1\/artifacts\/([^/]+)$/);
-        if (req.method === "GET" && artMatch) {
-          const digest = decodeURIComponent(artMatch[1] ?? "");
-          const cand = findArtifactByDigest(loadRegistry(projectRoot), digest);
-          const filePath =
-            artifactStore.get(digest) ?? cand?.path?.trim() ?? null;
-          if (!filePath) {
-            sendJson(res, 404, { error: "artifact_not_found", digest });
-            return;
-          }
-          if (!existsSync(filePath)) {
-            sendJson(res, 404, {
-              error: "artifact_file_missing",
-              digest,
-              path: filePath,
-            });
-            return;
-          }
-          streamArtifact(res, filePath, digest, cand ?? undefined);
+      },
+    },
+    {
+      method: "GET",
+      path: /^\/v1\/artifacts\/([^/]+)$/,
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
+        const digest = ctx.params.id;
+        const cand = findArtifactByDigest(ctx.registry(), digest);
+        const filePath =
+          artifactStore.get(digest) ?? cand?.path?.trim() ?? null;
+        if (!filePath) {
+          sendJson(res, 404, { error: "artifact_not_found", digest });
           return;
         }
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/registry") {
-        sendJson(res, 200, loadRegistry(projectRoot));
+        if (!existsSync(filePath)) {
+          sendJson(res, 404, {
+            error: "artifact_file_missing",
+            digest,
+            path: filePath,
+          });
+          return;
+        }
+        streamArtifact(res, filePath, digest, cand ?? undefined);
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/registry/staging") {
-        sendJson(res, 200, { staging: loadRegistry(projectRoot).staging });
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/registry",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
+        sendJson(res, 200, ctx.registry());
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/registry/production") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/registry/staging",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
+        sendJson(res, 200, { staging: ctx.registry().staging });
+        return;
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/registry/production",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
         sendJson(res, 200, {
-          production: loadRegistry(projectRoot).production,
+          production: ctx.registry().production,
         });
         return;
-      }
-
-      {
-        // C6.3 grey slicing — per-device lane routing.
-        const devMatch = url.pathname.match(/^\/v1\/devices\/([^/]+)\/lane$/);
-        if (devMatch) {
-          const serial = decodeURIComponent(devMatch[1] ?? "");
-          if (req.method === "GET") {
-            const registry = loadRegistry(projectRoot);
-            const lane = getDeviceLane(registry, serial);
-            sendJson(res, 200, {
-              serial,
-              lane,
-              devices: listDeviceLanes(registry),
-            });
-            return;
-          }
-          if (req.method === "PUT") {
-            if (!requireCpAuth()) return;
-            const raw = await readBody(req);
-            const body = raw ? (JSON.parse(raw) as { lane?: string }) : {};
-            if (!isValidLane(body.lane)) {
-              appendAudit(projectRoot, {
-                method: "PUT",
-                path: url.pathname,
-                actor: cpRole,
-                outcome: "error",
-                detail: `invalid lane "${body.lane ?? ""}"`,
-              });
-              sendJson(res, 400, {
-                error: "invalid lane",
-                allowed: ["staging", "production", "gray"],
-              });
-              return;
-            }
-            const { registry, lane } = setDeviceLane(
-              projectRoot,
-              serial,
-              body.lane,
-            );
-            appendAudit(projectRoot, {
+      },
+    },
+    {
+      method: "GET",
+      path: /^\/v1\/devices\/([^/]+)\/lane$/,
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
+        const serial = ctx.params.id;
+          const registry = ctx.registry();
+          const lane = getDeviceLane(registry, serial);
+          sendJson(res, 200, {
+            serial,
+            lane,
+            devices: listDeviceLanes(registry),
+          });
+          return;
+      },
+    },
+    {
+      method: "PUT",
+      path: /^\/v1\/devices\/([^/]+)\/lane$/,
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const serial = ctx.params.id;
+          const raw = await ctx.readBody();
+          const body = raw ? (JSON.parse(raw) as { lane?: string }) : {};
+          if (!isValidLane(body.lane)) {
+            ctx.audit({
               method: "PUT",
               path: url.pathname,
-              actor: cpRole,
-              outcome: "ok",
-              detail: `lane=${lane} serial=${serial}`,
+              actor: ctx.role,
+              outcome: "error",
+              detail: `invalid lane "${body.lane ?? ""}"`,
             });
-            sendJson(res, 200, {
-              ok: true,
-              action: "device-lane-set",
-              serial,
-              lane,
-              registry,
+            sendJson(res, 400, {
+              error: "invalid lane",
+              allowed: ["staging", "production", "gray"],
             });
             return;
           }
-        }
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/devices") {
+          const { registry, lane } = setDeviceLane(
+            projectRoot,
+            serial,
+            body.lane,
+          );
+          ctx.audit({
+            method: "PUT",
+            path: url.pathname,
+            actor: ctx.role,
+            outcome: "ok",
+            detail: `lane=${lane} serial=${serial}`,
+          });
+          sendJson(res, 200, {
+            ok: true,
+            action: "device-lane-set",
+            serial,
+            lane,
+            registry,
+          });
+          return;
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/devices",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
         sendJson(res, 200, {
-          devices: listDeviceLanes(loadRegistry(projectRoot)),
+          devices: listDeviceLanes(ctx.registry()),
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/dependency-manifest") {
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/dependency-manifest",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, projectRoot } = ctx;
         sendJson(res, 200, loadDependencyManifest(projectRoot));
         return;
-      }
-
-      if (req.method === "PUT" && url.pathname === "/v1/dependency-manifest") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "PUT",
+      path: "/v1/dependency-manifest",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as Partial<DependencyManifestStore>)
           : {};
@@ -732,12 +831,12 @@ export function createControlPlane(options: {
           host_capability_set: body.host_capability_set,
           require_declared: body.require_declared === true,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "PUT",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `deps=${Array.isArray(body.dependencies) ? body.dependencies.length : 0}`,
+        detail: `deps=${Array.isArray(body.dependencies) ? body.dependencies.length : 0}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -746,41 +845,49 @@ export function createControlPlane(options: {
           manifest: loadDependencyManifest(projectRoot),
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/promote") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/promote",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
         await runPromote({
           cwd: projectRoot,
           digest: body.digest,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest ?? ""}`,
+        detail: `digest=${body.digest ?? ""}`,
         });
         sendJson(res, 200, {
           ok: true,
           action: "promote",
-          registry: loadRegistry(projectRoot),
+          registry: ctx.registry(),
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/block") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/block",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as { digest?: string; reason?: string })
           : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError("POST /v1/block: digest required", EXIT_FAIL);
         }
-        const registryBefore = loadRegistry(projectRoot);
+        const registryBefore = ctx.registry();
         const candidate =
           registryBefore.staging.find((c) => c.digest === body.digest) ??
           registryBefore.production.find((c) => c.digest === body.digest) ??
@@ -803,34 +910,43 @@ export function createControlPlane(options: {
           candidate,
           body.reason ?? "cp-api block",
         );
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest}`,
+        detail: `digest=${body.digest}`,
         });
         sendJson(res, 200, {
           ok: true,
           action: "block",
-          registry: loadRegistry(projectRoot),
+          registry: ctx.registry(),
         });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/kills") {
-        const registry = loadRegistry(projectRoot);
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/kills",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
+        const registry = ctx.registry();
         sendJson(res, 200, {
           kills: registry.kills,
           pauses: registry.pauses,
           blocked_update_ids: blockedUpdateIdsForRuntime(registry),
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/kill") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/kill",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as {
               business_module?: string;
@@ -842,14 +958,14 @@ export function createControlPlane(options: {
           business_module: body.business_module ?? "",
           update_ids: body.update_ids ?? [],
           reason: body.reason,
-          actor: cpRole,
+          actor: ctx.role,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `module=${body.business_module ?? ""} updates=${(body.update_ids ?? []).join(",")}`,
+        detail: `module=${body.business_module ?? ""} updates=${(body.update_ids ?? []).join(",")}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -859,33 +975,41 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/pause") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/pause",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as { business_module?: string; reason?: string })
           : {};
         const { registry, pause } = pauseModule(projectRoot, {
           business_module: body.business_module ?? "",
           reason: body.reason,
-          actor: cpRole,
+          actor: ctx.role,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `module=${body.business_module ?? ""}`,
+        detail: `module=${body.business_module ?? ""}`,
         });
         sendJson(res, 200, { ok: true, action: "pause", pause, registry });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/resume") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/resume",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as { business_module?: string })
           : {};
@@ -896,26 +1020,35 @@ export function createControlPlane(options: {
           );
         }
         const registry = resumeModule(projectRoot, body.business_module);
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `module=${body.business_module}`,
+        detail: `module=${body.business_module}`,
         });
         sendJson(res, 200, { ok: true, action: "resume", registry });
         return;
-      }
-
-      if (req.method === "GET" && url.pathname === "/v1/rollouts") {
-        const registry = loadRegistry(projectRoot);
+      },
+    },
+    {
+      method: "GET",
+      path: "/v1/rollouts",
+      role: "public",
+      handler: async (ctx: CpRouteContext) => {
+        const { res } = ctx;
+        const registry = ctx.registry();
         sendJson(res, 200, { rollouts: registry.rollouts });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/rollout/start") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/rollout/start",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as {
               business_module?: string;
@@ -931,16 +1064,16 @@ export function createControlPlane(options: {
           digest: body.digest ?? "",
           update_id: body.update_id,
           gate: body.gate,
-          actor: cpRole,
+          actor: ctx.role,
           min_soak_ms: body.min_soak_ms ?? resolveCpMinSoakMs(),
           sli_thresholds: body.sli_thresholds,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `module=${body.business_module ?? ""} digest=${body.digest ?? ""}`,
+        detail: `module=${body.business_module ?? ""} digest=${body.digest ?? ""}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -949,11 +1082,15 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/rollout/advance") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/rollout/advance",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as {
               digest?: string;
@@ -971,12 +1108,12 @@ export function createControlPlane(options: {
           human_full_approved: body.human_full_approved,
           forceSoak: body.force_soak === true,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest}`,
+        detail: `digest=${body.digest}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -985,11 +1122,15 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/rollout/pause") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/rollout/pause",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError(
@@ -998,12 +1139,12 @@ export function createControlPlane(options: {
           );
         }
         const { registry, rollout } = pauseRollout(projectRoot, body.digest);
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest}`,
+        detail: `digest=${body.digest}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -1012,11 +1153,15 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/rollout/resume") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/rollout/resume",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError(
@@ -1025,12 +1170,12 @@ export function createControlPlane(options: {
           );
         }
         const { registry, rollout } = resumeRollout(projectRoot, body.digest);
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest}`,
+        detail: `digest=${body.digest}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -1039,11 +1184,15 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/rollout/slo-breach") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/rollout/slo-breach",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as { digest?: string; reason?: string })
           : {};
@@ -1054,12 +1203,12 @@ export function createControlPlane(options: {
           );
         }
         const { registry, rollout } = pauseRollout(projectRoot, body.digest);
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest} reason=${body.reason?.trim() || "slo_breach"}`,
+        detail: `digest=${body.digest} reason=${body.reason?.trim() || "slo_breach"}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -1069,11 +1218,15 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/v1/rollout/tick") {
-        if (!requireCpAuth()) return;
-        const raw = await readBody(req);
+      },
+    },
+    {
+      method: "POST",
+      path: "/v1/rollout/tick",
+      role: "mutate",
+      handler: async (ctx: CpRouteContext) => {
+        const { res, url, projectRoot } = ctx;
+        const raw = await ctx.readBody();
         const body = raw
           ? (JSON.parse(raw) as {
               digest?: string;
@@ -1093,12 +1246,12 @@ export function createControlPlane(options: {
           human_full_approved: body.human_full_approved === true,
           now: body.now ? new Date(body.now) : undefined,
         });
-        appendAudit(projectRoot, {
+        ctx.audit({
           method: "POST",
           path: url.pathname,
-          actor: cpRole,
+          actor: ctx.role,
           outcome: "ok",
-          detail: `digest=${body.digest} tick=${result.action}`,
+        detail: `digest=${body.digest} tick=${result.action}`,
         });
         sendJson(res, 200, {
           ok: true,
@@ -1109,8 +1262,95 @@ export function createControlPlane(options: {
           registry,
         });
         return;
-      }
+      },
+    },
+  ];
 
+  /** Per-request context handed to a route handler. */
+  const makeRouteContext = (
+    req: IncomingMessage,
+    res: ServerResponse,
+    url: URL,
+    params: { id: string },
+  ): CpRouteContext => ({
+    req,
+    res,
+    url,
+    params,
+    projectRoot,
+    role: cpRole,
+    // Filled in by applyPolicy once the bearer token resolves a tenant.
+    tenant: "",
+    registry: () => loadRegistry(projectRoot),
+    readBody: () => readBody(req),
+    audit: (entry) => appendAudit(projectRoot, entry),
+  });
+
+  /**
+   * The one place a CP request is authenticated, authorised and audited.
+   * Public routes short-circuit; mutating routes need a bearer token and a
+   * mutating role, and every denial is audited before the response is sent.
+   */
+  const applyPolicy = (route: CpRoute, ctx: CpRouteContext): boolean => {
+    if (route.role === "public") return true;
+    const tenantHeader = ctx.req.headers["x-rn-tenant"];
+    const tenant =
+      typeof tenantHeader === "string" ? tenantHeader : undefined;
+    const auth = checkCpBearerAuth(
+      ctx.req.headers.authorization,
+      cpAuthConfig,
+      tenant,
+    );
+    if (!auth.ok) {
+      metrics.http_denied += 1;
+      ctx.audit({
+        method: ctx.req.method ?? "UNKNOWN",
+        path: ctx.url.pathname,
+        actor: "anonymous",
+        outcome: "denied",
+        detail: auth.error,
+        tenant,
+      });
+      sendJson(ctx.res, auth.status, { error: auth.error });
+      return false;
+    }
+    ctx.tenant = auth.tenant;
+    const role = checkCpMutatingRole(cpRole);
+    if (!role.ok) {
+      metrics.http_denied += 1;
+      ctx.audit({
+        method: ctx.req.method ?? "UNKNOWN",
+        path: ctx.url.pathname,
+        actor: `${cpRole}@${auth.tenant}`,
+        outcome: "denied",
+        detail: role.error,
+        tenant: auth.tenant,
+      });
+      sendJson(ctx.res, role.status, { error: role.error });
+      return false;
+    }
+    return true;
+  };
+
+  const server: Server = createServer((req, res) => {
+    void dispatch(req, res);
+  });
+
+  async function dispatch(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<void> {
+    const url = new URL(req.url ?? "/", `http://${host}`);
+    console.error(`[cp-access] ${req.method} ${url.pathname}${url.search}`);
+    try {
+      for (const route of cpRoutes) {
+        const match = matchCpRoute(route, req.method, url.pathname);
+        if (!match) continue;
+        const ctx = makeRouteContext(req, res, url, match.params);
+        if (!applyPolicy(route, ctx)) return;
+        await route.handler(ctx);
+        return;
+      }
       sendJson(res, 404, { error: "not_found", path: url.pathname });
     } catch (err) {
       if (err instanceof KillPauseError || err instanceof RolloutError) {
@@ -1121,7 +1361,7 @@ export function createControlPlane(options: {
       const code = err instanceof DeliveryError ? err.exitCode : EXIT_FAIL;
       sendJson(res, code === EXIT_FAIL ? 400 : 500, { error: message });
     }
-  });
+  }
 
   return {
     projectRoot,
@@ -1129,6 +1369,7 @@ export function createControlPlane(options: {
     port,
     storage,
     serviceMode,
+    routes: cpRoutes,
     listen: () =>
       new Promise((resolve, reject) => {
         // SEAM-5/F16: refuse to bind when the port already serves ANOTHER
