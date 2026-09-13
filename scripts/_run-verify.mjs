@@ -72,6 +72,14 @@ async function main() {
       for (const d of audit.dangling) {
         console.log(`  ${d.base}  <- ${d.source} (${d.kind})`);
       }
+      console.log("");
+      console.log(
+        `external (${audit.external.length}) — referenced from another checkout, ` +
+          "not this repo's scripts/ (expected, not rot):",
+      );
+      for (const e of audit.external) {
+        console.log(`  ${e.qualifier}${e.base}  <- ${e.source} (${e.kind})`);
+      }
     }
     // Dead wiring is a failed check, not a passing one. Orphans alone are
     // informational: they are made visible here, and triaged elsewhere.

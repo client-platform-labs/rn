@@ -393,6 +393,18 @@ export function createHarness({ name = "verify" } = {}) {
           `${label} — exit ${result?.code}${result?.timedOut ? " (timed out)" : ""}: ${truncate(result?.stderr ?? result?.stdout)}`,
         );
     },
+    /**
+     * The command must NOT succeed: a gate that is supposed to block. Composing
+     * this from assertNe at every call site while saying "expected blocked" in
+     * the label was the same assertion written N times — this names the intent.
+     */
+    assertCmdFails(result, label) {
+      if (result?.code !== 0) harness.ok(label);
+      else
+        harness.err(
+          `${label} — expected a non-zero exit, got 0: ${truncate(result?.stdout)}`,
+        );
+    },
     assertCmdOutputContains(result, needle, label) {
       const hay = `${result?.stdout ?? ""}${result?.stderr ?? ""}`;
       if (hay.includes(needle)) harness.ok(label);

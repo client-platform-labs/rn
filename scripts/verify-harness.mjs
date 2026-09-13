@@ -277,7 +277,22 @@ await h.run(async () => {
     audit.dangling.every((d) => !onDisk.includes(d.base)),
     "every dangling reference points at a file that does not exist",
   );
-  h.assertTruthy(audit.dangling.length > 0, `dead wiring is visible (${audit.dangling.length})`);
+  // The live repo no longer HAS dead wiring (the last two references were
+  // removed), so requiring `dangling > 0` here would demand a defect to exist.
+  // What must hold is the INVARIANT: nothing is reported as dangling unless it
+  // is genuinely missing from this repo, and every reference that is merely
+  // qualified by another checkout is classified `external` instead (#259).
+  h.assertTruthy(
+    audit.external.every(
+      (e) => e.qualifier && !/scripts\/$/.test(e.qualifier) && !onDisk.includes(e.base),
+    ),
+    "external references point outside this repo's scripts/",
+  );
+  h.assertEq(
+    audit.dangling.length + audit.external.length > 0,
+    true,
+    `out-of-repo references are classified, not dropped (dangling ${audit.dangling.length}, external ${audit.external.length})`,
+  );
 
   h.step("findProbe accepts every shape callers use");
   for (const q of [
@@ -312,6 +327,16 @@ await h.run(async () => {
     path.join(synth.root, ".github", "workflows", "synth.yml"),
     '      - run: |\n          if [[ -f scripts/verify-gone.mjs ]]; then node scripts/verify-gone.mjs; fi\n          node scripts/verify-wired.mjs\n',
   );
+  // A foreign-path reference: `cwd` is another checkout, so the file legitimately
+  // lives there. This is the shape the hermes loops use (`node shell/ota/…` with
+  // cwd set to ~/code/host-android). It must be classified `external`, NOT
+  // dangling — while the scripts/-qualified one above stays dangling. Those two
+  // together are the negative control: without the qualifier rule, both land in
+  // dangling (the false positives this fixes); with the rule, only the real one.
+  writeFileSync(
+    path.join(synth.root, "scripts", "run-synth-external.mjs"),
+    'export const cmd = "node shell/ota/verify-elsewhere.mjs";\n',
+  );
   const synthAudit = auditProbes({ repoRoot: synth.root });
   h.assertEq(synthAudit.total, 3, "synthetic repo enumerates its 3 probes");
   h.assertEq(
@@ -324,6 +349,16 @@ await h.run(async () => {
     synthAudit.dangling.map((d) => d.base).join(","),
     "verify-gone.mjs",
     "the dangling reference is reported",
+  );
+  h.assertEq(
+    synthAudit.external.map((e) => e.base).join(","),
+    "verify-elsewhere.mjs",
+    "a foreign-path reference is external, not dangling",
+  );
+  h.assertEq(
+    synthAudit.external.every((e) => e.qualifier && !/scripts\/$/.test(e.qualifier)),
+    true,
+    "external entries record the foreign qualifier",
   );
 
   // ——— freeze: the hand-rolled scaffolding must not grow back ———
