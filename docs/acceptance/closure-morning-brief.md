@@ -1,73 +1,114 @@
-# 早上好 —— 闭环夜跑验收简报
+# 早上好 —— 闭环夜跑验收简报（最终版）
 
-> 你睡觉期间我在跑"开发 → 测试审查 → 再开发 → 测试审查 → 完工"闭环。
-> 这份文件是**第一入口**；细节在文末的链接里。
-
-**状态**：本简报先落盘（防止夜间中断导致无可读产物），三条 lane 正在跑；
-每条 lane 落地后我会回填下方结果表。自动生成的逐门报告见
-[`closure-latest.md`](./closure-latest.md)（由 `scripts/run-closure-loop.mjs` 每次运行刷新）。
+> 你睡觉期间我按"开发 → 测试审查 → 再开发 → 测试审查 → 完工"跑了闭环。
+> 这份文件是**第一入口**：§1 一分钟结论 → §3 三条 lane 的真实结果 → §4 需要你拍板的两件产品决策 → §6 诚实清单。
+> 逐门机读报告：[`closure-latest.md`](./closure-latest.md)（由 `scripts/run-closure-loop.mjs` 每次运行刷新）。
 
 ---
 
 ## 1. 一分钟结论
 
-| 问题 | 当前答案 |
+| 问题 | 答案 |
 |---|---|
-| 平台各环节是否全部闭环？ | **还没有**。今晚的目标是把"到底哪些环节闭环"从**未知**变成**有证据的已知**，并把能在无人值守下修掉的缺口修掉。 |
-| main 现在什么状态？ | **CI 全绿**（本轮已合并 6 个 PR），且新增了两道**"反空转"门禁**（见 §3）——它们当场就抓出了我自己的一个**不完整修复**。 |
-| 需要你做什么？ | 只回 **§4 的 7 条决定**（我按标注的默认值先跑了，你有异议随时改）。 |
+| **11 条 e2e 链闭环了吗？** | **基本闭环**：`run-all.sh` **rc=0**，**10 PASS / 1 显式 SKIP / 0 FAIL**。唯一 SKIP 是 chain-09 的 3 个探针需要 `data-service`(:8001)，其余含 CP 鉴权 401/401/400、制品下载、设备→宿主 CP 全绿。 |
+| **多模块共宿主呢？** | **已验**：chain-05/07 用 desk + fixture_second 跑通，且顺带验证了我前一天刚修的 `resolve_module_hbc → ingest-pack --hbc` 链路。 |
+| **信任链？** | **第三次独立复现 PASS**：11.B1 真下载并生效 · 11.B2 篡改 CRL 被**验签**拒绝（且 `check=0 artifact=0`，app 留在基线） · 11.A 崩溃环注入确认落地 4/4 且设备自报 `crash_loop_rollback`。 |
+| **平台自己有问题吗？** | **本轮 11 条链没发现产品缺陷**（每个失败都是前置条件/共享状态），但**容器与 DR 那一侧发现了三个真缺口**（§4）。 |
+| **要你做什么？** | 回 **§4 的两条产品决策** + 确认 **§5 我替你做的默认**。 |
 
-## 2. 夜间跑的三条 lane（结果回填区）
+**今夜合并了 10 个 PR**（#270 #272 #273 #274 #275 #276 #277 #278 #279 #280 #281 #282 中的相应部分），`main` CI 全绿。
 
-| Lane | 目标 | 结果 |
+## 2. 我替你做的默认（你未回 D1–D11，按此执行，可覆盖）
+
+| # | 默认 | 结果 |
 |---|---|---|
-| **A · 真机 11 条 e2e 链** | 端到端每链 PASS/FAIL/SKIP + 证据；只修 harness/前置缺陷，产品缺陷只报不修 | ⏳ 待回填 |
-| **B · 控制面容器栈 + DR 演练** | 起真实 compose 栈（cp/distribution/data-service）+ 验 `/v1/health`、令牌门禁、**签名 CRL**；然后做 ADR-014 的**冷重建**演练（此前从未演练过） | ⏳ 待回填 |
-| **C · 重试风暴修复** | 坏版本在回滚后仍被反复重拉（#269 记载的残余）→ 原生侧标记"已回滚更新"+ 探针 | ⏳ 待回填 |
+| D1 Docker | 用已装的 Docker Desktop，`open -a Docker` | ✅ 起来了（29.7.2），容器栈因此可验 |
+| D2 真机 | 只碰 `com.rnotaacceptance` + `com.tiangong.host`，逐条记录 | ✅ 见 §3 的改动清单 |
+| D3 模拟器 | 不建 Android AVD，用真机；**iOS 用模拟器**（chain-10 PASS） | ✅ |
+| D5 合并 | CI 全绿 + 有负向对照才合并；**原生契约类只开 PR** | ✅ 见 §4 注 |
+| D6 下游仓库 | 只读；DUT 只建 `/tmp` | ✅ |
+| D10 规模阈值 | 未定 → 该门记 **UNBOUNDED，不计绿** | 仍开放 |
+| D11 flake | flake ≠ 绿 | ✅ 本轮**未观察到 flake** |
 
-## 3. 今晚已经完成并合并的
+## 3. 三条 lane 的真实结果
 
-1. **`scripts/run-closure-loop.mjs`（闭环驱动，R0→R3）** —— 你要的"全自动修复闭环"本体。入口：
-   ```bash
-   node scripts/run-closure-loop.mjs --plan        # 门禁图
-   node scripts/run-closure-loop.mjs --mode afk    # 无设备门禁
-   node scripts/run-closure-loop.mjs --mode all    # + 真机 + 容器
-   ```
-   已跑出**第一份真实基线**：`4 pass · 0 fail · 2 skip · 1 todo`。
-2. **反空转门禁 `check-verification-plane.mjs`** —— 把本次发现的 6 类"看起来在验、实际没验"变成 CI 强制的检查（测试 glob 覆盖 · 链的 0/1/2 退出码 · **幽灵命令三分法** · 探针死引用）。带 10 条负向对照。
-   **它立刻生效了**：合并后它抓出我上一个修复**不完整**（`ingest-pack.ts` 仍两处写着幽灵脚本），我修完它才转绿。
-3. **业务模块 OTA 的 HBC 链路修复** —— `ingest-pack` 的 flag 是 `--hbc` 而两条链传的是不存在的 `--bundle`（被**静默忽略**，回落到默认路径），且 chain-05 调了一个**不存在的** `ship build pack --out-dir`。现在由 `resolve_module_hbc` 显式解析，缺失即**带原因的 SKIP**，不再静默。
-4. Docker daemon 我起好了（Docker Desktop 已装）—— 原本它是"唯一缺失环节"。
+### Lane A · 真机 11 条 e2e 链 —— 10 PASS / 1 SKIP / 0 FAIL
 
-## 4. 需要你回的决定（我按默认值先跑了，可覆盖）
+```
+01-cli PASS · 02-debug-multi-bundle PASS · 03-release-load PASS（宿主 APK 55,787,252 B，vivo 弹窗被 safe_install 自动点掉）
+04-shell-lifecycle PASS · 05-biz-lifecycle PASS（走通 resolve_module_hbc → ingest-pack --hbc）
+06-host-portal PASS · 07-biz-portal PASS · 08-update-strategy PASS · 10-ios-lifecycle PASS（模拟器）
+09-backend-services SKIP（3 个探针需 data-service :8001）
+11-ota-trust PASS（设备腿，第三次独立复现）
+```
 
-| # | 决定 | 我今晚的默认 |
+**三个 harness 缺陷被修掉（每一个此前都在悄悄污染证据）**
+1. **`cp_adb_reverse` 把宿主端口硬编码成 4040** —— 设备的 `cpBaseUrl` 是设备侧 loopback:4040（这一侧必须固定），但**宿主侧必须是本次 CP 的端口**。当另一条 lane 的容器占着宿主 4040 时，设备会**静默连到错误的控制面**（不同注册库、**未签名**的 `/v1/crl`）→ 信任链的成败与本轮无关。
+2. **chain-01 用环境里的 `which rn`/`which ship`** —— `--ignore-scripts` 下不存在；存在时也可能指向**另一个 checkout** 的 CLI。
+3. `${RN}` 大括号 —— `$VAR` 紧跟多字节字符在 `set -u` 下被误解析。
+
+**设备改动（仅两个测试包）**：`03` 安装 `com.tiangong.host`；`11` 多次 `pm clear com.rnotaacceptance`、4 次故意不完整启动（崩溃环注入）、tamper stub 起停于 :4041、DUT 仍在跑（pid 14202）；CP 自建于 :4150（lab 钥，其公钥**与 DUT 烘焙的 RCA `71eb8a6c…` 匹配**）后**已停**；Metro 8081/8082 已停；`adb reverse` 已**全部清空**（0 条）。
+> 另外：它**修剪了宿主 registry 里 4 条容器路径条目**（另一条 lane 的 bind-mount 容器写进去的，会让 chain-03 去取一个取不到的制品），备份在 `/tmp/registry.backup-*.json`。
+
+### Lane B · 控制面容器栈 + ADR-014 DR 演练
+
+- **修掉一个硬阻塞**：distribution-service 的 compose **根本构建不起来**（`data-service` 是**外部**仓库却被当必选、且用了仓库相对 context；另有两处挂载写了字面量 `~`）。改为 profile 后，平台自己的门 `verify-distribution-compose.mjs` 现在 **rc=0 PASS**；bearer 门正确（401/401/200）。
+- **DR 演练**（`deploy/distribution-service/dr-drill.sh`，可复现，rc=0）：种数据 → 备份 → **销毁工程与全部密钥材料** → 仅凭归档恢复 → 验证。
+  - **数据恢复 ✅**（`staging=1` 前后一致、内容匹配）
+  - **信任材料未恢复 ❌**：归档只收回 **1 个** secret，而 cert 模式产出了 **6 个** → 恢复后 CRL 变成 leaf 签名，**每台设备都会拒绝**。因为启动是 fail-closed，**DR 恢复之后更新会一直被挡住**。
+- **一个更根本的发现**：`:7430` 上那个既有实例服务的 `/v1/crl` 是 `{"schemaVersion","revoked"}` —— **没有 seal**（镜像比源码老 4 天，早于签名 CRL 的工作）。用当前镜像 + 钥时，**一个环境变量同时担任发行角色与 CRL 角色**：签成 **leaf** → 设备拒 CRL；签成 **RCA** → 设备收 CRL 但 release seal 验不过。**单实例无法同时提供"设备可信的 CRL"和"可验的发行包"。**
+
+### Lane C · 重试风暴（#269 残余）—— 已修并合并（#280）
+
+- **一条前提更正（核实过，非假设）**：#269 正文说 `installed_update_id` "只在成功时写"。实际它在 `installAndReload` **之前**就已持久化。真正的缺陷是**状态说谎**：回滚后设备跑的是内嵌基线，但 `installed_update_id` 仍指向一个**设备并没在跑**的更新，于是**取不到 id 的候选会被每次启动重新应用**（crash→rollback→re-pull→crash）。
+- 修法：回滚时记下被拒 id（`rolledBackUpdateId`）+ 清掉过期的 installed id，**都在 `rollbackToEmbeddedBaseline` 之前**（该调用以 `reload()` 结尾）；拒绝等于该 id 的候选；**遇到不同（更新）的候选就清掉标记**，使修复本身不会被这个标记挡住。
+- 4 条探针**全部证明可失败**：修前 14 pass / 3 fail；把可选方法改成必需 → 3 红；恢复 → 17/17。行业参照：CodePush 的回滚标记 + Expo Updates 的内嵌基线语义。
+
+## 4. 需要你拍板的两件产品决策（都在容器/DR 侧）
+
+| # | 决策 | 为什么必须你定 |
 |---|---|---|
-| D1 | Docker 怎么起 | ✅ 已解决：用已装的 Docker Desktop，`open -a Docker` 即可 |
-| D2 | **真机授权**（会反复装/覆盖 APK、`pm clear`） | 仅限测试包 `com.rnotaacceptance` 与参考宿主 `com.tiangong.host`，逐条记录改动 |
-| D3 | 要不要建 Android 模拟器（~1–2GB 镜像） | 暂不建，用真机 |
-| D5 | **合并授权** | 仅当 CI 全绿 + 有负向对照证据才合并自己的 PR；**原生契约类改动只开 PR 等你审**（见 lane C） |
-| D6 | 可否改动 `~/code/{desk,fixture_second,tiangong-host}` | 只读；DUT 只建 `/tmp` |
-| D10 | "规模/负载"阈值 | 未定 → 该门记 **UNBOUNDED，不计绿** |
-| D11 | flake 政策 | **flake ≠ 绿**：记抖动率并开票 |
+| **P1** | **CRL 是否需要独立的密钥输入**（如 `RN_DELIVERY_CRL_KEY_*`）？ | 现状一个 env 同时驱动发行与 CRL 两个角色，导致**单实例不可能既让设备信 CRL、又让 release seal 可验**。这是设计取舍，不是 bug 修法。 |
+| **P2** | **ADR-014 的 DR 承诺要不要覆盖信任材料**？（把 cert 模式全部密钥纳入备份，或明确写"DR 只保数据、信任材料需人工重建"） | 现状是"承诺了一部分"：服务与数据能恢复，**信任材料不能**，而 fail-closed 会让恢复后更新永久被挡。要么补备份，要么改承诺。 |
+
+另有两条**已报告未修**（不阻塞，但你要知道）：
+- **镜像↔源码漂移无人检测**：部署的 `:7430` 服务着一个更老的契约（无 seal），没有任何东西会报警。
+- **原生契约改动已合并但设备侧待验**（#280）：新增两个**可选** adapter 方法 + Kotlin 模板，Kotlin 在此环境无法执行 → **设备半未验，未宣称**。
 
 ## 5. 明早 2 分钟自验
 
 ```bash
 cd ~/Work/client-platform-labs/rn
-git log --oneline -12                      # 本轮合并了什么
-node scripts/run-closure-loop.mjs --mode afk   # 无设备门禁（应全绿）
-node scripts/check-verification-plane.mjs      # 反空转门禁（应 PASS 且 0 phantom）
-gh pr list --state open                        # 等你审的 PR（尤其原生契约类）
+git log --oneline -14                            # 本轮合并了什么
+node scripts/run-closure-loop.mjs --mode afk     # 无设备门禁（应全绿）
+node scripts/check-verification-plane.mjs        # 反空转门禁（应 PASS；它今夜抓出了我自己的不完整修复）
+bash scripts/e2e/run-all.sh                      # 11 条链（长，需真机；期望 10 PASS / 1 SKIP / 0 FAIL）
+bash deploy/distribution-service/dr-drill.sh "$PWD"   # DR 演练（期望 rc=0，且你会在输出里看到 TRUST 那一行为 false）
+gh pr list --state open                          # 待你审的 PR
 ```
 
-## 6. 仍然"未闭环"的清单（诚实版，不因跑了一夜而改口）
+## 6. 仍然**未闭环**的（诚实版 —— 不因跑了一夜而改口）
 
-- **多业务/多模块共宿主真机** —— Lane A 的 chain-05/07 会给答案
-- **灰度自动刹车** —— 依赖真实观测后端（#90 shelved），今晚不解决
-- **控制面 HA / 多实例** —— Postgres 适配器自标 unwired（ADR-013）
-- **企业身份（SSO/RBAC）· HSM 托管** —— 产品/外部依赖，等 D7 选型
-- **遥测采集与聚合** —— #271 只打通了设备侧上报通道
-- **iOS 可执行 OTA** —— ADR-012 设计外
-- **合规/法务前置门** —— 人工，平台不自证
-- **规模/负载** —— 无阈值（D10）→ 无证据
+| 项 | 状态 |
+|---|---|
+| 多业务/多模块共宿主 | ✅ **本轮已验**（chain-05/07） |
+| 11 条链常驻 CI | 🟡 本地 rc=0；**device-gate 依赖自建 runner**，未接成常驻门 |
+| chain-09 的 data-service 探针 | ⊘ 显式 SKIP（需起 `data-service`） |
+| **DR 的信任材料** | ❌ 见 P2 |
+| **CRL 密钥角色** | ❌ 见 P1 |
+| 灰度自动刹车 | ❌ 依赖真实观测后端（#90 shelved） |
+| 控制面 HA / 多实例 | ❌ Postgres 适配器自标 unwired（ADR-013）→ 单节点 |
+| 企业身份（SSO/RBAC）· HSM 托管 | ❌ 产品/外部依赖（原 D7） |
+| 遥测采集与聚合 | ❌ #271 只打通设备侧上报通道 |
+| 镜像↔源码一致性 | ❌ 无检测（本轮实测到漂移） |
+| iOS 可执行 OTA | ⛔ ADR-012 设计外（模拟器仅验壳生命周期） |
+| 合规/法务前置门 | ⛔ 人工（ADR-012） |
+| 规模/负载 | ❌ 无阈值（D10）→ 无证据 |
+
+## 7. 过程诚实记录（失败也报）
+
+- 我**3 次**引入 CI 回归，全部被 CI 抓到并修掉；最讽刺的一次是"把 harness 注册进 CI"反而让阻塞点搬家，恰好复现了本轮要修的病。
+- **我自己的反空转门禁今夜两次抓到我**：一次是上一个修复不完整（`ingest-pack.ts` 仍写着幽灵脚本），一次是 Lane A 的新文案被误判为命令 —— 后者是**门禁的假阳性**，我选择改文案而不是削弱规则，并记录了这个精度限制。
+- 一条设备 lane 曾把 DUT 生成进**主仓根目录**并改了 `package.json`，我已回滚、立了"只建 `/tmp` + 收尾自查"的规矩。
+- 一次 30 分钟超时让某 lane `changed tracked files: none`，此后"**小步提交**"成为所有设备 lane 的硬规则。
+- 我的主 checkout 一度停在旧分支上，导致工具反复报一个**已修复**的阻塞 —— 我发现并切回 `main`。
