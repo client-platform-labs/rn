@@ -2,66 +2,75 @@
 /**
  * Map B B3 — CP registry SQLite backend (RN_CP_REGISTRY=sqlite).
  *
+ * Migrated onto the verify fixture (#259). This probe drives the candidate
+ * store DIRECTLY (no control-plane process), so the fixture's contribution is
+ * the hermetic project + assertions + verdict — which is exactly the part that
+ * was hand-rolled here.
+ *
  * Usage:
  *   node scripts/verify-cp-registry-sqlite.mjs
+ *   node scripts/_run-verify.mjs cp-registry-sqlite
  */
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const root = mkdtempSync(path.join(tmpdir(), "rn-cp-sqlite-verify-"));
-process.env.RN_CP_REGISTRY = "sqlite";
+import { createHarness, REPO_ROOT } from "./lib/verify/fixture.mjs";
 
-writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "cp-sqlite" }));
+// The backend must be selected BEFORE candidate-store is loaded.
+process.env.RN_CP_REGISTRY = "sqlite";
 
 const { promoteCandidateToStaging, loadRegistry, blockCandidateInRegistry } =
   await import(
-    pathToFileURL(
-      path.join(repoRoot, "packages/ship/dist/candidate-store.js"),
-    ).href
+    pathToFileURL(path.join(REPO_ROOT, "packages/ship/dist/candidate-store.js"))
+      .href
   );
 const { buildCandidateMetadata, emptyDualSupplyChain } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/ship/dist/candidate.js"))
-    .href
+  pathToFileURL(path.join(REPO_ROOT, "packages/ship/dist/candidate.js")).href
 );
 const { REGISTRY_SQLITE_FILE } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/ship/dist/registry-sqlite.js"),
-  ).href
+  pathToFileURL(path.join(REPO_ROOT, "packages/ship/dist/registry-sqlite.js"))
+    .href
 );
 
-const digest = "d".repeat(64);
-const candidate = buildCandidateMetadata({
-  release_id: "verify-r",
-  artifact_kind: "app-host-debug",
-  platform: "android",
-  profile: "debug-host",
-  digest,
-  path: "/tmp/verify.apk",
-  supply_chain: emptyDualSupplyChain(),
+const h = createHarness({ name: "verify-cp-registry-sqlite" });
+
+const DIGEST = "d".repeat(64);
+
+await h.run(async () => {
+  const p = h.project({ name: "cp-registry-sqlite" });
+  // The fixture seeds a file registry for probes that read one; this probe
+  // asserts the sqlite backend is chosen INSTEAD, so the file must not exist
+  // (otherwise a fallback to the file adapter would look like a pass).
+  rmSync(path.join(p.root, ".rn", "delivery", "registry.json"), { force: true });
+
+  const candidate = buildCandidateMetadata({
+    release_id: "verify-r",
+    artifact_kind: "app-host-debug",
+    platform: "android",
+    profile: "debug-host",
+    digest: DIGEST,
+    path: "/tmp/verify.apk",
+    supply_chain: emptyDualSupplyChain(),
+  });
+
+  h.step("RN_CP_REGISTRY=sqlite selects the sqlite backend");
+  promoteCandidateToStaging(p.root, candidate);
+  const sqliteFile = path.join(p.root, ".rn", "delivery", REGISTRY_SQLITE_FILE);
+  h.assertFileExists(sqliteFile, "registry.sqlite is created");
+  h.assertTruthy(
+    !p.exists(".rn/delivery/registry.json"),
+    "no file registry is written when sqlite is selected",
+  );
+
+  h.step("staging round-trips through sqlite");
+  const loaded = loadRegistry(p.root);
+  h.assertEq(loaded.staging.length, 1, "one staged candidate");
+  h.assertEq(loaded.staging[0]?.digest, DIGEST, "the staged digest matches");
+
+  h.step("block persists through sqlite");
+  blockCandidateInRegistry(p.root, candidate, "verify block");
+  const after = loadRegistry(p.root);
+  h.assertEq(after.staging.length, 0, "staging is empty after the block");
+  h.assertEq(after.blocked.length, 1, "the block is recorded");
 });
-
-promoteCandidateToStaging(root, candidate);
-const sqlite = path.join(root, ".rn/delivery", REGISTRY_SQLITE_FILE);
-if (!existsSync(sqlite)) {
-  console.error("FAIL: registry.sqlite missing");
-  process.exit(1);
-}
-
-const loaded = loadRegistry(root);
-if (loaded.staging.length !== 1 || loaded.staging[0]?.digest !== digest) {
-  console.error("FAIL: staging not loaded from sqlite", loaded);
-  process.exit(1);
-}
-
-blockCandidateInRegistry(root, candidate, "verify block");
-const after = loadRegistry(root);
-if (after.staging.length !== 0 || after.blocked.length !== 1) {
-  console.error("FAIL: block not persisted", after);
-  process.exit(1);
-}
-
-rmSync(root, { recursive: true, force: true });
-console.log("verify-cp-registry-sqlite: PASS");
