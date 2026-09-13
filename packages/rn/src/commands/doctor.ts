@@ -119,7 +119,7 @@ export type DoctorCheckFamily = {
  * longer re-read the same `package.json` / `.rn/host-profile.jsonc`. Direct
  * callers of an evaluator omit the loaders and that family reads for itself.
  */
-export type DoctorCheckContext = {
+type DoctorCheckContext = {
   projectRoot: string;
   session: DevSessionConfig | null;
   readHostProfile: HostProfileLoader;

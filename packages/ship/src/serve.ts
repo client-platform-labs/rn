@@ -247,7 +247,25 @@ function cpConsoleEnabled(): boolean {
 }
 
 /** Route role: public routes carry no auth; mutate routes need bearer + mutate role. */
-export type CpRouteRole = "public" | "mutate";
+type CpRouteRole = "public" | "mutate";
+
+/** Decoded JSON request body — the shared shape every route handler narrows. */
+type JsonObject = Record<string, unknown>;
+
+/**
+ * Parse a request body as JSON (#258). Malformed JSON is a client error, so it
+ * becomes a named DeliveryError (the dispatcher maps EXIT_FAIL to 400) instead
+ * of a raw SyntaxError leaking "Unexpected token" to the caller. Kept as one
+ * helper so every route reports the same way — the same reason auth/role/audit
+ * live in a single applyPolicy. Handlers narrow it to their own request shape.
+ */
+function parseJsonRequest(raw: string): JsonObject {
+  try {
+    return JSON.parse(raw) as JsonObject;
+  } catch {
+    throw new DeliveryError("invalid JSON request body", EXIT_FAIL);
+  }
+}
 
 export type CpRouteMatch = { params: { id: string } };
 
@@ -256,7 +274,7 @@ export type CpRouteMatch = { params: { id: string } };
  * request-scoped value through here is what lets a test drive a route
  * in-process instead of spawning the CLI.
  */
-export type CpRouteContext = {
+type CpRouteContext = {
   req: IncomingMessage;
   res: ServerResponse;
   url: URL;
@@ -482,7 +500,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as {
+          ? (parseJsonRequest(raw) as {
               digest?: string;
               sli?: SliSnapshot;
               tick?: boolean;
@@ -750,7 +768,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const serial = ctx.params.id;
           const raw = await ctx.readBody();
-          const body = raw ? (JSON.parse(raw) as { lane?: string }) : {};
+          const body = raw ? (parseJsonRequest(raw) as { lane?: string }) : {};
           if (!isValidLane(body.lane)) {
             ctx.audit({
               method: "PUT",
@@ -817,7 +835,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as Partial<DependencyManifestStore>)
+          ? (parseJsonRequest(raw) as Partial<DependencyManifestStore>)
           : {};
         const saved = saveDependencyManifest(projectRoot, {
           schemaVersion: DEPENDENCY_MANIFEST_SCHEMA_VERSION,
@@ -854,7 +872,7 @@ export function createControlPlane(options: {
       handler: async (ctx: CpRouteContext) => {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
-        const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
+        const body = raw ? (parseJsonRequest(raw) as { digest?: string }) : {};
         await runPromote({
           cwd: projectRoot,
           digest: body.digest,
@@ -882,7 +900,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as { digest?: string; reason?: string })
+          ? (parseJsonRequest(raw) as { digest?: string; reason?: string })
           : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError("POST /v1/block: digest required", EXIT_FAIL);
@@ -948,7 +966,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as {
+          ? (parseJsonRequest(raw) as {
               business_module?: string;
               update_ids?: string[];
               reason?: string;
@@ -985,7 +1003,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as { business_module?: string; reason?: string })
+          ? (parseJsonRequest(raw) as { business_module?: string; reason?: string })
           : {};
         const { registry, pause } = pauseModule(projectRoot, {
           business_module: body.business_module ?? "",
@@ -1011,7 +1029,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as { business_module?: string })
+          ? (parseJsonRequest(raw) as { business_module?: string })
           : {};
         if (!body.business_module?.trim()) {
           throw new DeliveryError(
@@ -1050,7 +1068,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as {
+          ? (parseJsonRequest(raw) as {
               business_module?: string;
               digest?: string;
               update_id?: string;
@@ -1092,7 +1110,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as {
+          ? (parseJsonRequest(raw) as {
               digest?: string;
               human_full_approved?: boolean;
               force_soak?: boolean;
@@ -1131,7 +1149,7 @@ export function createControlPlane(options: {
       handler: async (ctx: CpRouteContext) => {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
-        const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
+        const body = raw ? (parseJsonRequest(raw) as { digest?: string }) : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError(
             "POST /v1/rollout/pause: digest required",
@@ -1162,7 +1180,7 @@ export function createControlPlane(options: {
       handler: async (ctx: CpRouteContext) => {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
-        const body = raw ? (JSON.parse(raw) as { digest?: string }) : {};
+        const body = raw ? (parseJsonRequest(raw) as { digest?: string }) : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError(
             "POST /v1/rollout/resume: digest required",
@@ -1194,7 +1212,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as { digest?: string; reason?: string })
+          ? (parseJsonRequest(raw) as { digest?: string; reason?: string })
           : {};
         if (!body.digest?.trim()) {
           throw new DeliveryError(
@@ -1228,7 +1246,7 @@ export function createControlPlane(options: {
         const { res, url, projectRoot } = ctx;
         const raw = await ctx.readBody();
         const body = raw
-          ? (JSON.parse(raw) as {
+          ? (parseJsonRequest(raw) as {
               digest?: string;
               sli?: Record<string, number>;
               human_full_approved?: boolean;

@@ -19,6 +19,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: node scripts/check-architecture-governance.mjs
+      # #259: the fixture harness's own probe. It lives in scripts/, not in any
+      # package test glob, so it must be invoked explicitly or it is unenforced
+      # (and it honestly listed itself as an orphan until this line existed).
+      - run: node scripts/_run-verify.mjs harness
       - run: node scripts/verify-cp-stub-api.mjs
       - run: node scripts/verify-cp-enterprise.mjs
       - run: node scripts/verify-distribution-console.mjs
