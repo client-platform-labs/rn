@@ -36,10 +36,21 @@ services:
     volumes:
       - distribution-data:/data/project
 
+  # NOT part of the rn platform's release chain: an optional, read-only Python
+  # backend that lives in its OWN repo (~/code/data-service) and serves the
+  # business offline packages. It used to be a DEFAULT service here, with a
+  # repo-relative build context (`../../data-service`) that has never existed in
+  # this repository — so the command documented at the top of this file and
+  # `scripts/verify-distribution-compose.mjs` could not run on a clean checkout:
+  #   unable to prepare context: path ".../data-service" not found
+  # Opt in explicitly, as the docs always intended ("只随 compose 可选编排"):
+  #   DATA_SERVICE_CONTEXT=~/code/data-service \
+  #     docker compose --profile data-service up -d --build
   data-service:
+    profiles: ["data-service"]
     image: client-platform/data-service:local
     build:
-      context: ${DATA_SERVICE_CONTEXT:-../../data-service}
+      context: ${DATA_SERVICE_CONTEXT:-${HOME}/code/data-service}
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
@@ -47,8 +58,10 @@ services:
     environment:
       API_KEY: ${DATA_SERVICE_API_KEY:-}
     volumes:
-      - ${STOCK_SCREENER_DATA:-~/code/stock-screener/data}:/root/code/stock-screener/data
-      - ${DASHBOARD_DATA:-~/code/dashboard/data}:/root/code/dashboard/data
+      # `${HOME}/...`, not `~/...`: Compose does not expand a leading `~`, so the
+      # old form created a literal `~` directory under the compose project.
+      - ${STOCK_SCREENER_DATA:-${HOME}/code/stock-screener/data}:/root/code/stock-screener/data
+      - ${DASHBOARD_DATA:-${HOME}/code/dashboard/data}:/root/code/dashboard/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/v1/health', timeout=3).status==200 else 1)"]
       interval: 30s
