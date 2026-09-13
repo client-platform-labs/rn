@@ -235,6 +235,90 @@ if (shouldRollbackOnCrashLoop(failCount)) {
 - 清 prefs 后 `installed_update_id` 一并丢失，于是任何 production 候选都会被视作 pending。
 - `pm clear` 会同时清掉业务数据（本 DUT 无业务数据，影响可忽略）。
 
+### 7.4 ✅ 安装腿（leg 1）实测通过 —— 此前只证明了"拒载"，未证明"能装"
+
+首次真机只证明了设备**拒绝**不可信更新（§7.2）。本次在真机上证明了**相反方向**：设备能**接受并安装**一个可信更新。
+
+**关键发现：DUT 烘焙的信任根，其私钥就在测试环境里**
+```
+DUT android/.../ota/OtaModule.kt: arr.pushString("71eb8a6c…0f23")
+/tmp/e2e-crl-keys/crl-signing-key.pem 的公钥 = 71eb8a6c…0f23   ← 同一把
+```
+即 CRL 签发钥与设备烘焙钥是同一把，因此**用它签的候选设备会信**。（上一轮 CP 里种子的候选由**未知**钥签，故真实 `gateBundleLoad` 对两把已知钥都返回 `Ed25519 signature verification failed`。）
+
+**候选必须走官方路径产出（并注意一个过时 flag）**
+```bash
+DIG=$(node ship.mjs ingest-pack --module main --hbc "$BUNDLE" | grep -oE '[0-9a-f]{64}' | head -1)
+RN_DELIVERY_LEGACY_SIGN=1 RN_DELIVERY_SIGN_KEY_FILE=/tmp/e2e-crl-keys/crl-signing-key.pem \
+  node ship.mjs sign --digest "$DIG" --kind js-update
+node ship.mjs release --digest "$DIG" --kind js-update
+node ship.mjs promote --digest "$DIG" --kind js-update --from staging --to production
+```
+⚠️ **`ingest-pack` 的参数是 `--hbc <path>`，不是 `--bundle`。** `scripts/e2e/chain-05-*.sh:57` 与 `chain-07-*.sh:19` 用的是 `--bundle` —— 该 flag 被忽略，于是回落到默认的 `<project>/android/app/src/main/assets/ota/<module>/index.hbc` 并报 "HBC missing … run pack-business first"（而 `scripts/pack-business.mjs` 在当前树中**已不存在**）。这两条链的 js-update 段落很可能因此失败或空转，值得单独核对。
+
+**JS 半（无设备即可验）—— PASS**
+```
+node scripts/e2e/verify-install-good-update-live.mjs \
+  --upstream http://127.0.0.1:4040 --module main --pubkey-hex 71eb8a6c…0f23
+→ rc=0   outcome: phase=installed status=installed
+  native calls: ensureModuleSlots → writeFileBase64(ota/main/staged/index.hbc)
+    → writeFileUtf8(staged/sidecar.json) → setInstalledUpdateId(main-0aad28133bed)
+    → setActiveBundlePathForModule → reload → resetStartupFailures
+```
+即用**真实的** `bootReleaseOta` 打**真实的** CP：CRL 拉取 → manifest → 验签 → 下载 → 摘要校验 → 落槽 → 持久化 → reload 全部走通。
+
+**设备半 —— PASS（两轮差分证据）**
+```
+CYCLE A（pm clear 后首启）:
+  GET /v1/crl                                  ← 先验吊销（fail-closed 顺序）
+  GET /v1/js-updates/check?module=main&lane=production
+  GET /v1/artifacts/0aad28133bed…3ba10e        ← 真的下载了
+  GET /v1/crl                                  ← 安装后 reload 的新一轮启动
+  GET /v1/js-updates/check?module=main&lane=production
+  （本轮无 artifact 下载 → 已安装，无需重拉）
+CYCLE B（force-stop 后重启，状态保留）:
+  GET /v1/crl
+  GET /v1/js-updates/check?module=main&lane=production
+  （无 artifact 下载 → installed_update_id 已持久化）
+app 存活: pid 3813 · logcat 无任何验签/安装错误
+```
+**判定**：首启下载 → 复位后不再下载，即 `installed_update_id` 已持久化、更新已生效。设备信任链（签名 CRL + 候选 seal）在真机上对**可信**输入放行，对**不可信**输入拒载（§7.2），两个方向都成立。
+
+**诚实边界**：release 包不可 `run-as`，因此**无法直接读出**持久化的 `installed_update_id` 字面值；上面的"后续启动不再下载"是其**行为证据**。日志里也看不到 JS 侧决策——原生 `logJs` 桥存在但生成壳从不调用（已开 **#271**）。
+
+### 7.5 ⚠️ chain-11 首次真正跑起来：2 FAIL（需调查，勿当结论）
+
+**先修了链本身**：`dut_native_surface_ok()` 原先要求 DUT 壳内含 `v1/crl`/`fetchRevocations` —— 而 #257 已把 CRL 拉取移进 shell-core，生成壳里**恒为 0 命中**。于是链的两条安全设备腿**永远 SKIP**，且给出的理由把责任推给 DUT（"legacy host 不满足"），没人会去怀疑检查本身。改为断言现存的 `bootReleaseOta` 后，链首次跑到设备腿。**这是 #257 自身造成的验证回归。**
+
+跑起来后的真实结果（`chain-11 rc=1`，**2 FAIL / 0 SKIP**）：
+
+```
+11.C  两宿主 adapter 请求集                  ✓ ×5（含 host option sets 差分）
+11.0  preflight                             ✓ adb · DUT com.rnotaacceptance · CP log · pending candidates=1
+11.B1 差分控制：CRL 正常 → 更新应被安装        ✓（pid 3813 → 新 pid；CRL 请求 1 次）
+11.B2 篡改 /v1/crl → 设备必须拒载             ✗ FAIL
+       ✓ stub 命中 1 次（设备确实请求了 /v1/crl → 拒载应来自验签而非跳过）
+       ✗ 「被篡改的 CRL 仍安装了更新」—— 判据是 pid 变化
+       ✓ 应用仍在基线可运行（fail-closed 不是崩壳）
+11.A  崩溃环 → 回滚基线且不再拉包              ✗ FAIL
+       ✓ 注入 4 次未完成启动（阈值 3）
+       ✗ 「回滚启动仍请求了 manifest（1 次）」
+```
+
+**这两个 FAIL 我不断言为产品缺陷，也不当作环境抖动** —— 两个方向都有合理假设，需要下一步专门调查：
+
+- **11.B2**：
+  (a) *真缺陷*：设备端没有对 CRL 的 `seal` 做完整性校验，篡改后的吊销清单被接受（即 #253/G3 在真机上失效）；
+  (b) *判据伪影*：`"已安装" 用 pid 变化判定*，而 pid 变化也可能来自上一次 B1 遗留或注入导致的重启，不代表本次更新真的生效。
+  另外该 stub 究竟改了 `seal` 还是只改 `revoked`/`payload` 需核实——若只改 `revoked` 而不重签，`publisher` 侧的行为需要明确。
+- **11.A**：
+  (a) *注入语义未命中*：4 次"未完成启动"可能并未真正让原生崩溃计数递增（例如被 `am force-stop` 打断了 `recordStartupFailure` 的写盘），于是根本没到阈值、没有回滚，自然照常拉包；
+  (b) *#269 修复的行为副作用*：我的修复把"清空计数"放在**回滚之前**，若注入方式会让回滚路径频繁命中，计数可能被反复清零而到不了阈值；
+  (c) *真缺陷*：回滚分支确实没有阻止后续拉取。
+  注意**上一轮真机曾观察到预期行为**（`rollback launch: crl=0 check=0`，即回滚前未拉包，§7.2），所以 (a)/(b) 的可能性不低 —— 但这恰恰说明**需要一个能区分三者的判据**，而不是沿用 pid/请求计数。
+
+**结论**：链现在**能跑了**，但它给出的判据还不足以把"真缺陷"与"注入/判据伪影"分开。下一步应先把两条腿的**判据**做成可区分的形式（例如直接读回原生崩溃计数与 `installed_update_id`，而不是靠 pid 变化推断），再判定 B2/A 的成败。
+
 ## 8. 结果回填（贴到 #268）
 
 ```text

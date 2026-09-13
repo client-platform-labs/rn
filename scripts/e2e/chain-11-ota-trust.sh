@@ -76,7 +76,11 @@ dut_native_surface_ok() {
   kt="$(find "$DUT_PROJECT/android" -path "*ota*" -name "OtaModule.kt" 2>/dev/null | head -1)"
   [[ -n "$kt" ]] || return 1
   grep -q "recordStartupFailure" "$kt" && grep -q "getOtaPublicKeys" "$kt" || return 1
-  grep -rq "v1/crl\|fetchRevocations" "$DUT_PROJECT/shell" 2>/dev/null || return 1
+  # #257 moved the CRL fetch into shell-core's bootReleaseOta, so a shell generated
+  # from the CURRENT templates contains neither "v1/crl" nor "fetchRevocations" —
+  # grep for those can never pass, and this chain would SKIP both security device
+  # legs forever while blaming the DUT. Assert the surface that actually exists.
+  grep -rq "bootReleaseOta" "$DUT_PROJECT/shell" 2>/dev/null || return 1
   return 0
 }
 
