@@ -53,6 +53,21 @@ export interface OtaNativeAdapter {
   getInstalledUpdateId?(moduleId: string): Promise<string | null>;
   /** Persist the newly activated update_id BEFORE reload (reload kills the process). */
   setInstalledUpdateId?(moduleId: string, updateId: string): Promise<void>;
+  /**
+   * The update_id that was ROLLED BACK after repeated failed boots (#269 residual).
+   *
+   * Rolling back clears the active bundle, so the device runs the embedded
+   * baseline — but without this marker the only surviving fact is
+   * `installed_update_id`, which then names an update the device is NOT running.
+   * The boot uses this to refuse re-applying a known-bad id, and a DIFFERENT
+   * (newer) candidate clears it, so a fix can always land.
+   *
+   * Optional by design: a host without it degrades to the old behaviour rather
+   * than failing a boot over bookkeeping.
+   */
+  getRolledBackUpdateId?(moduleId: string): Promise<string | null>;
+  /** Record (`updateId`) or clear (`null`) the rolled-back marker for a module. */
+  setRolledBackUpdateId?(moduleId: string, updateId: string | null): Promise<void>;
   ensureModuleSlots(moduleId: string): Promise<void>;
   writeFileBase64(relPath: string, base64: string): Promise<string>;
   writeFileUtf8(relPath: string, utf8: string): Promise<string>;
@@ -68,6 +83,16 @@ export interface OtaNativeAdapter {
 }
 
 /**
+ * Opaque handle for the host's native surface, returned by `hostSurface()`.
+ *
+ * Deliberately shapeless (ADR-022): the shell mounts through the adapter and must
+ * never reach into engine internals, so the only fact it may rely on is that a
+ * handle exists. Named rather than `unknown` so a call site cannot silently
+ * accept — or invent — any value, which is what `unknown` allowed.
+ */
+export type HostSurfaceHandle = object;
+
+/**
  * HostEngineAdapter (ADR-022 / D5): the engine-agnostic surface a shell depends
  * on. Extends OtaNativeAdapter with the engine lifecycle group, so the shell's
  * boot/OTA flow never touches AppRegistry / NativeModules / ReactActivity
@@ -76,8 +101,18 @@ export interface OtaNativeAdapter {
 export interface HostEngineAdapter extends OtaNativeAdapter {
   /** Mount the root surface for a module (replaces AppRegistry.registerComponent). */
   mountRoot(moduleId: string, entry: string): void;
-  /** Resolve the host's native surface handle (replaces ReactActivity / FlutterActivity). */
-  hostSurface(): unknown;
+  /**
+   * Resolve the host's native surface handle (replaces ReactActivity /
+   * FlutterActivity), or `null` when the engine has no surface to hand back.
+   *
+   * The handle is ENGINE-owned and deliberately unshaped: the shell may hold it
+   * and pass it back to the engine's own binding, but must never introspect it.
+   * Typed `object | null` rather than `unknown` to state exactly what is known —
+   * an opaque object, or none — without inventing engine internals at this seam,
+   * which is the leakage ADR-022 forbids. No concrete shape appears here until an
+   * engine binding implements it.
+   */
+  hostSurface(): HostSurfaceHandle | null;
   /** Call a native bridge method (replaces NativeModules.X). */
   callNative(method: string, args: readonly unknown[]): Promise<unknown>;
   /**

@@ -7,9 +7,10 @@
  * It now lives here, behind one interface, so both hosts share one policy and one
  * implementation:
  *
- *   cache baked pubkeys → crash-loop guard (ADR-014) → pull (ADR-014 skip-if-
- *   installed) → signed-CRL verify before trusting any update (ADR-024 / G3) →
- *   reset the startup counter on any completed boot.
+ *   cache baked pubkeys → crash-loop guard (ADR-014) → refuse a known-bad id
+ *   (#269 residual) → pull (ADR-014 skip-if-installed) → signed-CRL verify before
+ *   trusting any update (ADR-024 / G3) → reset the startup counter on any
+ *   completed boot.
  *
  * A host supplies only its adapter surface (`ReleaseOtaBootHost`): the native
  * bridge, where its control-plane base URL comes from, the key loader, and the
@@ -167,9 +168,6 @@ async function cacheBakedPublicKeys(
 }
 
 /**
- * Run the release boot for one module. Never rejects — see the module docblock.
- */
-/**
  * Release-mode diagnostics (#271).
  *
  * The Kotlin adapter ships `logJs` → `Log.e("OTA", …)` precisely because the JS
@@ -229,6 +227,24 @@ export async function bootReleaseOta(
       // Expo Updates, and Android's own RescueParty, all clear the
       // consecutive-failure counter once the rolled-back bundle is up.
       await native.resetStartupFailures?.(moduleId);
+      // #269 residual: record WHICH update was rolled back, and stop calling it
+      // installed. Rolling back clears the active bundle, so the device runs the
+      // embedded baseline — yet `installed_update_id` would still name an update
+      // the device is NOT running, and a candidate carrying no resolvable id was
+      // re-applied on every launch (crash → rollback → re-pull → crash).
+      // Recorded BEFORE the rollback because that call ends in `reload()` and
+      // nothing after it is guaranteed to run (#268's lesson).
+      const runningId = (await native.getInstalledUpdateId?.(moduleId)) ?? null;
+      if (runningId) {
+        await native.setRolledBackUpdateId?.(moduleId, runningId);
+        // "" is the interface's cleared form (`updateId: string`); the boot's
+        // skip-if-installed guard treats it as falsy, i.e. nothing installed.
+        await native.setInstalledUpdateId?.(moduleId, "");
+        await diag(
+          native,
+          `rollback: rejected update_id=${runningId} (recorded; it will not be re-applied)`,
+        );
+      }
       await diag(
         native,
         `crash-loop rollback: failCount=${failCount} threshold=${DEFAULT_CRASH_LOOP_MAX} — clearing budget, booting embedded baseline`,
@@ -241,10 +257,41 @@ export async function bootReleaseOta(
       return { phase: "baseline", skippedReason: "crash_loop_rollback" };
     }
 
+    // #269 residual: refuse a candidate whose id was previously rolled back. The
+    // marker is advisory state, so a host that does not implement it simply keeps
+    // the old behaviour rather than failing the boot.
+    const rolledBackId =
+      (await native.getRolledBackUpdateId?.(moduleId)) ?? null;
+    const cp = createControlPlaneFetch(base, { native, timeoutMs: host.timeoutMs });
+    const fetchManifest = async (
+      mid: string,
+      lane: "production" | "staging",
+    ): Promise<OtaSidecar | null> => {
+      const candidate = await cp.fetchManifest(mid, lane);
+      if (!candidate) return null;
+      const id = candidate.update_id ?? candidate.candidate?.update_id ?? null;
+      if (!rolledBackId || !id) return candidate;
+      if (id === rolledBackId) {
+        await diag(
+          native,
+          `refusing known-bad update_id=${id} (rolled back earlier); booting embedded baseline`,
+        );
+        return null;
+      }
+      // A DIFFERENT update is on offer, so the old rejection no longer applies.
+      // Cleared HERE, on sight, rather than after the pull: this runs before any
+      // reload, so it is guaranteed to execute — and without it the marker would
+      // become a new trap in which a fix could never land (#268's lesson about
+      // relying on code placed after a reload).
+      await native.setRolledBackUpdateId?.(moduleId, null);
+      return candidate;
+    };
+
     const result = await pullOtaUpdate(client, native, moduleId, {
       lane: "production",
       asRoot: host.asRoot ?? false,
-      ...createControlPlaneFetch(base, { native, timeoutMs: host.timeoutMs }),
+      fetchManifest,
+      fetchRevocations: cp.fetchRevocations,
     });
 
     // ADR-014: ANY completed boot (installed / already_installed / no_update /

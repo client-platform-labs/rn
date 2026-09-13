@@ -73,6 +73,35 @@ class OtaModule(private val ctx: ReactApplicationContext) :
     }
   }
 
+  // ── rolled-back marker: never re-apply an update that was rolled back ──
+  // (#269) Rolling back clears the active bundle, so the device runs the
+  // embedded baseline; this records WHICH update was rejected so a later boot
+  // does not re-pull and re-apply it. Cleared (null/empty) once a different
+  // update is accepted, so a fix can always land.
+  @ReactMethod
+  fun getRolledBackUpdateId(moduleId: String, promise: Promise) {
+    try {
+      requireValidModuleId(moduleId)
+      promise.resolve(prefs().getString(rolledBackKey(moduleId), null))
+    } catch (e: Exception) {
+      promise.reject("ota", e)
+    }
+  }
+
+  @ReactMethod
+  fun setRolledBackUpdateId(moduleId: String, updateId: String?, promise: Promise) {
+    try {
+      requireValidModuleId(moduleId)
+      val edit = prefs().edit()
+      if (updateId.isNullOrEmpty()) edit.remove(rolledBackKey(moduleId))
+      else edit.putString(rolledBackKey(moduleId), updateId)
+      edit.commit()
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("ota", e)
+    }
+  }
+
   // ── crash-loop counters ────────────────────────────────────────────────
   @ReactMethod
   fun recordStartupFailure(moduleId: String, promise: Promise) {
@@ -296,6 +325,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   private fun prefs() = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
   private fun installedKey(moduleId: String) = "installed_update_id_$moduleId"
+  private fun rolledBackKey(moduleId: String) = "rolled_back_update_id_$moduleId"
 
   companion object {
     const val PREFS = "greenfield_ota"
