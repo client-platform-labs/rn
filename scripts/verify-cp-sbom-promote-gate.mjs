@@ -2,132 +2,93 @@
 /**
  * Map C C7 — P9 dual SBOM fail-closed on promote (self-contained).
  *
+ * Migrated onto the verify fixture (#259). Hybrid by design: two cases call
+ * `evaluateSbomPromoteGate` directly (no project needed) and two drive the real
+ * `ship promote`, so the registry is rewritten between cases.
+ *
  * Usage:
  *   node scripts/verify-cp-sbom-promote-gate.mjs
+ *   node scripts/_run-verify.mjs cp-sbom-promote-gate
  */
-import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-c7-sbom-"));
-const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
-
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "c7-sbom" }));
-
-const digest = "d".repeat(64);
-
-function jsUpdateCandidate(supply_chain) {
-  return {
-    digest,
-    release_id: "rel-sbom",
-    update_id: "main-sbom-1",
-    business_module: "main",
-    platform: "js",
-    artifact_kind: "js-update",
-    profile: "release",
-    stage: "promote",
-    path: null,
-    supply_chain,
-  };
-}
-
-function writeRegistry(candidate) {
-  writeFileSync(
-    path.join(projectRoot, ".rn/delivery/registry.json"),
-    JSON.stringify(
-      {
-        schemaVersion: 1,
-        staging: [candidate],
-        production: [],
-        blocked: [],
-        kills: [],
-        pauses: [],
-        rollouts: [],
-      },
-      null,
-      2,
-    ),
-  );
-}
-
-function run(args) {
-  return spawnSync(process.execPath, [rd, ...args], {
-    cwd: projectRoot,
-    encoding: "utf8",
-  });
-}
-
-function step(name, ok, detail) {
-  if (!ok) {
-    console.error(`[FAIL] ${name}${detail ? ` — ${detail}` : ""}`);
-    process.exit(1);
-  }
-  console.log(`[OK] ${name}`);
-}
+import {
+  createHarness,
+  emptyRegistry,
+  REPO_ROOT,
+} from "./lib/verify/fixture.mjs";
 
 const { evaluateSbomPromoteGate } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/sbom-promote-gate.js"),
-  ).href
+  pathToFileURL(path.join(REPO_ROOT, "packages/core/dist/sbom-promote-gate.js"))
+    .href
 );
 
-writeRegistry(jsUpdateCandidate(undefined));
-const missingGate = evaluateSbomPromoteGate({
+const h = createHarness({ name: "verify-cp-sbom-promote-gate" });
+
+const DIGEST = "d".repeat(64);
+
+const jsUpdateCandidate = (supply_chain) => ({
+  digest: DIGEST,
+  release_id: "rel-sbom",
+  update_id: "main-sbom-1",
+  business_module: "main",
+  platform: "js",
   artifact_kind: "js-update",
-  supply_chain: undefined,
+  profile: "release",
+  stage: "promote",
+  path: null,
+  supply_chain,
 });
-step("gate blocks missing supply_chain", !missingGate.ok, missingGate.reason);
 
-writeRegistry(jsUpdateCandidate({ host: {}, js_update: {} }));
-run(["signal", "clear"]);
-const promoteMissing = run(["promote", "--digest", digest]);
-step(
-  "promote blocked without SBOM",
-  promoteMissing.status !== 0,
-  promoteMissing.stderr || promoteMissing.stdout,
-);
-
-const hostReuse = evaluateSbomPromoteGate({
-  artifact_kind: "app-host",
-  supply_chain: {
-    host: {
-      sbom: {
-        artifact_kind: "js-update",
-        format: "stub",
-        digest,
-      },
-    },
-    js_update: {},
-  },
+const registryWith = (candidate) => ({
+  ...emptyRegistry(),
+  staging: [candidate],
 });
-step(
-  "gate blocks host train reusing js-update SBOM kind",
-  !hostReuse.ok,
-  hostReuse.reason,
-);
 
-writeRegistry(
-  jsUpdateCandidate({
-    host: {},
-    js_update: {
-      sbom: {
-        artifact_kind: "js-update",
-        format: "stub",
-        digest,
-      },
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-sbom-promote-gate",
+    registry: registryWith(jsUpdateCandidate(undefined)),
+  });
+  const ship = (args) => h.cli("ship", args, { cwd: p.root });
+
+  h.step("the gate itself fails closed");
+  const missingGate = evaluateSbomPromoteGate({
+    artifact_kind: "js-update",
+    supply_chain: undefined,
+  });
+  h.assertTruthy(!missingGate.ok, "a missing supply_chain is blocked");
+
+  const hostReuse = evaluateSbomPromoteGate({
+    artifact_kind: "app-host",
+    supply_chain: {
+      host: { sbom: { artifact_kind: "js-update", format: "stub", digest: DIGEST } },
+      js_update: {},
     },
-  }),
-);
-run(["signal", "clear"]);
-const promoteOk = run(["promote", "--digest", digest]);
-step(
-  "promote succeeds with js_update stub SBOM",
-  promoteOk.status === 0,
-  promoteOk.stderr || promoteOk.stdout,
-);
+  });
+  h.assertTruthy(
+    !hostReuse.ok,
+    "a host train reusing a js-update SBOM kind is blocked",
+  );
 
-console.log("PASS verify-cp-sbom-promote-gate");
+  h.step("promote is blocked without an SBOM");
+  p.writeRegistry(registryWith(jsUpdateCandidate({ host: {}, js_update: {} })));
+  await ship(["signal", "clear"]);
+  const promoteMissing = await ship(["promote", "--digest", DIGEST]);
+  h.assertCmdFails(promoteMissing, "promote is blocked");
+
+  h.step("promote succeeds with a js_update stub SBOM");
+  p.writeRegistry(
+    registryWith(
+      jsUpdateCandidate({
+        host: {},
+        js_update: {
+          sbom: { artifact_kind: "js-update", format: "stub", digest: DIGEST },
+        },
+      }),
+    ),
+  );
+  await ship(["signal", "clear"]);
+  h.assertCmdOk(await ship(["promote", "--digest", DIGEST]), "promote succeeds");
+});

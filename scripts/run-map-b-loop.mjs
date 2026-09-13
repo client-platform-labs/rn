@@ -31,6 +31,10 @@ function runNode(script) {
   });
   return {
     ok: r.status === 0,
+    // 0 PASS / 1 FAIL / 2 SKIP — same contract as scripts/e2e/lib.sh's
+    // chain_done and the verify fixture (#259). Kept so the caller can honour a
+    // reasoned SKIP instead of reporting it as a broken gate.
+    code: r.status ?? 1,
     detail: (r.stderr || r.stdout || "").trim().slice(-800),
   };
 }
@@ -150,6 +154,9 @@ if (planOnly) {
 
 /** @type {Map<string, "pass"|"fail"|"skip"|"blocked">} */
 const results = new Map();
+/** Exit-code contract shared with scripts/e2e/lib.sh and the verify fixture. */
+const STATUS_BY_EXIT_CODE = { 0: "pass", 1: "fail", 2: "skip" };
+
 let hardFail = false;
 
 function depsOk(step) {
@@ -214,15 +221,18 @@ for (const step of STEPS) {
   const started = Date.now();
   const outcome = runNode(scriptPath);
   const ms = Date.now() - started;
-  const status = outcome.ok ? "pass" : "fail";
+  // Honour the 0/1/2 PASS/FAIL/SKIP contract. Treating exit 2 as failure made a
+  // deliberate, reasoned skip (e.g. cp-registry-postgres with no database URL)
+  // look like a broken gate in this driver's report (#259).
+  const status = STATUS_BY_EXIT_CODE[outcome.code] ?? "fail";
   results.set(step.id, status);
-  if (!outcome.ok) hardFail = true;
+  if (status === "fail") hardFail = true;
   appendFileSync(
     reportPath,
     `${JSON.stringify({ id: step.id, kind: step.kind, status, ms, issue: step.issue ?? null, detail: outcome.detail?.slice(0, 300), ts: new Date().toISOString() })}\n`,
   );
   console.log(`${status.toUpperCase()} (${ms}ms)`);
-  if (!outcome.ok && outcome.detail) {
+  if (status === "fail" && outcome.detail) {
     console.log(`       ${outcome.detail.split("\n").slice(-2).join(" | ")}`);
   }
 }

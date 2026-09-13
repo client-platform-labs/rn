@@ -9,8 +9,20 @@ export type {
   OtaLane,
   PullOtaClient,
   PullOtaFetchManifest,
+  PullOtaFetchRevocations,
   PullOtaResult,
 } from "./pull-ota.js";
+export {
+  bootReleaseOta,
+  CONTROL_PLANE_UNCONFIGURED_WARNING,
+  createControlPlaneFetch,
+} from "./release-boot.js";
+export type {
+  ControlPlaneFetch,
+  OtaBootOutcome,
+  OtaBootPhase,
+  ReleaseOtaBootHost,
+} from "./release-boot.js";
 export {
   assertModuleId,
   assetBaselineUri,

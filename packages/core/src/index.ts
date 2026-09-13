@@ -386,6 +386,7 @@ export {
   RELEASE_DEV_SUPPORT_STATE_FILE,
 } from "./release-hygiene.js";
 export type { ReleaseHygieneCheck } from "./release-hygiene.js";
+export type { DiagnosticCheck } from "./diagnostics.js";
 
 export {
   parseLsofListeners,

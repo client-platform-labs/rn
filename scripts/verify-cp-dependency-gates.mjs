@@ -2,31 +2,40 @@
 /**
  * Map E E-T2 — CP/delivery dependency gates on release + promote.
  *
+ * Three gate cases, all through the real `ship` CLI: a missing hard contract
+ * must block promote, a satisfied contract+peer must pass, a too-old peer must
+ * block. Migrated onto the verify fixture (#259) — the temp project, registry
+ * rewriting and CLI spawning were hand-rolled here before.
+ *
  * Usage:
  *   node scripts/verify-cp-dependency-gates.mjs
+ *   node scripts/_run-verify.mjs cp-dependency-gates
  */
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-e-dep-"));
+import { createHarness, emptyRegistry, REPO_ROOT } from "./lib/verify/fixture.mjs";
 
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(
-  path.join(projectRoot, "package.json"),
-  JSON.stringify({ name: "e-dep-gate" }),
+const { defaultGreenfieldFingerprint } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/rn-engine/dist/greenfield.js")).href
+);
+const { saveDependencyManifest } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/ship/dist/dependency-store.js"))
+    .href
 );
 
-const digest = "d".repeat(64);
+const h = createHarness({ name: "verify-cp-dependency-gates" });
+
+const DIGEST = "d".repeat(64);
+const UPDATE_ID = "js-chk-p184";
+const fp = defaultGreenfieldFingerprint("0.87.0");
+const CAPABILITIES = ["PaymentTurbo", "ShellBus.v2"];
+
 const candidate = {
   schemaVersion: 1,
-  digest,
+  digest: DIGEST,
   release_id: "rel-dep",
-  update_id: "js-chk-p184",
+  update_id: UPDATE_ID,
   business_module: "checkout",
   platform: "android",
   artifact_kind: "js-update",
@@ -35,199 +44,131 @@ const candidate = {
   channel: "default",
   stage: "promote",
   path: null,
-  signature: digest,
+  signature: DIGEST,
   supply_chain: {
     host: {},
-    js_update: {
-      sbom: {
-        artifact_kind: "js-update",
-        format: "stub",
-        digest,
-      },
-    },
+    js_update: { sbom: { artifact_kind: "js-update", format: "stub", digest: DIGEST } },
   },
 };
 
-const { defaultGreenfieldFingerprint } = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/greenfield.js"))
-    .href
-);
-const fp = defaultGreenfieldFingerprint("0.87.0");
-
-mkdirSync(path.join(projectRoot, ".rn/delivery/updates/checkout"), {
-  recursive: true,
-});
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/updates/checkout/js-chk-p184.json"),
-  JSON.stringify(
-    {
-      schemaVersion: 1,
-      business_module: "checkout",
-      update_id: "js-chk-p184",
-      bundle_path: "/tmp/fake.hbc",
-      digest,
-      signature: digest,
-      candidate: {
-        business_module: "checkout",
-        update_id: "js-chk-p184",
-        runtime_fingerprint: fp,
-        hbcBytecodeVersion: fp.hbcBytecodeVersion,
-        required_capabilities: ["PaymentTurbo", "ShellBus.v2"],
-        target_artifact_lines: ["pure-rn-greenfield"],
-        release_gate: "js-standard",
-        channel: "default",
-      },
-      host_context: {
-        artifact_line: "pure-rn-greenfield",
-        hbcBytecodeVersion: fp.hbcBytecodeVersion,
-        runtime_fingerprint: fp,
-      },
-    },
-    null,
-    2,
-  ),
-);
-
-const { saveDependencyManifest } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/ship/dist/dependency-store.js"),
-  ).href
-);
-
-function writeRegistry(extraStaging = []) {
-  writeFileSync(
-    path.join(projectRoot, ".rn/delivery/registry.json"),
-    JSON.stringify(
+/** Staging holds the candidate under test; production holds the peer's module. */
+function registry() {
+  return {
+    ...emptyRegistry(),
+    staging: [candidate],
+    production: [
       {
-        schemaVersion: 1,
-        staging: [candidate, ...extraStaging],
-        production: [
-          {
-            ...candidate,
-            digest: "e".repeat(64),
-            update_id: "js-home-p30",
-            business_module: "home",
-            signature: "e".repeat(64),
-          },
-        ],
-        blocked: [],
-        kills: [],
-        pauses: [],
-        rollouts: [],
+        ...candidate,
+        digest: "e".repeat(64),
+        update_id: "js-home-p30",
+        business_module: "home",
+        signature: "e".repeat(64),
       },
-      null,
-      2,
-    ),
-  );
+    ],
+  };
 }
 
-function run(args) {
-  return spawnSync(process.execPath, [rd, ...args], {
-    cwd: projectRoot,
-    encoding: "utf8",
+const stagedSidecar = {
+  schemaVersion: 1,
+  business_module: "checkout",
+  update_id: UPDATE_ID,
+  bundle_path: "/tmp/fake.hbc",
+  digest: DIGEST,
+  signature: DIGEST,
+  candidate: {
+    business_module: "checkout",
+    update_id: UPDATE_ID,
+    runtime_fingerprint: fp,
+    hbcBytecodeVersion: fp.hbcBytecodeVersion,
+    required_capabilities: CAPABILITIES,
+    target_artifact_lines: ["pure-rn-greenfield"],
+    release_gate: "js-standard",
+    channel: "default",
+  },
+  host_context: {
+    artifact_line: "pure-rn-greenfield",
+    hbcBytecodeVersion: fp.hbcBytecodeVersion,
+    runtime_fingerprint: fp,
+  },
+};
+
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-dependency-gates",
+    registry: registry(),
+    files: { ".rn/delivery/updates/checkout/js-chk-p184.json": stagedSidecar },
   });
-}
+  const promote = () => h.cli("ship", ["promote", "--digest", DIGEST], { cwd: p.root });
 
-function mustFail(label, args, needle) {
-  const r = run(args);
-  if (r.status === 0) {
-    console.error(`FAIL ${label}: expected non-zero`, r.stdout, r.stderr);
-    process.exit(1);
-  }
-  const out = `${r.stdout}\n${r.stderr}`;
-  if (needle && !out.includes(needle)) {
-    console.error(`FAIL ${label}: missing ${needle}`, out);
-    process.exit(1);
-  }
-  console.log(`OK ${label} (blocked)`);
-}
+  h.step("1) a missing hard contract blocks promote");
+  saveDependencyManifest(p.root, {
+    schemaVersion: 1,
+    dependencies: [
+      {
+        from_update_id: UPDATE_ID,
+        from_module: "checkout",
+        strength: "hard",
+        kind: "contract",
+        to_update_id: "js-base-MISSING",
+        reason: "DTO",
+      },
+    ],
+    version_labels: {},
+    host_capability_set: CAPABILITIES,
+  });
+  p.writeRegistry(registry());
+  const missing = await promote();
+  h.assertCmdFails(missing, "promote is blocked");
+  h.assertCmdOutputContains(missing, "hard contract missing", "reason names the missing contract");
 
-function mustPass(label, args) {
-  const r = run(args);
-  if (r.status !== 0) {
-    console.error(`FAIL ${label}`, r.stdout, r.stderr);
-    process.exit(1);
-  }
-  console.log(`OK ${label}`);
-}
-
-// 1) Missing hard contract → promote fails
-saveDependencyManifest(projectRoot, {
-  schemaVersion: 1,
-  dependencies: [
-    {
-      from_update_id: "js-chk-p184",
-      from_module: "checkout",
-      strength: "hard",
-      kind: "contract",
-      to_update_id: "js-base-MISSING",
-      reason: "DTO",
+  h.step("2) a satisfied contract + peer lets promote through");
+  saveDependencyManifest(p.root, {
+    schemaVersion: 1,
+    dependencies: [
+      {
+        from_update_id: UPDATE_ID,
+        from_module: "checkout",
+        strength: "hard",
+        kind: "contract",
+        to_update_id: "js-base-p12",
+      },
+      {
+        from_update_id: UPDATE_ID,
+        from_module: "checkout",
+        strength: "peer",
+        kind: "coexistence",
+        to_module: "home",
+        to_range: ">=3.0.0",
+      },
+    ],
+    version_labels: {
+      "js-base-p12": "1.2.0",
+      "js-home-p30": "3.0.0",
+      "js-chk-p184": "1.8.4",
     },
-  ],
-  version_labels: {},
-  host_capability_set: ["PaymentTurbo", "ShellBus.v2"],
+    host_capability_set: CAPABILITIES,
+  });
+  p.writeRegistry(registry());
+  h.assertCmdOk(await promote(), "promote with contract+peer succeeds");
+
+  h.step("3) a too-old peer blocks promote");
+  p.writeRegistry(registry());
+  saveDependencyManifest(p.root, {
+    schemaVersion: 1,
+    dependencies: [
+      {
+        from_update_id: UPDATE_ID,
+        from_module: "checkout",
+        strength: "peer",
+        kind: "coexistence",
+        to_module: "home",
+        to_range: ">=3.0.0",
+      },
+    ],
+    version_labels: { "js-home-p30": "2.9.4", "js-chk-p184": "1.8.4" },
+    host_capability_set: CAPABILITIES,
+  });
+  const oldPeer = await promote();
+  h.assertCmdFails(oldPeer, "promote is blocked");
+  h.assertCmdOutputContains(oldPeer, "peer home", "reason names the offending peer");
 });
-writeRegistry();
-mustFail(
-  "promote missing contract",
-  ["promote", "--digest", digest],
-  "hard contract missing",
-);
-
-// 2) Contract + peer ok → promote passes
-saveDependencyManifest(projectRoot, {
-  schemaVersion: 1,
-  dependencies: [
-    {
-      from_update_id: "js-chk-p184",
-      from_module: "checkout",
-      strength: "hard",
-      kind: "contract",
-      to_update_id: "js-base-p12",
-    },
-    {
-      from_update_id: "js-chk-p184",
-      from_module: "checkout",
-      strength: "peer",
-      kind: "coexistence",
-      to_module: "home",
-      to_range: ">=3.0.0",
-    },
-  ],
-  version_labels: {
-    "js-base-p12": "1.2.0",
-    "js-home-p30": "3.0.0",
-    "js-chk-p184": "1.8.4",
-  },
-  host_capability_set: ["PaymentTurbo", "ShellBus.v2"],
-});
-writeRegistry();
-mustPass("promote with contract+peer", ["promote", "--digest", digest]);
-
-// 3) Peer too old → fail (reset staging)
-writeRegistry();
-saveDependencyManifest(projectRoot, {
-  schemaVersion: 1,
-  dependencies: [
-    {
-      from_update_id: "js-chk-p184",
-      from_module: "checkout",
-      strength: "peer",
-      kind: "coexistence",
-      to_module: "home",
-      to_range: ">=3.0.0",
-    },
-  ],
-  version_labels: {
-    "js-home-p30": "2.9.4",
-    "js-chk-p184": "1.8.4",
-  },
-  host_capability_set: ["PaymentTurbo", "ShellBus.v2"],
-});
-mustFail(
-  "promote peer too old",
-  ["promote", "--digest", digest],
-  "peer home",
-);
-
-console.log("verify-cp-dependency-gates: PASS");

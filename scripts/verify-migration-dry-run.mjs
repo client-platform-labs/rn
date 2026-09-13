@@ -22,7 +22,7 @@ import { pathToFileURL } from "node:url";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
 const core = await import(
-  pathToFileURL(path.join(repoRoot, "packages/rn-core/dist/migration-dry-run.js")).href
+  pathToFileURL(path.join(repoRoot, "packages/core/dist/migration-dry-run.js")).href
 );
 const { buildExpoMigrateDryRunReport } = await import(
   pathToFileURL(path.join(repoRoot, "packages/rn/dist/expo-migrate.js")).href

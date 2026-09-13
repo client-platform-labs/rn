@@ -6,6 +6,12 @@
  * (dev-session / module list / .rn/runtime.jsonc). One primitive regenerates
  * them all. Trigger points: rn init tail, rn module register, rn dev preflight.
  * Fixes F13 (init incomplete), F14 (generation quality), F23 (runtime config).
+ *
+ * #263: every trigger point must go THROUGH this function. The three write
+ * functions below stay private to this module (enforced by
+ * test/declaration-derived.test.ts) — a caller that writes an artifact itself is
+ * a second entry point, and that is how declaration and derived artifacts drift
+ * apart (F13). Callers render {@link DerivedArtifacts}; they do not derive.
  */
 import { loadDevSessionConfig } from "./dev-session-config.js";
 import { writeHostMetroResolver } from "./host-metro-config.js";
@@ -22,24 +28,46 @@ import {
 export { GENERATED_RUNTIME_RELATIVE };
 
 /**
+ * Absolute paths of the artifacts written by {@link regenerateDerivedArtifacts}.
+ * Returned instead of recomputed by callers so a user-facing command can render
+ * what it wrote without knowing the regeneration rules — the rules stay here.
+ */
+export type DerivedArtifacts = {
+  /** `shell/generated-registrations.ts` — the generated registry (ADR-021/D2). */
+  registry: string;
+  /**
+   * `.rn/metro/host-resolver.cjs` — `null` when the project declares no modules
+   * yet (standalone `applyIndustrialShell`): the resolver needs a dev-session.
+   */
+  hostResolver: string | null;
+  /** `shell/generated-runtime.ts` — the runtime-config artifact (F23/SEAM-2). */
+  runtime: string;
+};
+
+/**
  * Regenerate all declaration-derived artifacts for a project root.
  * Requires dev-session (topology-b init / rn module link) to be present.
  */
-export function regenerateDerivedArtifacts(projectRoot: string): void {
+export function regenerateDerivedArtifacts(
+  projectRoot: string,
+): DerivedArtifacts {
   const session = loadDevSessionConfig(projectRoot);
+  let registry: string;
+  let hostResolver: string | null = null;
   if (session?.modules) {
     const modules = Object.entries(session.modules).map(([moduleId, b]) => ({
       moduleId,
       packageName: b.packageName,
     }));
-    writeModuleRegistry(projectRoot, modules);
-    writeHostMetroResolver(projectRoot);
+    registry = writeModuleRegistry(projectRoot, modules);
+    hostResolver = writeHostMetroResolver(projectRoot);
   } else {
     // No declared modules yet (standalone applyIndustrialShell) — write an
     // empty registry placeholder; host-resolver needs dev-session, skip it.
-    writeModuleRegistry(projectRoot, []);
+    registry = writeModuleRegistry(projectRoot, []);
   }
-  writeGeneratedRuntime(projectRoot);
+  const runtime = writeGeneratedRuntime(projectRoot);
+  return { registry, hostResolver, runtime };
 }
 
 /**

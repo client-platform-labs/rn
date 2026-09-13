@@ -15,7 +15,7 @@ const {
   evaluateRuntimeCompositionGate,
 } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/dependency-manifest.js"),
+    path.join(repoRoot, "packages/core/dist/dependency-manifest.js"),
   ).href
 );
 

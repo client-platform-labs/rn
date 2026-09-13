@@ -17,7 +17,7 @@ const projectRoot = path.resolve(
   process.argv[2] ?? path.join(repoRoot, "examples/brownfield-host"),
 );
 
-const coreEntry = path.join(repoRoot, "packages/rn-core/dist/index.js");
+const coreEntry = path.join(repoRoot, "packages/core/dist/index.js");
 const { defaultDualModuleDevSession } = await import(
   pathToFileURL(coreEntry).href
 );

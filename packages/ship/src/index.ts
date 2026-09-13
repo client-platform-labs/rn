@@ -1,13 +1,15 @@
 export const packageName = "@client-platform/ship" as const;
 export { run } from "./cli.js";
+export type { ShipDeps } from "./cli.js";
 
-export { rnBuildBackend } from "./build-backend.js";
+export { createRnBuildBackend, rnBuildBackend } from "./build-backend.js";
 export type {
   BuildBackend,
   BuildOptions,
   BundleOptions,
   IngestOptions,
 } from "./build-backend.js";
+export type { BuildCommandRunner, BuildEnv } from "./build.js";
 
 export {
   CANDIDATE_METADATA_SCHEMA_VERSION,

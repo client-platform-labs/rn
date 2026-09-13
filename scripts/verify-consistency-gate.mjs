@@ -60,12 +60,12 @@ writeFileSync(
 
 const { evaluateConsistencyGate } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/consistency-gate.js"),
+    path.join(repoRoot, "packages/core/dist/consistency-gate.js"),
   ).href
 );
 const { evaluateQualityPromoteGate } = await import(
   pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/quality-promote-gate.js"),
+    path.join(repoRoot, "packages/core/dist/quality-promote-gate.js"),
   ).href
 );
 const { loadQualitySignals } = await import(

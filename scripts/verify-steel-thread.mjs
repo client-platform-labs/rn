@@ -13,7 +13,7 @@
  * Usage:
  *   node scripts/verify-steel-thread.mjs [projectRoot]
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -21,7 +21,7 @@ import { spawnSync } from "node:child_process";
 const projectRoot = path.resolve(process.argv[2] ?? process.cwd());
 const coreHygiene = path.resolve(
   import.meta.dirname,
-  "../packages/rn-core/dist/release-hygiene.js",
+  "../packages/core/dist/release-hygiene.js",
 );
 const deliveryValidate = path.resolve(
   import.meta.dirname,

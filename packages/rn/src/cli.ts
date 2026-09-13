@@ -22,6 +22,7 @@ import {
 } from "./commands/module.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runPluginList } from "./commands/plugin.js";
+import { runOtaInstall } from "./commands/ota.js";
 import { runSelfUninstall, runSelfUpdate } from "./commands/self.js";
 import { CliError, EXIT_FAIL, EXIT_OK, EXIT_USAGE } from "./errors.js";
 import { parseDevTransportMode } from "./dev-transport.js";
@@ -175,6 +176,17 @@ export async function run(argv = process.argv): Promise<number> {
       "--pure",
       "clean shell only (no platform OTA/industrial content; explicit opt-out of the product default)",
     )
+    // #262 / ADR-016+024: the native OTA adapter is installed by init itself.
+    // The trust root is NEVER defaulted — no key means fail-loud, because a
+    // silently baked default is a silently wrong device trust anchor (F02).
+    .option(
+      "--rca-pubkey-hex <hex>",
+      "cert mode: bake this root-CA public key (64 hex) as the device trust root and install the native OTA adapter",
+    )
+    .option(
+      "--pubkey-hex <hex>",
+      "legacy mode: bake this single Ed25519 signing key (64 hex); used only when --rca-pubkey-hex is absent",
+    )
     .addOption(
       new Option("--starter <name>", "layout starter")
         .default("topology-b")
@@ -191,6 +203,8 @@ export async function run(argv = process.argv): Promise<number> {
           demo?: boolean;
           pure?: boolean;
           starter?: string;
+          rcaPubkeyHex?: string;
+          pubkeyHex?: string;
         },
       ) => {
         let starter;
@@ -213,6 +227,8 @@ export async function run(argv = process.argv): Promise<number> {
           demo: Boolean(opts.demo),
           pure: Boolean(opts.pure),
           starter,
+          rcaPubkeyHex: opts.rcaPubkeyHex,
+          pubkeyHex: opts.pubkeyHex,
         });
       },
     );
@@ -243,6 +259,48 @@ export async function run(argv = process.argv): Promise<number> {
         `✅ shell refreshed from template v${INDUSTRIAL_TEMPLATE_VERSION} — rerun rn doctor to confirm`,
       );
     });
+
+  // #265: `rn ota install` — the supported entry point for EXISTING projects.
+  // `rn init` installs the adapter too, but only into an empty target, so it
+  // cannot retrofit a project already on disk (the F04/F25 population). It is a
+  // noun of its own because the adapter is host-shape-orthogonal (greenfield,
+  // brownfield and --pure all need it, so it does not belong under `shell`),
+  // and because baking a trust root is an explicit key-bearing write that must
+  // not hide behind `rn shell refresh`'s no-args idempotent contract.
+  program
+    .command("ota")
+    .description("On-device OTA: native adapter for this project")
+    .command("install")
+    .description(
+      "Copy the OtaModule/OtaPackage adapter into android/, register it, and bake the device trust root (idempotent; works on an already-initialised project)",
+    )
+    .option(
+      "--rca-pubkey-hex <hex>",
+      "cert mode: bake this root-CA public key (64 hex) as the device trust root",
+    )
+    .option(
+      "--pubkey-hex <hex>",
+      "legacy mode: bake this single Ed25519 signing key (64 hex); used only when --rca-pubkey-hex is absent",
+    )
+    .option(
+      "--dry-run",
+      "print the plan without writing anything (the bake key is still required: the plan includes the trust root)",
+    )
+    .action(
+      (opts: {
+        rcaPubkeyHex?: string;
+        pubkeyHex?: string;
+        dryRun?: boolean;
+      }) => {
+        runOtaInstall({
+          cwd: process.cwd(),
+          logger: loggerFromArgv(argv),
+          rcaPubkeyHex: opts.rcaPubkeyHex,
+          pubkeyHex: opts.pubkeyHex,
+          dryRun: Boolean(opts.dryRun),
+        });
+      },
+    );
 
   moduleCmd
     .command("init")

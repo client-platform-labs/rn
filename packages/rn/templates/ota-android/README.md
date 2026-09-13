@@ -3,8 +3,9 @@
 状态：**productized 模板（GF 设备 e2e 已验证，D3）**。Kotlin 原生适配器实现已落地，
 GF（greenfield）真机链路 check → fetch → verify → install → reload 已验证通过
 （2026-09-10 D3 证书链 + CRL 吊销 e2e）。本目录文件是**供宿主复制的模板**：
-`rn init` 后经 `apply-ota-to-project.mjs` 注入工程，BF 宿主按
-`templates/brownfield-android/ota/OtaWiringNotes.md.template` 接线。
+`rn init` 自带注入步骤（提供烘焙钥时即注入，实现见 `packages/rn/src/native-ota-adapter.ts`）；
+存量工程可用 `rn ota install --rca-pubkey-hex <hex>` 重跑（幂等，对所有宿主形状适用；#265）。
+BF 宿主按 `templates/brownfield-android/ota/OtaWiringNotes.md.template` 接线。
 **不再标注 skeleton。**
 
 ## 用途

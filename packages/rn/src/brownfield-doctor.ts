@@ -12,6 +12,7 @@ import {
   negotiateDevSessionProtocol,
   resolveDevSessionProtocolVersion,
   type DevSessionConfig,
+  type DiagnosticCheck,
 } from "@client-platform/core";
 
 import { evaluateBrownfieldNativeDoctor } from "./brownfield-native-doctor.js";
@@ -21,13 +22,24 @@ export const HOST_PROFILE_RELATIVE = path.join(".rn", "host-profile.jsonc");
 
 export type DoctorProfile = "greenfield" | "brownfield" | "expo";
 
-export type BrownfieldCheck = {
-  id: string;
-  ok: boolean;
-  summary: string;
-  /** When true, failure fails doctor even without --strict. */
-  blocking: boolean;
-};
+/**
+ * The doctor plane's name for the shared diagnostic record (#260).
+ *
+ * The record itself is declared once, in `@client-platform/core`'s
+ * `diagnostics.ts`, because ADR-021's dependency DAG makes `core` the lowest
+ * plane that both `rn` and `ship` may import. Declaring it here (as this module
+ * used to) forced `core`'s and `ship`'s twins to stay compatible by structural
+ * luck.
+ *
+ * Kept as a named alias because "doctor check" is this plane's vocabulary:
+ * every doctor family — brownfield profile delta, expo interop, enterprise P0
+ * gates, native adapter, shell template drift — returns `DoctorCheck[]`.
+ *
+ * NOT the same concept: `ChannelProfileIssue` (`@client-platform/core`)
+ * carries a `blocking` flag too, but it is an issue inside a validation result
+ * (identified by `code` + `message`, never "ok").
+ */
+export type DoctorCheck = DiagnosticCheck;
 
 export function parseDoctorProfile(raw: string | undefined): DoctorProfile {
   if (!raw || raw === "greenfield") return "greenfield";
@@ -38,12 +50,21 @@ export function parseDoctorProfile(raw: string | undefined): DoctorProfile {
   );
 }
 
-export function loadHostProfile(projectRoot: string): {
+export type HostProfile = {
   profile: DoctorProfile;
   schemaVersion?: number;
   topology?: string;
   runtimeContract?: BrownfieldRuntimeContract;
-} | null {
+};
+
+/**
+ * Memoizable host-profile read (#260). `rn doctor` passes one loader through the
+ * family context so `.rn/host-profile.jsonc` is read once per run instead of
+ * once per evaluator; calling it directly (tests, other commands) is unchanged.
+ */
+export type HostProfileLoader = () => HostProfile | null;
+
+export function loadHostProfile(projectRoot: string): HostProfile | null {
   const file = path.join(projectRoot, HOST_PROFILE_RELATIVE);
   if (!existsSync(file)) return null;
   const raw = readFileSync(file, "utf8");
@@ -153,8 +174,10 @@ function findSurfaceHostStub(projectRoot: string): string | null {
 export function evaluateBrownfieldDoctor(options: {
   projectRoot: string;
   session: DevSessionConfig | null;
-}): BrownfieldCheck[] {
-  const checks: BrownfieldCheck[] = [];
+  /** Optional shared reader (#260) — defaults to a fresh read for direct callers. */
+  hostProfile?: HostProfileLoader;
+}): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
   const root = options.projectRoot;
 
   // 1) Protocol factory is importable (this module already imported it).
@@ -165,7 +188,9 @@ export function evaluateBrownfieldDoctor(options: {
     blocking: true,
   });
 
-  const hostProfile = loadHostProfile(root);
+  const hostProfile = options.hostProfile
+    ? options.hostProfile()
+    : loadHostProfile(root);
   checks.push({
     id: "bf-host-profile",
     ok: hostProfile?.profile === "brownfield",
@@ -267,7 +292,11 @@ export function evaluateBrownfieldDoctor(options: {
     }
   }
 
-  checks.push(...evaluateBrownfieldNativeDoctor(root));
+  checks.push(
+    ...evaluateBrownfieldNativeDoctor(root, {
+      hostProfile: options.hostProfile,
+    }),
+  );
 
   return checks;
 }

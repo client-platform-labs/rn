@@ -86,21 +86,29 @@ export function verifyX509Ed25519Leaf(
 
     // Extract leaf SPKI → raw Ed25519 public key (last 32 bytes).
     const tbsChildren = derChildren(der, tbs);
-    // subjectPublicKeyInfo is the 6th top-level tbs field (after version,
-    // serial, signature, issuer, validity, subject) — locate by walking.
+    // subjectPublicKeyInfo — located by TAG WALK, never by a fixed index.
+    //
+    // The leading `version` field is OPTIONAL in DER: a v3 certificate carries
+    // it (SPKI is the 6th tbs child) but a v1 certificate omits it entirely
+    // (SPKI is the 5th). A hard-coded `for (let i = 6; …)` therefore rejected
+    // every versionless certificate with "no Ed25519 SPKI in tbs" — which is
+    // how the CI runner's OpenSSL output failed while the local one passed
+    // (#264: `pnpm test` red → the governance gate and every later CI step
+    // silently skipped). Identity, not position: an Ed25519 SPKI is exactly
+    // SEQUENCE{ AlgorithmIdentifier, BIT STRING(32 bytes) }.
+    const ED25519_RAW_PUBKEY_BYTES = 32;
     let leafPubHex: string | null = null;
-    for (let i = 6; i < tbsChildren.length; i++) {
+    for (let i = 0; i < tbsChildren.length; i++) {
       const c = tbsChildren[i]!;
-      if (c.tag === DER_SEQUENCE) {
-        const spki = derChildren(der, c);
-        if (spki.length >= 2 && spki[1]!.tag === DER_BIT_STRING) {
-          const raw = derBitStringContent(spki[1]!);
-          leafPubHex = Array.from(raw.subarray(raw.length - 32))
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-          break;
-        }
-      }
+      if (c.tag !== DER_SEQUENCE) continue;
+      const spki = derChildren(der, c);
+      if (spki.length !== 2 || spki[1]!.tag !== DER_BIT_STRING) continue;
+      const raw = derBitStringContent(spki[1]!);
+      if (raw.length !== ED25519_RAW_PUBKEY_BYTES) continue;
+      leafPubHex = Array.from(raw)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      break;
     }
     if (!leafPubHex) return { ok: false, reason: "no Ed25519 SPKI in tbs" };
     if (expectedLeafPubkeyHex && leafPubHex.toLowerCase() !== expectedLeafPubkeyHex.toLowerCase()) {

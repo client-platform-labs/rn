@@ -60,10 +60,10 @@ if command -v gh >/dev/null 2>&1; then
 fi
 
 # ── 仓库路径 ──────────────────────────────────────────────────
-if [[ -d "$REPO_ROOT/packages/rn-core" ]] && [[ -d "$REPO_ROOT/packages/rn" ]]; then
+if [[ -d "$REPO_ROOT/packages/core" ]] && [[ -d "$REPO_ROOT/packages/rn" ]]; then
   PASS+=("repo skeleton")
 else
-  FAIL+=("repo skeleton (缺 packages/rn-core 或 packages/rn)")
+  FAIL+=("repo skeleton (缺 packages/core 或 packages/rn)")
 fi
 
 # ── 报告 ──────────────────────────────────────────────────────

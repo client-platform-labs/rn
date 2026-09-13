@@ -2,25 +2,39 @@
 /**
  * Map D D3 — P16/P17 governance fail-closed on promote (self-contained).
  *
+ * Migrated onto the verify fixture (#259). Three promote cases over the real
+ * `ship promote`, with the finance compliance profile + exception ledger seeded
+ * through ship's own store. The rollout record is what carries the release gate
+ * under test, so the registry is rebuilt per case.
+ *
  * Usage:
  *   node scripts/verify-cp-governance-promote-gate.mjs
+ *   node scripts/_run-verify.mjs cp-governance-promote-gate
  */
-import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-d3-gov-"));
-const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
+import {
+  createHarness,
+  emptyRegistry,
+  REPO_ROOT,
+} from "./lib/verify/fixture.mjs";
 
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "d3-gov" }));
+const { defaultFinanceComplianceProfile } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/core/dist/compliance-profile.js"))
+    .href
+);
+const { saveComplianceProfileStore, saveExceptionLedger } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/ship/dist/governance-store.js"))
+    .href
+);
 
-const digest = "c".repeat(64);
+const h = createHarness({ name: "verify-cp-governance-promote-gate" });
+
+const DIGEST = "c".repeat(64);
+
 const candidate = {
-  digest,
+  digest: DIGEST,
   release_id: "rel-gov",
   update_id: "main-gov-1",
   business_module: "main",
@@ -33,176 +47,64 @@ const candidate = {
   supply_chain: {
     host: {},
     js_update: {
-      sbom: {
-        artifact_kind: "js-update",
-        format: "stub",
-        digest,
-      },
+      sbom: { artifact_kind: "js-update", format: "stub", digest: DIGEST },
     },
   },
 };
 
-const { defaultFinanceComplianceProfile } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/rn-core/dist/compliance-profile.js"),
-  ).href
-);
-const { saveComplianceProfileStore, saveExceptionLedger } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/ship/dist/governance-store.js"),
-  ).href
-);
-
-function writeRegistry(rollouts = []) {
-  writeFileSync(
-    path.join(projectRoot, ".rn/delivery/registry.json"),
-    JSON.stringify(
-      {
-        schemaVersion: 1,
-        staging: [candidate],
-        production: [],
-        blocked: [],
-        kills: [],
-        pauses: [],
-        rollouts,
-      },
-      null,
-      2,
-    ),
-  );
-}
-
-function run(args) {
-  return spawnSync(process.execPath, [rd, ...args], {
-    cwd: projectRoot,
-    encoding: "utf8",
-  });
-}
-
-function step(name, ok, detail) {
-  if (!ok) {
-    console.error(`[FAIL] ${name}${detail ? ` — ${detail}` : ""}`);
-    process.exit(1);
-  }
-  console.log(`[OK] ${name}`);
-}
-
-writeRegistry([
-  {
-    business_module: "main",
-    digest: candidate.digest,
-    update_id: candidate.update_id,
-    gate: "js-gated",
-    steps: [{ cohort: "canary", percent: 1, min_soak_ms: 0 }],
-    step_index: 0,
-    phase: "canary",
-    step_entered_at: new Date().toISOString(),
-    actor: "admin",
-  },
-]);
-
-saveComplianceProfileStore(projectRoot, defaultFinanceComplianceProfile());
-saveExceptionLedger(projectRoot, { schemaVersion: 1, entries: [] });
-
-const promoteOk = run(["promote", "--digest", candidate.digest]);
-step("promote ok with js-gated + clean ledger", promoteOk.status === 0, promoteOk.stderr);
-
-// Reset staging for next cases
-writeRegistry([
-  {
-    business_module: "main",
-    digest: candidate.digest,
-    update_id: candidate.update_id,
-    gate: "js-gated",
-    steps: [{ cohort: "canary", percent: 1, min_soak_ms: 0 }],
-    step_index: 0,
-    phase: "canary",
-    step_entered_at: new Date().toISOString(),
-    actor: "admin",
-  },
-]);
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify(
+/** Staging candidate + an active rollout carrying the release gate under test. */
+const registryWithGate = (gate) => ({
+  ...emptyRegistry(),
+  staging: [candidate],
+  rollouts: [
     {
-      schemaVersion: 1,
-      staging: [candidate],
-      production: [],
-      blocked: [],
-      kills: [],
-      pauses: [],
-      rollouts: [
-        {
-          business_module: "main",
-          digest: candidate.digest,
-          gate: "js-standard",
-          steps: [{ cohort: "canary", percent: 1, min_soak_ms: 0 }],
-          step_index: 0,
-          phase: "canary",
-          step_entered_at: new Date().toISOString(),
-          actor: "admin",
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-);
-
-const gateBlock = run(["promote", "--digest", candidate.digest]);
-step(
-  "promote blocked js-standard under finance overlay",
-  gateBlock.status !== 0,
-  gateBlock.stdout || gateBlock.stderr,
-);
-
-saveExceptionLedger(projectRoot, {
-  schemaVersion: 1,
-  entries: [
-    {
-      id: "ex-expired",
-      owner: "ops",
-      ticket: "T-99",
-      expires_at: "2020-01-01T00:00:00.000Z",
-      scope: "module:main",
-      review_cadence_days: 30,
+      business_module: "main",
+      digest: DIGEST,
+      update_id: candidate.update_id,
+      gate,
+      steps: [{ cohort: "canary", percent: 1, min_soak_ms: 0 }],
+      step_index: 0,
+      phase: "canary",
+      step_entered_at: new Date().toISOString(),
+      actor: "admin",
     },
   ],
 });
 
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify(
-    {
-      schemaVersion: 1,
-      staging: [candidate],
-      production: [],
-      blocked: [],
-      kills: [],
-      pauses: [],
-      rollouts: [
-        {
-          business_module: "main",
-          digest: candidate.digest,
-          gate: "js-gated",
-          steps: [{ cohort: "canary", percent: 1, min_soak_ms: 0 }],
-          step_index: 0,
-          phase: "canary",
-          step_entered_at: new Date().toISOString(),
-          actor: "admin",
-        },
-      ],
-    },
-    null,
-    2,
-  ),
-);
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-governance-promote-gate",
+    registry: registryWithGate("js-gated"),
+  });
+  const promote = () => h.cli("ship", ["promote", "--digest", DIGEST], { cwd: p.root });
 
-const exBlock = run(["promote", "--digest", candidate.digest]);
-step(
-  "promote blocked on expired exception",
-  exBlock.status !== 0,
-  exBlock.stdout || exBlock.stderr,
-);
+  saveComplianceProfileStore(p.root, defaultFinanceComplianceProfile());
+  saveExceptionLedger(p.root, { schemaVersion: 1, entries: [] });
 
-console.log("PASS verify-cp-governance-promote-gate");
+  h.step("a js-gated rollout promotes under a clean ledger");
+  p.writeRegistry(registryWithGate("js-gated"));
+  h.assertCmdOk(await promote(), "promote succeeds");
+
+  h.step("a js-standard rollout is blocked by the finance overlay");
+  p.writeRegistry(registryWithGate("js-standard"));
+  const gateBlock = await promote();
+  h.assertCmdFails(gateBlock, "promote is blocked");
+
+  h.step("an expired exception blocks promote");
+  saveExceptionLedger(p.root, {
+    schemaVersion: 1,
+    entries: [
+      {
+        id: "ex-expired",
+        owner: "ops",
+        ticket: "T-99",
+        expires_at: "2020-01-01T00:00:00.000Z",
+        scope: "module:main",
+        review_cadence_days: 30,
+      },
+    ],
+  });
+  p.writeRegistry(registryWithGate("js-gated"));
+  const exBlock = await promote();
+  h.assertCmdFails(exBlock, "promote is blocked");
+});
