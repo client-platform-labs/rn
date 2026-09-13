@@ -100,6 +100,31 @@ describe("ADR-024 cert-chain verify (X.509 Ed25519 leaf → RCA)", () => {
     if (r.ok) assert.equal(r.leafPubkeyHex, LEAF_PUBKEY_HEX);
   });
 
+  it("finds the SPKI in a versionless (v1) certificate — by tag, not by index (#264)", () => {
+    // versionless-leaf.crt is this same leaf with its OPTIONAL [0] version
+    // element removed, which is the shape the CI runner's OpenSSL emitted. Its
+    // signature no longer covers the modified tbs, so a rejection is correct —
+    // but it must come from the root-CA signature check, i.e. AFTER the SPKI
+    // was found and matched the expected key. Before the fix the parser bailed
+    // out with "no Ed25519 SPKI in tbs" (a fixed `i = 6` scan skips the 5th
+    // child), so valid versionless certificates were unverifiable and `pnpm
+    // test` went red on CI, silently skipping every later CI step.
+    const r = verifyX509Ed25519Leaf(
+      readFixture("versionless-leaf.crt"),
+      RCA_PUBKEY_HEX,
+      LEAF_PUBKEY_HEX,
+    );
+    assert.equal(r.ok, false);
+    if (!r.ok) {
+      assert.notEqual(
+        r.reason,
+        "no Ed25519 SPKI in tbs",
+        "the parser must locate the SPKI by tag walk, not at a fixed tbs index",
+      );
+      assert.match(r.reason, /root-CA signature/);
+    }
+  });
+
   it("rejects when the expected leaf key mismatches the certificate", () => {
     const r = verifyX509Ed25519Leaf(LEAF_PEM, RCA_PUBKEY_HEX, "00".repeat(32));
     assert.equal(r.ok, false);
