@@ -100,6 +100,22 @@ adb_reverse_set() {
   done
 }
 
+# Point the device's OWN loopback:4040 at THIS run's control plane.
+#
+# The device's baked cpBaseUrl is http://127.0.0.1:4040 (device loopback), so the
+# DEVICE side of the mapping must always be 4040 — but the HOST side must be
+# whatever port this run's CP is on ($E2E_CP), never a hardcoded 4040. Hardcoding
+# it means that when another CP already owns host:4040 (e.g. a concurrent lane's
+# container stack), the device silently talks to the WRONG control plane: it sees
+# a different registry and an UNSIGNED /v1/crl, so the trust-chain legs fail — or
+# pass — for reasons that have nothing to do with this run.
+cp_adb_reverse() {
+  local host_port
+  host_port="$(printf '%s' "$E2E_CP" | sed -E 's#.*:([0-9]+)/?$#\1#')"
+  [[ "$host_port" =~ ^[0-9]+$ ]] || host_port=4040
+  adb_dev reverse tcp:4040 "tcp:$host_port" 2>/dev/null
+}
+
 # safe_install: push + pm install + 自动点 vivo 安全守护弹窗
 # 用法: safe_install <local_apk> <pkg_name> [timeout_ms]
 #   - 自动启 lib-dismiss watcher (单次 lifecycle, 完成后退出)

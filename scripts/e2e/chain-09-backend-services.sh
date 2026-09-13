@@ -136,7 +136,7 @@ DS_PATHS=$(curl -sf "$E2E_DATA_SERVICE/openapi.json" 2>/dev/null | jq -r '.paths
 ok "catalog modules=$MODS, data-service /v1/* paths=$DS_PATHS"
 
 step "9.12 adb reverse 跨服务路由（device → host cp）"
-adb_dev reverse tcp:4040 tcp:4040 2>/dev/null && ok "reverse 4040（device→host CP）" || warn "reverse 4040 失败"
+cp_adb_reverse 2>/dev/null && ok "reverse 4040（device→host CP）" || warn "reverse 4040 失败"
 
 step "9.13 device 上能命中 host 的 CP（通过 adb reverse）"
 HEALTH=$(adb_dev shell "curl -sf -m 3 http://127.0.0.1:4040/health" 2>/dev/null | head -c 200 || true)
