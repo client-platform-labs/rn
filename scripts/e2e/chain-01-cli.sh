@@ -26,11 +26,11 @@ step "1.1 rn CLI 可用"
 # NOTE: `${RN}` needs braces here — with `set -u`, a `$VAR` immediately followed by
 # a multibyte character gets mis-parsed into the variable name (this failed once as
 # "RN?: unbound variable").
-[[ -f "$RN" ]] || { err "rn bin missing: ${RN} — build first (pnpm build)"; exit 1; }
+[[ -f "$RN" ]] || { err "the rn executable is missing at ${RN} — build first (pnpm build)"; exit 1; }
 ok "rn @ ${RN} (repo-local: same tree as the code under test)"
 
 step "1.2 ship CLI 可用"
-[[ -f "$RD" ]] || { err "ship bin missing: ${RD} — build first (pnpm build)"; exit 1; }
+[[ -f "$RD" ]] || { err "the ship executable is missing at ${RD} — build first (pnpm build)"; exit 1; }
 ok "ship @ ${RD} (repo-local)"
 
 step "1.3 rn help（公开子命令清单）"
