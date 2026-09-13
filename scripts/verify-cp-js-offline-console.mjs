@@ -2,47 +2,50 @@
 /**
  * Map E #106 — JS/offline train: GET /v1/js-updates + console section.
  *
+ * Migrated onto the verify fixture (#259). Both candidate sets (a JS train with
+ * a bundle file, plus a host candidate as noise) are declared as fixture data;
+ * the bundle path must be absolute, so the registry is written after the project
+ * exists. `/v1/candidates` staying host-only is the point of the noise entry.
+ *
  * Usage:
  *   node scripts/verify-cp-js-offline-console.mjs
+ *   node scripts/_run-verify.mjs cp-js-offline-console
  */
-import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-e-js-console-"));
-mkdirSync(path.join(projectRoot, ".rn/delivery/updates/checkout"), {
-  recursive: true,
-});
-writeFileSync(
-  path.join(projectRoot, "package.json"),
-  JSON.stringify({ name: "e-js-console" }),
-);
+import { createHarness, emptyRegistry } from "./lib/verify/fixture.mjs";
 
-const digest = "c".repeat(64);
-const bundlePath = path.join(
-  projectRoot,
-  ".rn/delivery/updates/checkout/js-chk-p184.hbc",
-);
-writeFileSync(bundlePath, "fake-hbc");
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify({
-    schemaVersion: 1,
+const h = createHarness({ name: "verify-cp-js-offline-console" });
+
+const DIGEST = "c".repeat(64);
+const PROD_DIGEST = "e".repeat(64);
+
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-js-offline-console",
+    files: { ".rn/delivery/updates/checkout/js-chk-p184.hbc": "fake-hbc" },
+  });
+  const bundlePath = path.join(
+    p.root,
+    ".rn/delivery/updates/checkout/js-chk-p184.hbc",
+  );
+  p.writeRegistry({
+    ...emptyRegistry(),
     staging: [
       {
         release_id: "rel-js-1",
         artifact_kind: "js-update",
         platform: "js",
         profile: "release",
-        digest,
+        digest: DIGEST,
         stage: "promote",
         path: bundlePath,
         business_module: "checkout",
         update_id: "js-chk-p184",
       },
       {
+        // Noise: a host artifact in the same lane. It must never show up in the
+        // JS/offline train.
         release_id: "rel-host-noise",
         artifact_kind: "app-host-debug",
         platform: "android",
@@ -59,84 +62,47 @@ writeFileSync(
         artifact_kind: "js-update",
         platform: "js",
         profile: "release",
-        digest: "e".repeat(64),
+        digest: PROD_DIGEST,
         stage: "promote",
         path: bundlePath,
         business_module: "home",
         update_id: "js-home-p30",
       },
     ],
-    blocked: [],
-    kills: [],
-    pauses: [],
-    rollouts: [],
-  }),
-);
+  });
 
-const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
-const port = 18900 + Math.floor(Math.random() * 200);
-const proc = spawn(
-  process.execPath,
-  [rd, "serve", "--port", String(port), "--host", "127.0.0.1"],
-  {
-    cwd: projectRoot,
-    env: { ...process.env },
-    stdio: ["ignore", "pipe", "pipe"],
-  },
-);
+  const cp = await h.serve({ project: p, token: "", env: { RN_CP_TOKEN: "" } });
 
-await new Promise((r) => setTimeout(r, 900));
+  h.step("the JS/offline train lists JS candidates only");
+  const all = await cp.json("/v1/js-updates");
+  h.assertStatus(all, 200, "GET /v1/js-updates");
+  h.assertEq(all.body.candidates?.length, 2, "host noise is excluded");
 
-try {
-  const all = await (
-    await fetch(`http://127.0.0.1:${port}/v1/js-updates`)
-  ).json();
-  if (all.candidates?.length !== 2) {
-    console.error("expected 2 js-updates", all);
-    process.exit(1);
-  }
-  console.log("OK GET /v1/js-updates all");
+  const staging = await cp.json("/v1/js-updates?lane=staging");
+  h.assertEq(staging.body.candidates?.length, 1, "lane=staging narrows to one");
+  h.assertEq(
+    staging.body.candidates?.[0]?.business_module,
+    "checkout",
+    "the staged candidate is the checkout train",
+  );
 
-  const staging = await (
-    await fetch(`http://127.0.0.1:${port}/v1/js-updates?lane=staging`)
-  ).json();
-  if (
-    staging.candidates?.length !== 1 ||
-    staging.candidates[0].business_module !== "checkout"
-  ) {
-    console.error("staging filter fail", staging);
-    process.exit(1);
-  }
-  console.log("OK lane=staging");
+  const byModule = await cp.json("/v1/js-updates?lane=all&module=home");
+  h.assertEq(byModule.body.candidates?.length, 1, "module=home narrows to one");
+  h.assertEq(
+    byModule.body.candidates?.[0]?.update_id,
+    "js-home-p30",
+    "the module filter selected the production update",
+  );
 
-  const mod = await (
-    await fetch(
-      `http://127.0.0.1:${port}/v1/js-updates?lane=all&module=home`,
-    )
-  ).json();
-  if (mod.candidates?.length !== 1 || mod.candidates[0].update_id !== "js-home-p30") {
-    console.error("module filter fail", mod);
-    process.exit(1);
-  }
-  console.log("OK module=home");
+  h.step("the host candidates endpoint stays host-only");
+  const hosts = await cp.json("/v1/candidates");
+  h.assertTruthy(
+    !hosts.body.candidates?.some((c) => c.artifact_kind === "js-update"),
+    "no JS artifact leaks into /v1/candidates",
+  );
 
-  const hosts = await (
-    await fetch(`http://127.0.0.1:${port}/v1/candidates`)
-  ).json();
-  if (hosts.candidates?.some((c) => c.artifact_kind === "js-update")) {
-    console.error("candidates must stay host-only", hosts);
-    process.exit(1);
-  }
-  console.log("OK /v1/candidates remains host-only");
-
-  const html = await (await fetch(`http://127.0.0.1:${port}/`)).text();
-  if (!html.includes("JS / 离线包") || !html.includes("js-updates")) {
-    console.error("console missing JS train section");
-    process.exit(1);
-  }
-  console.log("OK console JS train section");
-
-  console.log("verify-cp-js-offline-console: PASS");
-} finally {
-  proc.kill("SIGTERM");
-}
+  h.step("the console surfaces the JS/offline section");
+  const html = await cp.text("/");
+  h.assertContains(html.body, "JS / 离线包", "console has the JS/offline section");
+  h.assertContains(html.body, "js-updates", "console references js-updates");
+});
