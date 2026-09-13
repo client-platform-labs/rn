@@ -9,13 +9,29 @@
 set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 
+# The CLIs from THIS checkout.
+#
+# Never rely on a globally-linked `rn`/`ship`: `pnpm install --ignore-scripts`
+# (which lanes must use) skips the postinstall link, so they can simply be absent
+# — and when present they point at whichever checkout last ran link-cli.mjs, so a
+# chain could exercise a DIFFERENT tree's CLI while claiming to test this one.
+# Same class of defect as the hardcoded E2E_REPO; other chains already do this for
+# ship via their own $RD.
+RN="${RN_BIN:-$E2E_REPO/packages/rn/bin/rn.mjs}"
+RD="${RD_BIN:-$E2E_REPO/packages/ship/bin/ship.mjs}"
+rn() { node "$RN" "$@"; }
+ship() { node "$RD" "$@"; }
+
 step "1.1 rn CLI 可用"
-which rn >/dev/null || { err "rn 不在 PATH"; exit 1; }
-ok "rn @ $(which rn)"
+# NOTE: `${RN}` needs braces here — with `set -u`, a `$VAR` immediately followed by
+# a multibyte character gets mis-parsed into the variable name (this failed once as
+# "RN?: unbound variable").
+[[ -f "$RN" ]] || { err "the rn executable is missing at ${RN} — build first (pnpm build)"; exit 1; }
+ok "rn @ ${RN} (repo-local: same tree as the code under test)"
 
 step "1.2 ship CLI 可用"
-which ship >/dev/null || { err "ship 不在 PATH"; exit 1; }
-ok "ship @ $(which ship)"
+[[ -f "$RD" ]] || { err "the ship executable is missing at ${RD} — build first (pnpm build)"; exit 1; }
+ok "ship @ ${RD} (repo-local)"
 
 step "1.3 rn help（公开子命令清单）"
 RN_HELP=$(rn help 2>&1 || true)

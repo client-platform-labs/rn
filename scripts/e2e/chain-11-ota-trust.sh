@@ -85,7 +85,7 @@ dut_native_surface_ok() {
 }
 
 stop_stub() { [[ -n "$STUB_PID" ]] && kill "$STUB_PID" 2>/dev/null || true; STUB_PID=""; }
-trap 'stop_stub; adb_dev reverse tcp:4040 tcp:4040 >/dev/null 2>&1 || true' EXIT
+trap 'stop_stub; cp_adb_reverse >/dev/null 2>&1 || true' EXIT
 
 # ── C. both hosts' request sets (static: always runs) ──────────────────────
 # The de-duplication in #257 is only correct if the two host adapters differ by
@@ -163,7 +163,7 @@ ok "pending candidates in production: $PENDING"
 
 # ── B1. control: a valid CRL must INSTALL ─────────────────────────────────
 step "11.B1 差分控制：CRL 正常 → 更新应被安装"
-adb_dev reverse tcp:4040 tcp:4040 >/dev/null 2>&1 || true
+cp_adb_reverse >/dev/null 2>&1 || true
 # Fresh state, so an install actually has to happen. Without this, an already-
 # installed device reports already_installed and downloads nothing.
 adb_dev shell pm clear "$DUT_PKG" >/dev/null 2>&1
@@ -250,7 +250,7 @@ else
 fi
 
 # restore the device's normal CP reach before the crash-loop leg
-adb_dev reverse tcp:4040 tcp:4040 >/dev/null 2>&1 || true
+cp_adb_reverse >/dev/null 2>&1 || true
 stop_stub
 
 # ── A. crash loop → rollback, and no OTA pull ─────────────────────────────

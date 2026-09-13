@@ -388,3 +388,100 @@ E     : <run-all.sh 结果表 / SKIP 项>
 结论  : <平台 bug 清单 | 全绿 | 环境抖动清单>
 待修  : <如 §7.1 的单向陷阱>
 ```
+
+## 附：2026-09-14 夜间真机全链扫描（e2e 11 链）
+
+运行环境与本轮结果（真机 vivo V2425A / Android 16 / SDK 36；CP 见下）。
+
+**本轮为隔离并行 lane 而使用的两个环境变量**（默认值下的运行方式见上文）：
+
+```bash
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+export PATH="$PATH:$ANDROID_HOME/platform-tools"
+export E2E_REPO="$PWD"                 # 被测树（避免源自主 checkout 的 CLI/E2E_REPO）
+CP_BASE=http://127.0.0.1:4150 \       # 本 run 的 CP 端口（默认 4040 可能被他人占用）
+E2E_CP_LOG=/tmp/e2e-cp-4150.log \     # 必须与上面那个 CP 的访问日志一致，否则设备腿会
+                                       # 因为「读的是别人的日志」而误判为无可下载
+bash scripts/e2e/run-all.sh
+```
+
+设备侧可达性靠 `cp_adb_reverse`：**设备端口恒为 4040**（DUT 烘焙的 cpBaseUrl 就是它自己的
+loopback:4040），**宿主端口取 `$E2E_CP`** —— 不再硬编码 4040/4040。
+
+### 本轮逐链结果
+
+| Chain | 结果 | 关键证据 |
+|---|---|---|
+| 01-cli | ✅ PASS | 改用本仓 `packages/{rn,ship}/bin/*.mjs`（此前依赖全局 `rn`） |
+| 03-release-load | ✅ PASS | `拉 host APK 55,787,252 bytes` · `install Success (vivo popup auto-dismissed)` · `MainActivity 在前台` |
+| 05-biz-lifecycle | ✅ PASS | 走通 `resolve_module_hbc` → `ingest-pack --hbc`（新修的那条路径） |
+| 11-ota-trust | ✅ PASS | 见下 |
+
+**chain-11（信任链真机验收）**：
+
+```
+11.B1 差分控制：CRL 正常 → 更新应被安装
+  ✓ 更新已下载并生效：/v1/artifacts 命中 1 次（CRL 2 次）
+11.B2 篡改 /v1/crl → 设备必须拒载并留在基线
+  ✓ 设备确实请求了被降级的 /v1/crl（stub 命中 5 次）→ 拒绝来自验签而非跳过
+  ✓ fail-closed 生效：篡改 CRL 后未请求 manifest/artifact（check=0 artifact=0）
+  ✓ 应用仍在基线可运行（fail-closed 不是崩壳）
+11.A 崩溃环 → 回滚基线且不再尝试拉包
+  ✓ 注入已确认落地：4/4 次启动在计数递增后、完成前被杀（阈值 DEFAULT_CRASH_LOOP_MAX=3）
+  ✓ 回滚：设备自报 skippedReason=crash_loop_rollback
+11.C 两宿主 adapter 请求集差异仅限宿主专属参数
+```
+
+**为 11.B1 准备的生产候选**（chain-11 会以精确原因 SKIP 掉设备腿，直到它有可安装目标）：
+
+```bash
+cd "$E2E_HOST" && export RN_DELIVERY_SIGN_KEY_FILE=<lab key> RN_DELIVERY_LEGACY_SIGN=1
+ship ingest-pack --module main --hbc <DUT 的 Hermes bundle>   # 见 runbook §0 的构建产物
+ship sign     --digest <D> --kind js-update
+ship release  --digest <D> --kind js-update                   # → staging
+ship promote  --digest <D>                                    # → production
+```
+候选的 seal 必须由 **DUT 烘焙的信任根**对应的私钥签（否则设备会正确拒载）。
+### 剩余链结果（同一轮，2026-09-14）
+
+| Chain | 结果 | 关键证据 / 跳过原因 |
+|---|---|---|
+| 02-debug-multi-bundle | ⊘ SKIP | 2.5 需要 Metro 8081/8082 在跑（链自身标注"手动"）；其余步骤全绿（reverse 6 端口 · 两个业务仓 module.jsonc · debug host 已装 · bundle 物理存在 · debug load policy=permissive） |
+| 04-shell-lifecycle | ✅ PASS | |
+| 06-host-portal | ✅ PASS | |
+| 07-biz-portal | ✅ PASS | 同样走 `--hbc` 路径 |
+| 08-update-strategy | ✅ PASS | |
+| 09-backend-services | ⊘ SKIP | 9.11b/c/d 三条 **data-service（:8001）未起** → 显式 skip（其余全绿，含 CP 鉴权三连 401/401/400、artifact 可拉、Nous 真业务接口命中、device→host CP 经 `adb reverse` 连通） |
+| 10-ios-lifecycle | ✅ PASS | iOS 模拟器链路 |
+
+**诚实标注**：02 与 09 是**前置缺失**导致的显式 SKIP（SKIP≠PASS），不是通过。
+- 02 需要先起 Metro（`rn dev` 多 Metro）；本轮未起。
+- 09 需要 data-service（容器）在 :8001；该容器栈本轮由另一条 lane 持有，未抢占。
+### 全链单次扫描（一次性、权威结果）
+
+```bash
+CP_BASE=http://127.0.0.1:4150 E2E_CP_LOG=/tmp/e2e-cp-4150.log \
+  bash scripts/e2e/run-all.sh            # → rc=0
+```
+
+| Chain | 结果 |
+|---|---|
+| 01-cli · 02-debug-multi-bundle · 03-release-load · 04-shell-lifecycle · 05-biz-lifecycle | ✅ PASS |
+| 06-host-portal · 07-biz-portal · 08-update-strategy · 10-ios-lifecycle · 11-ota-trust | ✅ PASS |
+| 09-backend-services | ⊘ **SKIP**（3 个探针因 `data-service` :8001 未起而显式跳过；其余全绿） |
+
+**10 PASS · 1 SKIP · 0 FAIL。**
+
+chain-11 在该轮中的设备腿证据（第三次独立复现）：
+
+```
+✓ pending candidates in production: 1
+11.B1 ✓ 更新已下载并生效：/v1/artifacts 命中 1 次（CRL 2 次）
+11.B2 ✓ 设备确实请求了被降级的 /v1/crl（stub 命中 6 次）→ 拒绝来自验签而非跳过
+      ✓ fail-closed 生效：篡改 CRL 后未请求 manifest/artifact（check=0 artifact=0）
+      ✓ 应用仍在基线可运行（fail-closed 不是崩壳）
+11.A  ✓ 注入已确认落地：4/4 次启动在计数递增后、完成前被杀（阈值 3）
+      ✓ 回滚：设备自报 skippedReason=crash_loop_rollback
+```
+
+**为什么 09 仍是 SKIP**：`data-service` 由另一条 lane 的容器栈持有（`deploy/distribution-service/docker-compose.yml`），启动它可能 reconcile/重建那条 lane 正在做 DR 演练的栈 —— 因此**刻意不抢占**，按"SKIP≠PASS"如实记录。
