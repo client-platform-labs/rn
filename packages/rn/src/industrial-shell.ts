@@ -18,6 +18,10 @@ import { fileURLToPath } from "node:url";
 
 import { MANIFEST_FILENAME } from "@client-platform/core";
 import { CliError, EXIT_FAIL } from "./errors.js";
+// #262: the adapter's file names are owned by the installer, so detection and
+// installation agree by construction (a detector that disagrees with the
+// installer is how "the CLI says ready but the native side is missing" happens).
+import { OTA_ADAPTER_FILE_NAMES } from "./native-ota-adapter.js";
 import {
   ensureRuntimeConfig,
   regenerateDerivedArtifacts,
@@ -173,7 +177,7 @@ export function findNativeOtaAdapterPath(projectRoot: string): string | null {
       if (name === "node_modules" || name === "build" || name === ".gradle") {
         continue;
       }
-      if (name === "OtaModule.kt" || name === "OtaPackage.kt") {
+      if ((OTA_ADAPTER_FILE_NAMES as readonly string[]).includes(name)) {
         return abs;
       }
       if (name.endsWith("Application.kt")) {
