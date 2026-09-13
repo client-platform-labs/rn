@@ -209,14 +209,14 @@ active ──(启动轮换)→ rotating ──(吊销清单生效)→ retired �
 | 天 | 步骤 | 操作（谁做） | 产物 |
 |----|------|--------------|------|
 | D1 | **rn init** | 壳运维：`rn init <dir> [--starter topology-b]` → `rn module init main`（外置 module workspace，ADR-005 topology B） | 项目树 + `client-platform.manifest.jsonc`（schemaVersion 2，identity spine）+ `.rn/dev-session.jsonc` |
-| D1 | **apply-ota 接线** | 壳运维：`node scripts/apply-ota-to-project.mjs <PROJECT_ROOT> [--dry-run]`——拷贝 `ota-android` 原生模板到 `<appId>/ota/`（改写 package 为 `<appId>.ota`）、patch `MainApplication.kt` 注册 `TiangongOtaPackage`、加 `@client-platform/shell-core` + `@client-platform/rn-core` 依赖、写 `ota-wiring.md` 接线参考（不覆盖业务 App 启动逻辑） | `TiangongOtaModule.kt` / `TiangongOtaPackage.kt` + MainApplication patch + deps + `ota-wiring.md` |
+| D1 | **原生 OTA 适配注入** | 壳运维：`rn ota install --rca-pubkey-hex <hex> [--dry-run]`（存量工程；新工程由 `rn init --rca-pubkey-hex` 内建，#265）——拷贝 `ota-android` 原生模板到 `<appId>/ota/`（改写 package 为 `<appId>.ota`）、patch `MainApplication.kt` 注册 `TiangongOtaPackage`、加 `@client-platform/shell-core` + `@client-platform/rn-core` 依赖、写 `ota-wiring.md` 接线参考（不覆盖业务 App 启动逻辑） | `TiangongOtaModule.kt` / `TiangongOtaPackage.kt` + MainApplication patch + deps + `ota-wiring.md` |
 | D2 | **接 shell-core** | 壳运维：按 `ReleaseOtaBoot.tsx` 契约实现启动——`refreshPublicKeys`（native 异步取公钥缓存；**`Arguments.createArray()`，勿用 `arrayOf()`**，过桥变 `WritableNativeArray` 会丢公钥 fail-closed，真机实证）→ 崩溃环守卫（`shouldRollbackOnCrashLoop`，连续失败 ≥3 回基线）→ `pullOtaUpdate`（skip-if-installed → verify → fetch → **先持久化 update_id 再 reload**） | `ReleaseOtaBoot.tsx` 接线 + 原生适配器实现 `getOtaPublicKeys`/`setInstalledUpdateId`/`recordStartupFailure`/`resetStartupFailures`（`ota-native.ts` 契约） |
 | D2–D3 | **烘焙公钥 + 发版** | 平台运维出 K1/K2 hex（32 字节各一）→ 壳运维回填 `TiangongOtaModule.getOtaPublicKeys()`（检查单：无 dev 公钥残留、公钥未走 OTA 载荷）→ 离线包运维 `rn-delivery update --module main` → `sign`（`pem:ed25519:`）→ `validate` → `release` | APK（烘焙 K1/K2）+ sidecar（含签名）+ registry staging 候选 |
 | D3–D4 | **真机验证** | 壳运维装包台：`rn-delivery release --install` 真装 + `node scripts/distribution-console-agent.mjs <root> --lane=production --record-signal`（真装 + 审计 + quality signal） | `install-audit.jsonl` + 装包台 quality signal；设备日志链：`verify OK signature=pem:ed25519:…` → 落盘 → 二次验签 → 安装 → reload（真机证据 e2e 报告） |
 | D5–D6 | **灰度** | 离线包运维：`promote`（production，五道门禁全走）→ `POST /v1/rollout/start`（canary 1% → rolling-10 → rolling-50 → full，`RN_CP_MIN_SOAK_MS` 可覆盖）→ tick 盯 SLO；`js-gated` 进 full 需 `human_full_approved` | rollout 状态（`release-rollout.ts`）+ `cp-audit.log` 审计行 |
 | D7 | **验收 + 交接** | 灰度 SLI 达标 → 灰度盯梢交接平台运维（`roles-matrix.md` §6 S3）→ 出 7 天样本证据文档 | `docs/hitl/` 样本报告 + SLO 快照 + 设备泳道切片 |
 
-**新手接业务入口（decision tree）**：我是新业务想接平台 → 先 `rn init` + `apply-ota`（D1）→ 用 `ReleaseOtaBoot` 模板（不是自造启动逻辑）→ 公钥向平台运维要（不自己生成）→ 发版走 `rn-delivery`（不用 `rn` 发布）→ 真机验证走装包台 → 灰度盯 SLO。**红线**：验签代码来自随 APK 的 embedded shell-core，绝不用 OTA 下来的 JS 验 OTA 包（ADR-017 信任边界）。
+**新手接业务入口（decision tree）**：我是新业务想接平台 → 先 `rn init`（新工程，带 `--rca-pubkey-hex`）或 `rn ota install`（存量工程）（D1）→ 用 `ReleaseOtaBoot` 模板（不是自造启动逻辑）→ 公钥向平台运维要（不自己生成）→ 发版走 `rn-delivery`（不用 `rn` 发布）→ 真机验证走装包台 → 灰度盯 SLO。**红线**：验签代码来自随 APK 的 embedded shell-core，绝不用 OTA 下来的 JS 验 OTA 包（ADR-017 信任边界）。
 
 ### 5.2 关键操作细节（真机实证 / 已知坑，均来自 e2e 报告与子章）
 
@@ -229,7 +229,7 @@ active ──(启动轮换)→ rotating ──(吊销清单生效)→ retired �
 
 | 检查项 | 命令 / 依据 | 谁做 |
 |--------|------------|------|
-| 接线幂等可重跑 | `node scripts/apply-ota-to-project.mjs <root> --dry-run` 无 error；重跑不重复 patch | 壳运维 |
+| 接线幂等可重跑 | `rn ota install --dry-run --rca-pubkey-hex <hex>` 无 error；重跑不重复 patch | 壳运维 |
 | 公钥烘焙正确 | `TiangongOtaModule.getOtaPublicKeys()` 返回 K1/K2 且非 `arrayOf()`；APK 内无 dev 公钥残留 | 平台运维 + 壳运维 |
 | 验签链路真机过 | 设备日志 `verify OK signature=pem:ed25519:…` → 落盘 → 二次验签 → 安装 → reload（`map-g-device-ota-e2e-2026-09-07.md` 复现命令） | 壳运维 |
 | 装包台审计 | `cat .rn/delivery/install-audit.jsonl` 有 record-signal 行 | 壳运维 |
@@ -267,7 +267,7 @@ active ──(启动轮换)→ rotating ──(吊销清单生效)→ retired �
 - [ ] **备份**：每日 `sqlite3 .backup` + 制品 tar + 签名私钥 age 加密**异地**（ADR-013/014）；留原地 = 未异地，不满足 DR。
 - [ ] **DR 演练**：每季度至少一次冷重建恢复，证据进 `docs/hitl/`。
 - [ ] **吊销**：K1 疑失陷按 §4 状态机走（rotating→retired→revoked），不拖到双失陷；吊销清单协议未落代码：**TODO(实现)**。
-- [ ] **onboarding**：新业务按 §5 流程（apply-ota → ReleaseOtaBoot → 烘焙公钥 → 发版 → 真机 → 灰度），模板坑位（`arrayOf()`/update_id 持久化）已避开。
+- [ ] **onboarding**：新业务按 §5 流程（rn ota install / rn init --rca-pubkey-hex → ReleaseOtaBoot → 烘焙公钥 → 发版 → 真机 → 灰度），模板坑位（`arrayOf()`/update_id 持久化）已避开。
 - [ ] **诚实标注**：凡未实现/未定标一律标 `TODO(实现)` / `TODO(定义阈值)` / `TODO(接缝 G9)` / `TODO(G7)`，不把应然读成已实现。
 
 ---

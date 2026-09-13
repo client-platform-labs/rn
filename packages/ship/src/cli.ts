@@ -271,7 +271,7 @@ export async function run(
               leaf_cert: chain.leafCertFile,
               root_ca_cert: chain.rcaCertFile,
               root_ca_public_key_hex: chain.rcaPubkeyHex,
-              next: [`bake RCA pubkey (device trust root): apply-ota --rca-pubkey-hex ${chain.rcaPubkeyHex}`],
+              next: [`bake RCA pubkey (device trust root): rn init --rca-pubkey-hex ${chain.rcaPubkeyHex} (new project) | rn ota install --rca-pubkey-hex ${chain.rcaPubkeyHex} (existing project)`],
             },
             null,
             2,
@@ -317,7 +317,7 @@ export async function run(
               root_ca_cert: chain.rcaCertFile,
               root_ca_public_key_hex: chain.rcaPubkeyHex,
               next: [
-                `bake RCA pubkey (device trust root): apply-ota --rca-pubkey-hex ${chain.rcaPubkeyHex}`,
+                `bake RCA pubkey (device trust root): rn init --rca-pubkey-hex ${chain.rcaPubkeyHex} (new project) | rn ota install --rca-pubkey-hex ${chain.rcaPubkeyHex} (existing project)`,
                 `sign with the leaf key: export RN_DELIVERY_SIGN_KEY_PEM=<dir>/lab.key + RN_DELIVERY_LEAF_CERT/PUBKEY_HEX`,
               ],
             },
