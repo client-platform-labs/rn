@@ -442,3 +442,18 @@ ship release  --digest <D> --kind js-update                   # → staging
 ship promote  --digest <D>                                    # → production
 ```
 候选的 seal 必须由 **DUT 烘焙的信任根**对应的私钥签（否则设备会正确拒载）。
+### 剩余链结果（同一轮，2026-09-14）
+
+| Chain | 结果 | 关键证据 / 跳过原因 |
+|---|---|---|
+| 02-debug-multi-bundle | ⊘ SKIP | 2.5 需要 Metro 8081/8082 在跑（链自身标注"手动"）；其余步骤全绿（reverse 6 端口 · 两个业务仓 module.jsonc · debug host 已装 · bundle 物理存在 · debug load policy=permissive） |
+| 04-shell-lifecycle | ✅ PASS | |
+| 06-host-portal | ✅ PASS | |
+| 07-biz-portal | ✅ PASS | 同样走 `--hbc` 路径 |
+| 08-update-strategy | ✅ PASS | |
+| 09-backend-services | ⊘ SKIP | 9.11b/c/d 三条 **data-service（:8001）未起** → 显式 skip（其余全绿，含 CP 鉴权三连 401/401/400、artifact 可拉、Nous 真业务接口命中、device→host CP 经 `adb reverse` 连通） |
+| 10-ios-lifecycle | ✅ PASS | iOS 模拟器链路 |
+
+**诚实标注**：02 与 09 是**前置缺失**导致的显式 SKIP（SKIP≠PASS），不是通过。
+- 02 需要先起 Metro（`rn dev` 多 Metro）；本轮未起。
+- 09 需要 data-service（容器）在 :8001；该容器栈本轮由另一条 lane 持有，未抢占。
