@@ -109,3 +109,46 @@ describe("verifyEd25519Seal (ADR-017)", () => {
     assert.equal(verifyRevocationSealAny(seal, payload, [k1.pubHex]), false);
   });
 });
+
+describe("fail-closed on a MISSING seal (never throw) — #256", () => {
+  // A control plane was observed serving a CRL body with no `seal` field at all.
+  // These three entry points all documented "never throws" while guarding on
+  // `seal.startsWith(...)`, so `undefined` produced a TypeError instead of the
+  // fail-closed value — on the trust path, where the whole point is to reject
+  // untrustworthy input rather than to crash on it.
+  const BAD = [undefined, null, 123 as unknown as string, {} as unknown as string];
+
+  it("verifyRevocationSealAny returns false, and does not throw", () => {
+    for (const seal of BAD) {
+      assert.equal(
+        verifyRevocationSealAny(seal as string, "payload", ["00".repeat(32)]),
+        false,
+        `seal=${JSON.stringify(seal)}`,
+      );
+    }
+  });
+
+  it("verifyRevocationSeal returns false, and does not throw", () => {
+    for (const seal of BAD) {
+      assert.equal(
+        verifyRevocationSeal(seal as string, "payload", "00".repeat(32)),
+        false,
+        `seal=${JSON.stringify(seal)}`,
+      );
+    }
+  });
+
+  it("verifyEd25519Seal returns null, and does not throw", () => {
+    for (const seal of BAD) {
+      assert.equal(
+        verifyEd25519Seal(
+          seal as string,
+          { release_id: "r", artifact_kind: "js-update", digest: "d" },
+          ["00".repeat(32)],
+        ),
+        null,
+        `seal=${JSON.stringify(seal)}`,
+      );
+    }
+  });
+});

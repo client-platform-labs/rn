@@ -107,10 +107,10 @@ export interface HostEngineAdapter extends OtaNativeAdapter {
    *
    * The handle is ENGINE-owned and deliberately unshaped: the shell may hold it
    * and pass it back to the engine's own binding, but must never introspect it.
-   * Typed `object | null` rather than `unknown` to state exactly what is known —
-   * an opaque object, or none — without inventing engine internals at this seam,
-   * which is the leakage ADR-022 forbids. No concrete shape appears here until an
-   * engine binding implements it.
+   * Typed `HostSurfaceHandle` (an opaque `object`) rather than `unknown`, so a call
+   * site cannot silently accept — or invent — any value, without inventing engine
+   * internals at this seam, which is the leakage ADR-022 forbids. No concrete shape
+   * appears here until an engine binding implements it.
    */
   hostSurface(): HostSurfaceHandle | null;
   /** Call a native bridge method (replaces NativeModules.X). */
