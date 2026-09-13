@@ -48,11 +48,20 @@ function base64ToBytes(b64: string): Uint8Array {
  * Returns null (never throws) on malformed seals / keys / signatures.
  */
 export function verifyEd25519Seal(
-  seal: string,
+  seal: string | null | undefined,
   context: { release_id: string; artifact_kind: string; digest: string },
   publicKeysHex: readonly string[],
 ): string | null {
-  if (!seal.startsWith(PEM_SEAL_PREFIX) || publicKeysHex.length === 0) {
+  // A MISSING seal is an unsigned seal — precisely what these functions exist to
+  // reject. It must return the fail-closed value, never throw: their docblocks
+  // promise "never throws", yet a real control plane was observed serving a CRL
+  // body with no `seal` field at all, so the caller would have hit a TypeError
+  // instead of a clean rejection. Guard on the TYPE, not on the value.
+  if (
+    typeof seal !== "string" ||
+    !seal.startsWith(PEM_SEAL_PREFIX) ||
+    publicKeysHex.length === 0
+  ) {
     return null;
   }
   let signature: Uint8Array;
@@ -80,11 +89,11 @@ export function verifyEd25519Seal(
  * because K2 is baked; an attacker holding only K1 cannot forge it.
  */
 export function verifyRevocationSeal(
-  seal: string,
+  seal: string | null | undefined,
   canonicalPayload: string,
   k2PublicKeyHex: string,
 ): boolean {
-  if (!seal.startsWith(PEM_SEAL_PREFIX)) return false;
+  if (typeof seal !== "string" || !seal.startsWith(PEM_SEAL_PREFIX)) return false;
   let signature: Uint8Array;
   try {
     signature = base64ToBytes(seal.slice(PEM_SEAL_PREFIX.length));
@@ -110,11 +119,15 @@ export function verifyRevocationSeal(
  * never be trusted, so a forged/cleared revocation list is rejected.
  */
 export function verifyRevocationSealAny(
-  seal: string,
+  seal: string | null | undefined,
   canonicalPayload: string,
   publicKeysHex: readonly string[],
 ): boolean {
-  if (!seal.startsWith(PEM_SEAL_PREFIX) || publicKeysHex.length === 0) {
+  if (
+    typeof seal !== "string" ||
+    !seal.startsWith(PEM_SEAL_PREFIX) ||
+    publicKeysHex.length === 0
+  ) {
     return false;
   }
   return publicKeysHex.some((keyHex) =>
