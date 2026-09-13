@@ -30,17 +30,34 @@
  * Exit: 0 = pass, 1 = fail. Non-fatal findings are printed but do not fail.
  *
  * MATCHER NOTES (CHK-3) — precision matters more than recall here, because a
- * false positive makes the gate untrustworthy:
- *   - Only LITERAL paths are resolved. `$RD` / `"$E2E_REPO/..."` style references
- *     are skipped: they cannot be resolved statically, and guessing would produce
- *     false positives.
- *   - A reference whose step runs with an EXTERNAL cwd (a checkout outside this
- *     repo, e.g. `~/code/tiangong-host`) is classified `external` and is NOT
- *     required to exist here. This mirrors the structural rule already proven in
- *     `scripts/lib/verify/registry.mjs` (`external` vs `dangling`). Without it,
- *     the hermes loop drivers' `cwd: shellApp` references to
- *     `scripts/pack-business.mjs` would be reported as phantoms when the real
- *     defect is a cross-checkout contract.
+ * false positive makes the gate untrustworthy (a checker that fails on correct
+ * code gets deleted, which is worse than a conservative one). Every referenced
+ * step is classified into exactly one of THREE buckets:
+ *
+ *   1. repo-relative — a literal `scripts/…` path whose step cwd is this repo (or
+ *      undetermined) MUST exist here, else FAIL.
+ *   2. a CLI verb — `rn <verb>` / `ship <verb>` MUST exist in that CLI's own
+ *      command table, else FAIL. The tables are extracted statically from each
+ *      CLI's declaration of its own surface: `rn` registers via commander
+ *      (`.command("<name>")`), `ship` dispatches on `const KNOWN = new Set([…])`.
+ *      Four guards keep prose out, since a dry run of this rule over the whole
+ *      repo otherwise yields only false positives:
+ *        - a path fragment (`build (ship dist/)`) — the verb is followed by `/`
+ *        - a log/usage prefix (`ship install: adb install …`) — followed by `:`
+ *        - a non-verb word (`rn on PATH:`) — see NON_VERBS
+ *        - prose that is neither followed by a `--flag` nor at the start of a
+ *          quoted command (`Wire ship to read …`, `ship runs on …`)
+ *   3. external / host-relative — the step runs with a cwd that is another
+ *      repository (the hermes drivers' `cwd: shellApp`), so "absent here" is
+ *      expected. Classified `external`, REPORTED in its own section, never FAIL.
+ *      Note this is the normal case for host-side scripts: `scripts/pack-business.mjs`
+ *      and `scripts/embed-baseline.mjs` live in the downstream host checkout, and
+ *      `scripts/run-hermes-d2-loop.mjs` invoking them is CORRECT, not a defect.
+ *      When a reference cannot be classified confidently, it is reported rather
+ *      than failed.
+ *   - Only LITERAL paths and verbs are resolved. `$RD` / `"$E2E_REPO/…"` style
+ *     references are skipped: they cannot be resolved statically, and guessing
+ *     would produce false positives.
  *   - Runner files are the ones that EXECUTE what they name (`scripts/run-*-loop.mjs`,
  *     workflows). A probe's own fixture strings (e.g. `verify-harness.mjs`
  *     synthesising `verify-gone.mjs` to test the registry) are DATA, not
@@ -180,12 +197,104 @@ function externalBindings(src, root) {
 }
 
 /**
+ * Words that are never CLI verbs. A candidate "verb" from this set means the
+ * occurrence is prose ("rn on PATH:", "rn not on PATH"), not a command — the
+ * only two false positives a dry run of this rule produced on the real repo.
+ * The list is deliberately narrow: it suppresses, it never fails.
+ */
+const NON_VERBS = new Set([
+  "a", "an", "and", "any", "are", "as", "at", "be", "been", "but", "by",
+  "can", "did", "do", "does", "for", "from", "had", "has", "have", "in",
+  "into", "is", "it", "its", "may", "more", "most", "must", "no", "not",
+  "of", "off", "on", "or", "out", "over", "run", "runs", "should", "so",
+  "than", "that", "the", "then", "these", "this", "those", "to", "under",
+  "up", "was", "were", "will", "with", "your",
+]);
+
+/**
+ * The CLI verb tables, extracted statically from each CLI's own source — the
+ * authoritative place each declares what it accepts:
+ *   - `rn`   registers via commander: `.command("<name>")`
+ *   - `ship` dispatches on `const KNOWN = new Set([...])`
+ * Plus commander's built-ins. No execution, no help-text prose parsing.
+ */
+function cliVerbTables(root) {
+  const tables = new Map();
+  const builtins = ["help", "version"];
+  const rnCli = path.join(root, "packages/rn/src/cli.ts");
+  if (existsSync(rnCli)) {
+    const verbs = new Set(builtins);
+    for (const m of read(rnCli).matchAll(/\.command\("([a-z][a-z0-9-]*)"\)/g)) verbs.add(m[1]);
+    tables.set("rn", verbs);
+  }
+  const shipCli = path.join(root, "packages/ship/src/cli.ts");
+  if (existsSync(shipCli)) {
+    const verbs = new Set(builtins);
+    const known = read(shipCli).match(/const KNOWN = new Set\(\[([\s\S]*?)\]\)/);
+    if (known) for (const m of known[1].matchAll(/"([a-z][a-z0-9-]*)"/g)) verbs.add(m[1]);
+    tables.set("ship", verbs);
+  }
+  return tables;
+}
+
+/**
+ * Every `rn <verb>` / `ship <verb>` that is told to a user must be a command the
+ * CLI actually accepts (the `apply-ota` class — an invented verb that was printed
+ * in remediation text for months).
+ *
+ * False positives are treated as a bug in this check, so four guards suppress an
+ * occurrence unless it really is an instruction: a path fragment (`ship dist/`),
+ * a log/usage prefix (`ship install:`), a non-verb word (`rn on PATH`), and prose
+ * that is neither followed by a flag nor the start of a quoted command.
+ */
+export function checkCliVerbs(root = DEFAULT_ROOT) {
+  const tables = cliVerbTables(root);
+  const errors = [];
+  if (tables.size === 0) return errors;
+
+  const pkgSrc = walk(path.join(root, "packages"), (f) => f.endsWith(".ts"));
+  const others = [
+    ...walk(path.join(root, ".github/workflows"), (f) => /\.ya?ml$/.test(f)),
+    ...walk(path.join(root, "scripts"), (f) => /\.(mjs|sh)$/.test(f)),
+  ];
+  const surfaces = pkgSrc.filter((f) => /packages\/(rn|ship)\/src\//.test(f));
+
+  for (const file of [...surfaces, ...others]) {
+    const src = read(file);
+    const rel = path.relative(root, file);
+    for (const m of src.matchAll(/\b(rn|ship)[ \t]+([a-z][a-z0-9-]*)/g)) {
+      const bin = m[1];
+      const verb = m[2];
+      const after = src.slice(m.index + m[0].length);
+      if (after.startsWith("/") || after.startsWith(".")) continue; // ship dist/
+      if (after.startsWith(":")) continue; // ship install: … (log/usage prefix)
+      if (NON_VERBS.has(verb)) continue; // rn on PATH
+      const hasFlag = /^[ \t]+--/.test(after);
+      const before = src.slice(Math.max(0, m.index - 40), m.index);
+      const atStringStart = /(["'`])[ \t]*$/.test(before);
+      if (!hasFlag && !atStringStart) continue; // prose: "ship to read …"
+      const known = tables.get(bin);
+      if (!known || known.has(verb)) continue;
+      const line = src.slice(0, m.index).split("\n").length;
+      errors.push(
+        `phantom-verb: ${rel}:${line} tells the user "${bin} ${verb}" — ${bin} has no \`${verb}\` command`,
+      );
+    }
+  }
+  return errors;
+}
+
+/**
  * A script referenced from an execution context that does not exist in this
  * repo, plus user-visible instruction text naming a script this repo lacks.
+ *
+ * Returns three buckets: `errors` (fail), `external` (reported informationally —
+ * a reference that resolves into another checkout), and `notes`.
  */
 export function checkPhantomCommands(root = DEFAULT_ROOT) {
-  const errors = [];
+  const errors = [...checkCliVerbs(root)];
   const findings = [];
+  const external = [];
 
   const literalRefRe = /(?:^|[\s"'`(])(?:node|bash|sh)[ \t]+((?:\.\/)?scripts\/[A-Za-z0-9._-]+\.(?:mjs|sh))/gm;
 
@@ -213,31 +322,33 @@ export function checkPhantomCommands(root = DEFAULT_ROOT) {
   const runners = walk(path.join(root, "scripts"), (f) =>
     /^run-.*\.mjs$/.test(path.basename(f)),
   );
-  const externalRefs = [];
   for (const file of runners) {
     const src = read(file);
     const rel = path.relative(root, file);
-    const external = externalBindings(src, root);
+    const externalNames = externalBindings(src, root);
     const isExternalCwdAt = (index) => {
       const tail = src.slice(index, index + 400);
       const m = tail.match(/cwd:\s*([A-Za-z0-9_$"'][^,}\n]*)/);
       if (!m) return false;
       const value = m[1].trim();
-      return [...external].some((name) => value === name || value.startsWith(`${name}.`));
+      return [...externalNames].some(
+        (name) => value === name || value.startsWith(`${name}.`),
+      );
     };
     for (const m of src.matchAll(new RegExp(literalRefRe, "g"))) {
       const ref = m[1].replace(/^\.\//, "");
       if (existsSync(path.join(root, ref))) continue;
+      const line = src.slice(0, m.index).split("\n").length;
       if (isExternalCwdAt(m.index)) {
-        // A cross-checkout contract: the step runs against a checkout outside
-        // this repo, so "absent here" is expected. It cannot be verified
-        // statically, so it is surfaced as a note rather than silently ignored
-        // (a sibling that later loses the file would otherwise go unnoticed).
-        const line = src.slice(0, m.index).split("\n").length;
-        externalRefs.push(`${rel}:${line} runs "${ref}" from an external cwd`);
+        // A host-relative reference: the step runs against a checkout outside
+        // this repo (e.g. the hermes drivers' `cwd: shellApp`), where the script
+        // legitimately lives. Reporting it as a phantom would be a false
+        // positive, and a checker that fails on correct code gets deleted — so
+        // it is classified `external` and surfaced in its own section, never as
+        // an error.
+        external.push(`${rel}:${line} runs "${ref}" from an external cwd`);
         continue;
       }
-      const line = src.slice(0, m.index).split("\n").length;
       errors.push(`phantom-command: ${rel}:${line} runs "${ref}" — file does not exist`);
     }
   }
@@ -286,13 +397,13 @@ export function checkPhantomCommands(root = DEFAULT_ROOT) {
     }
   }
 
-  if (externalRefs.length > 0) {
+  if (external.length > 0) {
     findings.push(
-      `phantom-external: ${externalRefs.length} reference(s) run from a cwd outside this repo, so they cannot be verified here — confirm the external checkout still has them: ${externalRefs.slice(0, 4).join("; ")}`,
+      `phantom-external: ${external.length} reference(s) run from a cwd outside this repo — they cannot be verified here, confirm the host checkout still has them`,
     );
   }
 
-  return { errors, findings };
+  return { errors, findings, external };
 }
 
 /* ─────────────────── CHK-4: probe reachability ──────────────────── */
@@ -338,6 +449,7 @@ export function checkProbeReachability(root = DEFAULT_ROOT) {
 export function checkVerificationPlane(root = DEFAULT_ROOT) {
   const errors = [];
   const findings = [];
+  const external = [];
 
   errors.push(...checkTestGlobCoverage(root));
   errors.push(...checkChainExitContract(root));
@@ -345,12 +457,13 @@ export function checkVerificationPlane(root = DEFAULT_ROOT) {
   const phantom = checkPhantomCommands(root);
   errors.push(...phantom.errors);
   findings.push(...phantom.findings);
+  external.push(...phantom.external);
 
   const probes = checkProbeReachability(root);
   errors.push(...probes.errors);
   findings.push(...probes.findings);
 
-  return { ok: errors.length === 0, errors, findings };
+  return { ok: errors.length === 0, errors, findings, external };
 }
 
 function main() {
@@ -358,6 +471,14 @@ function main() {
   const root = argRoot === -1 ? DEFAULT_ROOT : path.resolve(process.argv[argRoot + 1]);
   const result = checkVerificationPlane(root);
 
+  // References that resolve into another checkout get their own section: they are
+  // reported, never failed. A host-relative reference this checker cannot
+  // classify confidently is a report, not a defect — failing on correct code is
+  // how a checker gets deleted.
+  if (result.external.length > 0) {
+    console.log(`external references (${result.external.length}) — host-side, not verified here:`);
+    for (const ref of result.external) console.log(`  ~ ${ref}`);
+  }
   for (const finding of result.findings) console.log(`  note: ${finding}`);
 
   if (result.ok) {

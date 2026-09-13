@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   checkChainExitContract,
+  checkCliVerbs,
   checkPhantomCommands,
   checkProbeReachability,
   checkTestGlobCoverage,
@@ -189,15 +190,68 @@ describe("verification-plane checker (#256)", () => {
         ].join("\n"),
       },
       (root) => {
-        const { errors, findings } = checkPhantomCommands(root);
+        const { errors, findings, external } = checkPhantomCommands(root);
         assert.ok(
           !failing(errors, "absent-in-external.mjs"),
           `an external-cwd reference must not fail, got: ${JSON.stringify(errors)}`,
         );
         assert.ok(
-          failing(findings, "phantom-external") &&
-            failing(findings, "absent-in-external.mjs"),
-          `expected an external note instead, got: ${JSON.stringify(findings)}`,
+          failing(external, "absent-in-external.mjs"),
+          `expected it in the external bucket, got: ${JSON.stringify(external)}`,
+        );
+        assert.ok(
+          failing(findings, "phantom-external"),
+          `expected the external summary note, got: ${JSON.stringify(findings)}`,
+        );
+      },
+    );
+  });
+
+  it("CHK-3 FAILS on an rn/ship verb the CLI does not have (the apply-ota class)", () => {
+    withFixture(
+      {
+        // the authoritative tables, as each CLI declares them
+        "packages/rn/src/cli.ts":
+          'program.command("doctor").description("diagnose");\n',
+        "packages/ship/src/cli.ts":
+          'const KNOWN = new Set([\n  "build",\n  "release",\n]);\n',
+        // a copy-pasteable remediation naming a verb neither CLI has
+        "packages/rn/src/hint.ts":
+          'export const h = "bake the trust root: rn apply-ota --rca-pubkey-hex <hex>";\n',
+      },
+      (root) => {
+        const errors = checkCliVerbs(root);
+        assert.ok(
+          failing(errors, "phantom-verb") && failing(errors, "apply-ota"),
+          `expected the invented verb to fail, got: ${JSON.stringify(errors)}`,
+        );
+      },
+    );
+  });
+
+  it("CHK-3 PRECISION: real verbs, path fragments, log prefixes and prose are NOT flagged", () => {
+    withFixture(
+      {
+        "packages/rn/src/cli.ts": 'program.command("doctor").description("d");\n',
+        "packages/ship/src/cli.ts":
+          'const KNOWN = new Set([\n  "build",\n  "install-host",\n]);\n',
+        "packages/rn/src/prose.ts": [
+          // every one of these is correct, idiomatic text
+          'export const a = "rn doctor --strict";', // real verb, with a flag
+          'export const b = `rn on PATH: ${bin}`;', // prose
+          'export const c = "rn not on PATH";', // prose
+          'export const d = "Wire ship to read Expo artifacts";', // prose
+          'export const e = "build (ship dist/)";', // a path fragment
+          "export const f = 'ship install: adb install -r x';", // a log prefix
+          "",
+        ].join("\n"),
+      },
+      (root) => {
+        const errors = checkCliVerbs(root);
+        assert.deepEqual(
+          errors,
+          [],
+          `no false positives allowed, got: ${JSON.stringify(errors)}`,
         );
       },
     );
