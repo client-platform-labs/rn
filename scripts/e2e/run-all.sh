@@ -12,6 +12,7 @@
 #   8. 离线包更新策略     (chain-08-update-strategy.sh)
 #   9. 后台服务           (chain-09-backend-services.sh)
 #  10. iOS simulator 生命周期 (chain-10-ios-lifecycle.sh) — 无 runtime 时 SKIP
+#  11. OTA 信任链真机验收 (chain-11-ota-trust.sh) — #268；无 DUT/设备时显式 SKIP
 #
 # 用法：
 #   bash scripts/e2e/run-all.sh           # 全跑
@@ -79,6 +80,11 @@ ALL_CHAINS=(
   "08-update-strategy:08-update-strategy.sh"
   "09-backend-services:09-backend-services.sh"
   "10-ios-lifecycle:10-ios-lifecycle.sh"
+  # #268: OTA trust-chain device acceptance (crash-loop rollback + tampered CRL).
+  # Needs a generated DUT installed on the device (see
+  # docs/architecture/device-acceptance-runbook.md); it SKIPs with a stated
+  # reason when that is absent, and SKIP is NOT PASS.
+  "11-ota-trust:11-ota-trust.sh"
 )
 
 # 选择要跑的 chain

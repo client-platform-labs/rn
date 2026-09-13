@@ -21,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "L2 full | L2 fast (03+05) | L1 backend-only"
+        description: "L2 full | L2 fast (03+05+11) | L1 backend-only | ota-trust-only (11)"
         type: choice
-        options: [l2-full, l2-fast, l1]
+        options: [l2-full, l2-fast, l1, ota-trust]
         default: l2-fast
   schedule:
     # Nightly 00:00 CST ≈ 16:00 UTC
@@ -75,7 +75,7 @@ jobs:
           adb version | head -1
           git --version
 
-      - name: Install deps & build (rn-delivery dist/)
+      - name: Install deps & build (ship dist/)
         timeout-minutes: 12
         env:
           COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
@@ -92,7 +92,10 @@ jobs:
           corepack enable 2>/dev/null || true
           pnpm install --frozen-lockfile --reporter=append-only
           pnpm build
-          test -f packages/rn-delivery/dist/cli.js && echo "dist/cli.js present"
+          # ADR-022 renamed rn-delivery -> ship (#236 deleted the alias). This
+          # guard still required the old path, so the whole gate failed here
+          # before any device step could run (#268).
+          test -f packages/ship/dist/cli.js && echo "ship dist/cli.js present"
 
       - name: Preflight — adb device
         run: |
@@ -120,11 +123,14 @@ jobs:
         run: |
           MODE="${{ github.event.inputs.mode || 'l2-fast' }}"
           if [[ "${{ github.event_name }}" == "schedule" ]]; then MODE=l2-full; fi
+          # 11 = OTA trust chain (#268). It self-SKIPs (rc=2, SKIP != PASS) when no
+          # generated DUT is installed, so it is safe to request in every mode.
           case "$MODE" in
-            l1)      echo "args=1 3" >> "$GITHUB_OUTPUT" ;;
-            l2-fast) echo "args=3 5" >> "$GITHUB_OUTPUT" ;;
-            l2-full) echo "args=" >> "$GITHUB_OUTPUT" ;;
-            *)       echo "args=3 5" >> "$GITHUB_OUTPUT" ;;
+            l1)         echo "args=1 3 11" >> "$GITHUB_OUTPUT" ;;
+            l2-fast)    echo "args=3 5 11" >> "$GITHUB_OUTPUT" ;;
+            l2-full)    echo "args=" >> "$GITHUB_OUTPUT" ;;
+            ota-trust)  echo "args=11" >> "$GITHUB_OUTPUT" ;;
+            *)          echo "args=3 5 11" >> "$GITHUB_OUTPUT" ;;
           esac
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
 
