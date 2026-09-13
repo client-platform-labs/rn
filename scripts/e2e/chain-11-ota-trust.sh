@@ -162,17 +162,32 @@ fi
 ok "pending candidates in production: $PENDING"
 
 # ── B1. control: a valid CRL must INSTALL ─────────────────────────────────
-step "11.B1 差分控制：CRL 正常 → 更新应被安装（重载即新 pid）"
+step "11.B1 差分控制：CRL 正常 → 更新应被安装"
 adb_dev reverse tcp:4040 tcp:4040 >/dev/null 2>&1 || true
+# Fresh state, so an install actually has to happen. Without this, an already-
+# installed device reports already_installed and downloads nothing.
+adb_dev shell pm clear "$DUT_PKG" >/dev/null 2>&1
 BEFORE_PID="$(device_pid)"
 MARK="$(cp_log_lines)"
-restart_app; sleep 3
-AFTER_PID="$(wait_for_pid_change "$BEFORE_PID" 40)" && INSTALLED=1 || INSTALLED=0
+restart_app
+# Judge on a REAL download, not on a pid change. restart_app is force-stop + am
+# start, so the pid ALWAYS differs from BEFORE_PID and the old judge could not
+# fail -- verified by pointing the device at a DEAD port (tcp:1, nothing
+# listening) and still seeing a pid change (5297 -> 6599) (#268). An artifact GET
+# in the control plane's own access log cannot be produced by anything the device
+# did not actually do.
+ART=0
+for _ in $(seq 1 45); do
+  ART="$(cp_hits_since "$MARK" "/v1/artifacts")"
+  [[ "${ART:-0}" -ge 1 ]] && break
+  sleep 1
+done
+AFTER_PID="$(device_pid)"
 CRL_HITS="$(cp_hits_since "$MARK" "/v1/crl")"
-if [[ "$INSTALLED" == "1" ]]; then
-  ok "更新已生效：pid $BEFORE_PID → $AFTER_PID（CRL 请求 $CRL_HITS 次）"
+if [[ "${ART:-0}" -ge 1 ]]; then
+  ok "更新已下载并生效：/v1/artifacts 命中 $ART 次（CRL $CRL_HITS 次；pid $BEFORE_PID → $AFTER_PID）"
 else
-  skip_step "no install observed (pid still $AFTER_PID) -- differential control not established; leg B is undecidable (check: release build / cpBaseUrl reachable / leaf-signed per runbook §0.3)"
+  skip_step "no artifact download observed -- differential control not established; leg B is undecidable (check: release build / cpBaseUrl reachable / leaf-signed per runbook §0.3)"
   chain_done
 fi
 
@@ -192,26 +207,38 @@ ok "tamper stub ready on :$STUB_PORT (mode=tampered)"
 # Re-point the device's CP reach at the stub. The app is NOT rebuilt: the base
 # URL still resolves to device-loopback:4040, which now lands on the stub.
 adb_dev reverse tcp:4040 tcp:"$STUB_PORT" >/dev/null 2>&1
+# Fresh state: nothing installed, no prior update, so the device MUST decide this
+# boot. Then the verdict is read from two channels that cannot be faked by a
+# process restart:
+#   (1) the stub's own log -- was a DEGRADED /v1/crl actually served (so the
+#       refusal can only come from verification, not from "nothing was tried"), and
+#   (2) the control plane's access log -- after that bad CRL, did the device ask
+#       for the manifest or an artifact at all?
+# The old judge used a pid change, which `restart_app` satisfies unconditionally,
+# so this leg could never pass (#268; proven with a dead port).
+adb_dev shell pm clear "$DUT_PKG" >/dev/null 2>&1
 BEFORE_PID="$(device_pid)"
 MARK="$(cp_log_lines)"
-restart_app; sleep 3
-AFTER_PID="$(wait_for_pid_change "$BEFORE_PID" 25)" && INSTALLED=1 || INSTALLED=0
-STUB_CRL="$(grep -c "GET /v1/crl" "$E2E_OUT/crl-stub.log" 2>/dev/null || echo 0)"
+restart_app; sleep 14
+STUB_CRL="$(grep -F "GET /v1/crl" "$E2E_OUT/crl-stub.log" 2>/dev/null | grep -vc passthrough || true)"
+CHECK_HITS="$(cp_hits_since "$MARK" "/v1/js-updates/check")"
+ART_HITS="$(cp_hits_since "$MARK" "/v1/artifacts")"
+AFTER_PID="$(device_pid)"
 
 # (a) the device must actually have ASKED for the revocation list, else "no
 #     install" is explained by "nothing was attempted" (e.g. unconfigured base
 #     URL) and the leg would be a false green.
 if [[ "${STUB_CRL:-0}" -ge 1 ]]; then
-  ok "设备确实请求了 /v1/crl（stub 命中 $STUB_CRL 次）→ 拒绝来自验签而非跳过"
+  ok "设备确实请求了被降级的 /v1/crl（stub 命中 $STUB_CRL 次）→ 拒绝来自验签而非跳过"
 else
-  err "设备未请求 /v1/crl（stub 0 命中）—— 无法区分「拒载」与「根本没尝试」"
+  err "设备未请求被降级的 /v1/crl（stub 0 命中）—— 无法区分「拒载」与「根本没尝试」"
   FAILS=$((FAILS+1))
 fi
-# (b) and it must NOT have installed the update.
-if [[ "$INSTALLED" == "0" ]]; then
-  ok "未安装（pid 保持 $AFTER_PID）→ fail-closed 生效"
+# (b) and it must NOT have proceeded past the bad CRL.
+if [[ "${CHECK_HITS:-0}" -eq 0 && "${ART_HITS:-0}" -eq 0 ]]; then
+  ok "fail-closed 生效：篡改 CRL 后未请求 manifest/artifact（check=0 artifact=0）"
 else
-  err "被篡改的 CRL 仍安装了更新（pid → $AFTER_PID）—— fail-closed 失效"
+  err "篡改的 CRL 之后设备仍继续拉取（check=$CHECK_HITS artifact=$ART_HITS）—— fail-closed 失效"
   FAILS=$((FAILS+1))
 fi
 # (c) the app must still be usable on the baseline (fail-closed, not a crash).
@@ -228,29 +255,77 @@ stop_stub
 
 # ── A. crash loop → rollback, and no OTA pull ─────────────────────────────
 step "11.A 崩溃环 → 回滚基线且不再尝试拉包"
-# Raise the startup counter by launching and killing the app before the boot
-# completes. The counter only resets on a COMPLETED boot, so a force-stop inside
-# the boot window increments it (ADR-014 / shell-core crash-loop budget, max=3).
+# The counter counts only launches that DIE mid-boot: after recordStartupFailure
+# (which precedes the pull) but before resetStartupFailures (which runs only on a
+# COMPLETED boot, including a "failed" pull). A fixed 0.6s timer is a race the
+# harness loses in BOTH directions -- measured: 0.6s lands before the JS boot
+# effect even runs (no increment at all), while an already-installed update
+# finishes its pull in well under a second (the reset runs) (#268).
+#
+# So: hold the revocation list open on the stub, which turns "mid-pull" into a
+# wide window, and kill only AFTER the device has demonstrably asked for the CRL
+# (proof this launch's boot effect ran => the counter was incremented).
+# Hold the revocation list open so a kill can land mid-pull (see the comment above).
+CRL_HOLD_MS="${E2E_CRL_HOLD_MS:-8000}"
+node "$REPO_ROOT/scripts/e2e/cp-crl-tamper-stub.mjs" \
+  --port "$STUB_PORT" --upstream "$E2E_CP" --mode ok \
+  --crl-delay-ms "$CRL_HOLD_MS" \
+  --log "$E2E_OUT/crl-hold-stub.log" >"$E2E_OUT/crl-hold-stub.out" 2>&1 &
+STUB_PID=$!
+for _ in $(seq 1 20); do grep -q "STUB_READY" "$E2E_OUT/crl-hold-stub.out" 2>/dev/null && break; sleep 0.5; done
+if ! grep -q "STUB_READY" "$E2E_OUT/crl-hold-stub.out" 2>/dev/null; then
+  err "hold stub 未就绪（11.A 需要它把 CRL 挂住以得到确定的杀进程窗口）"
+  FAILS=$((FAILS+1)); chain_done
+fi
+ok "hold stub ready on :$STUB_PORT (mode=ok, CRL held ${CRL_HOLD_MS}ms)"
+adb_dev reverse tcp:4040 tcp:"$STUB_PORT" >/dev/null 2>&1 || true
+adb_dev shell pm clear "$DUT_PKG" >/dev/null 2>&1     # counter -> 0
 CYCLES=4
+LANDED=0
 for i in $(seq 1 "$CYCLES"); do
+  M="$(cp_log_lines)"
   restart_app
-  sleep 0.6                      # inside the boot window, before resetStartupFailures
+  seen=0
+  for _ in $(seq 1 40); do
+    [[ "$(cp_hits_since "$M" "/v1/crl")" -ge 1 ]] && { seen=1; break; }
+    sleep 0.25
+  done
+  [[ "$seen" == "1" ]] && LANDED=$((LANDED+1))
+  # Kill now: the CRL is still held, so the pull cannot complete and the counter
+  # is never reset by this launch.
   adb_dev shell am force-stop "$DUT_PKG" >/dev/null 2>&1 || true
 done
-ok "注入 $CYCLES 次未完成启动（阈值 DEFAULT_CRASH_LOOP_MAX=3）"
-
-MARK="$(cp_log_lines)"
-restart_app; sleep 4
-CHECK_HITS="$(cp_hits_since "$MARK" "/v1/js-updates/check")"
-ALIVE="$(device_pid)"
-if [[ "${CHECK_HITS:-0}" -eq 0 ]]; then
-  ok "回滚且未拉包：回滚启动窗口内 /v1/js-updates/check 命中 0 次（pid $ALIVE）"
+# Assert the injection actually landed BEFORE judging the rollback -- otherwise a
+# "no pull" result could just as easily mean "nothing was ever counted".
+if [[ "$LANDED" -ge 3 ]]; then
+  ok "注入已确认落地：$LANDED/$CYCLES 次启动在计数递增后、完成前被杀（阈值 DEFAULT_CRASH_LOOP_MAX=3）"
 else
-  # Either the counter never reached the threshold (crash injection did not land
-  # in the boot window) or the product failed to roll back. Both are diagnosable
-  # from this line; the runbook says how to tell them apart.
-  err "回滚启动仍请求了 manifest（$CHECK_HITS 次）—— 见 runbook §A 判读（注入未命中 vs 未回滚）"
+  err "注入仅落地 $LANDED/$CYCLES 次 —— 无法判定回滚（先修注入，别信这个结果）"
   FAILS=$((FAILS+1))
 fi
 
+# Judge on the DEVICE'S OWN verdict, not on a request window.
+#
+# Counting control-plane requests cannot answer this once the rollback works: the
+# guard clears the counter (that is #269's fix) and the rollback ends in
+# native.reload(), so the NEXT boot legitimately pulls. A window that spans the
+# reload therefore sees requests even though the rollback happened -- which is
+# exactly how this leg reported a false FAIL before.
+#
+# The sanctioned channel is the adapter's logJs bridge: the runbook patches the DUT
+# to log the boot outcome, so the device states whether the guard fired. Without
+# that diagnostic the leg is undecidable and says so (SKIP) rather than guessing.
+adb_dev logcat -c >/dev/null 2>&1 || true
+MARK="$(cp_log_lines)"
+restart_app; sleep 16
+CHECK_HITS="$(cp_hits_since "$MARK" "/v1/js-updates/check")"
+DIAG="$(adb_dev logcat -d 2>/dev/null | grep -F "[OTADIAG] outcome" | tail -3)"
+if grep -q "crash_loop_rollback" <<<"$DIAG"; then
+  ok "回滚：设备自报 skippedReason=crash_loop_rollback（其后 reload 的那次启动允许正常拉包）"
+elif [[ -z "$DIAG" ]]; then
+  skip_step "DUT 未输出 [OTADIAG] 诊断 —— 无法直接判定回滚（按 runbook §0.4 重建 DUT；期间 check 命中 $CHECK_HITS 次未作判定依据）"
+else
+  err "未回滚：设备自报 $(tr '\n' ' ' <<<"$DIAG" | tail -c 200)"
+  FAILS=$((FAILS+1))
+fi
 chain_done
