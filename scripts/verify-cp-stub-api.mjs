@@ -2,128 +2,87 @@
 /**
  * #7 thin CP API smoke — ship serve over file registry.
  *
+ * Migrated onto the verify fixture (#259). Two contracts are preserved
+ * deliberately: the optional `<projectRoot>` argument (CI and the
+ * release-readiness stages point this probe at an existing project) and the
+ * AUTH-DISABLED control plane — this probe covers the open surface, so it must
+ * not inherit the fixture's default token.
+ *
  * Usage:
  *   node scripts/verify-cp-stub-api.mjs [projectRoot]
+ *   node scripts/_run-verify.mjs cp-stub-api
  */
-import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = process.argv[2]
-  ? path.resolve(process.argv[2])
-  : mkdtempSync(path.join(tmpdir(), "rn-cp-stub-"));
+import { createHarness } from "./lib/verify/fixture.mjs";
 
-if (!process.argv[2]) {
-  mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-  writeFileSync(
-    path.join(projectRoot, "package.json"),
-    JSON.stringify({ name: "cp-stub-demo" }),
+const h = createHarness({ name: "verify-cp-stub-api" });
+
+await h.run(async () => {
+  // The fixture owns and cleans up the projects it creates; a caller-supplied
+  // root is used as-is and left alone (that was also the old behaviour).
+  const externalRoot = process.argv[2] ? path.resolve(process.argv[2]) : null;
+  const project = externalRoot
+    ? { root: externalRoot }
+    : h.project({ name: "cp-stub-api" });
+
+  // An empty RN_CP_TOKEN is falsy, so resolveCpAuthConfig omits the token and
+  // every route is open — the surface this probe exists to check.
+  const cp = await h.serve({
+    project,
+    token: "",
+    env: { RN_CP_TOKEN: "" },
+  });
+
+  h.step("health + thin CP Web console");
+  const health = await cp.json("/health");
+  h.assertStatus(health, 200, "GET /health");
+  h.assertTruthy(health.body.ok, "health reports ok");
+
+  const consoleRes = await cp.text("/");
+  h.assertStatus(consoleRes, 200, "GET / serves the thin CP Web console");
+  h.assertContains(
+    consoleRes.body,
+    'data-console="distribution-reference"',
+    "console is the distribution-reference shell",
   );
-  writeFileSync(
-    path.join(projectRoot, ".rn/delivery/registry.json"),
-    JSON.stringify({ staging: [], production: [], blocked: [] }, null, 2),
+  h.assertContains(
+    consoleRes.body,
+    "/v1/registry",
+    "console references /v1/registry",
   );
-}
 
-const port = 14040 + Math.floor(Math.random() * 1000);
-const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
+  h.step("registry reads");
+  const registry = await cp.json("/v1/registry");
+  h.assertStatus(registry, 200, "GET /v1/registry");
+  h.assertTruthy(
+    Array.isArray(registry.body.staging),
+    "registry carries a staging lane",
+  );
+  h.assertStatus(
+    await cp.json("/v1/registry/staging"),
+    200,
+    "GET /v1/registry/staging",
+  );
+  const candidates = await cp.json("/v1/candidates?lane=staging");
+  h.assertStatus(candidates, 200, "GET /v1/candidates");
+  h.assertTruthy(
+    Array.isArray(candidates.body.candidates),
+    "candidates is a list",
+  );
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function fetchJson(url, init) {
-  const res = await fetch(url, init);
-  const body = await res.json();
-  return { status: res.status, body };
-}
-
-const child = spawn(
-  process.execPath,
-  [bin, "serve", "--port", String(port), "--host", "127.0.0.1"],
-  { cwd: projectRoot, stdio: ["ignore", "pipe", "pipe"] },
-);
-
-let failed = false;
-function fail(msg) {
-  console.error(`FAIL: ${msg}`);
-  failed = true;
-}
-
-process.on("exit", () => {
-  child.kill("SIGTERM");
-});
-
-try {
-  await sleep(600);
-  const base = `http://127.0.0.1:${port}`;
-
-  const health = await fetchJson(`${base}/health`);
-  if (health.status !== 200 || !health.body.ok) {
-    fail(`health ${health.status}`);
-  } else {
-    console.log("OK health");
-  }
-
-  const consoleRes = await fetch(`${base}/`);
-  const consoleHtml = await consoleRes.text();
-  if (
-    consoleRes.status !== 200 ||
-    !consoleHtml.includes('data-console="distribution-reference"') ||
-    !consoleHtml.includes("/v1/registry")
-  ) {
-    fail(`console HTML ${consoleRes.status}`);
-  } else {
-    console.log("OK GET / thin CP Web");
-  }
-
-  const registry = await fetchJson(`${base}/v1/registry`);
-  if (registry.status !== 200 || !Array.isArray(registry.body.staging)) {
-    fail(`registry ${registry.status}`);
-  } else {
-    console.log("OK GET /v1/registry");
-  }
-
-  const staging = await fetchJson(`${base}/v1/registry/staging`);
-  if (staging.status !== 200) fail(`staging ${staging.status}`);
-  else console.log("OK GET /v1/registry/staging");
-
-  const candidates = await fetchJson(`${base}/v1/candidates?lane=staging`);
-  if (candidates.status !== 200 || !Array.isArray(candidates.body.candidates)) {
-    fail(`candidates ${candidates.status}`);
-  } else {
-    console.log("OK GET /v1/candidates");
-  }
-
-  const promote = await fetchJson(`${base}/v1/promote`, {
+  h.step("mutating routes reject unusable input (auth is open)");
+  const promote = await cp.json("/v1/promote", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ digest: "deadbeef" }),
   });
-  if (promote.status !== 400) {
-    fail(`promote missing digest should 400, got ${promote.status}`);
-  } else {
-    console.log("OK POST /v1/promote rejects missing staging");
-  }
+  h.assertStatus(promote, 400, "POST /v1/promote rejects a missing staging candidate");
 
-  const block = await fetchJson(`${base}/v1/block`, {
+  const block = await cp.json("/v1/block", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ digest: "deadbeef", reason: "verify drill" }),
   });
-  if (block.status !== 400) {
-    fail(`block unknown digest should 400, got ${block.status}`);
-  } else {
-    console.log("OK POST /v1/block rejects unknown digest");
-  }
-} catch (err) {
-  fail(err instanceof Error ? err.message : String(err));
-} finally {
-  child.kill("SIGTERM");
-}
-
-if (failed) process.exit(1);
-console.log("verify-cp-stub-api: PASS");
+  h.assertStatus(block, 400, "POST /v1/block rejects an unknown digest");
+});

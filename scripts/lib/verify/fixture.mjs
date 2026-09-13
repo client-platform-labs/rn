@@ -428,6 +428,10 @@ export function createHarness({ name = "verify" } = {}) {
      *
      * The returned `server.port` / `server.base` are the port actually bound:
      * always address the server through them, never through a captured port.
+     *
+     * Pass `token: ""` (with `env: { RN_CP_TOKEN: "" }`) for an auth-disabled
+     * control plane: an empty token is falsy, so `resolveCpAuthConfig` omits it
+     * and every route is open — the shape `cp-stub-api` probes.
      */
     async serve(options = {}) {
       const {
@@ -439,6 +443,8 @@ export function createHarness({ name = "verify" } = {}) {
         waitMs = 20_000,
         bindRetries = 1,
         args = [],
+        /** `ship` subcommand: `serve` (console + CP) or `cp-serve` (CP only). */
+        command = "serve",
       } = options;
 
       const attempt = async (listenPort) => {
@@ -446,7 +452,7 @@ export function createHarness({ name = "verify" } = {}) {
           process.execPath,
           [
             cliBin("ship"),
-            "serve",
+            command,
             "--port",
             String(listenPort),
             "--host",
