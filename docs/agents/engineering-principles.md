@@ -195,10 +195,41 @@ When stuck: ask **which plane owns the pain** — if unclear, the design isn’t
 | [000-template](../../wayfinding-impl-2/docs/adr/000-template.md) | Mandatory `## Principles compliance` on every ADR |
 | [architecture-governance.md](./architecture-governance.md) | Design → implement → review workflow |
 | `scripts/check-architecture-governance.mjs` | CI: ADR sections + forbidden product anti-patterns |
+| `scripts/check-verification-plane.mjs` | CI + AFK loop: §9 — test glob coverage, chain exit contract, phantom commands, probe reachability |
 | [.github/pull_request_template.md](../../.github/pull_request_template.md) | Human checklist on architecture-touching PRs |
 | `rn doctor` L3e | Runtime P0 (ADR-008) — complements ADR-009 process gates |
 
 **Rule:** process gates (ADR-009) and runtime gates (ADR-008) stack; neither replaces the other.
+
+---
+
+## 9. Verification integrity (anti-vacuity)
+
+**Why this section exists.** A single sweep of this repo found six gates that *looked like they verified* but could not. Each one was green, and each one was worthless. A gate that cannot fail is worse than no gate: it buys false confidence at the exact moment someone decides to ship.
+
+### The six shapes (all real, all found here)
+
+| Shape | Instance |
+|-------|----------|
+| A dead canary — the check runs but scans nothing | a governance test resolved `REPO_ROOT` to `packages/`, so its scan no-op'd and it was permanently green (#264) |
+| Permanently false — the check can never pass | an e2e preflight grepped the generated shell for symbols that #257 had moved into `shell-core`, so two security legs SKIPPED forever *while blaming the DUT* (#273) |
+| Permanently true — the signal is unconditional | legs judged on `wait_for_pid_change()`, which `force-stop` + `am start` makes always differ; proven with a dead-port control (#274) |
+| Not executed — nothing runs it | the root test glob omitted `packages/shell-core/test/*.test.ts`, so the whole device-OTA runtime suite was unenforced |
+| Rotting silently — a reference to something deleted | 26 dead references across 23 probes pointed at removed packages, hidden behind `[[ -f ]]` guards (#264) |
+| SKIP as PASS | `verify-cp-registry-postgres.mjs` printed `[SKIP]` and exited 0, making "not verified" indistinguishable from "verified" (#259) |
+
+### The six questions — ask them of every gate, probe or assertion you add or touch
+
+1. **Can this signal FAIL?** Revert the fix and re-run: it must go red. If you have not done that, you have not verified anything.
+2. **Is it ALWAYS true?** (a restart that unconditionally changes a pid; a step that always succeeds)
+3. **Is it ALWAYS false?** (grepping for a symbol that a refactor moved; a precondition no environment satisfies — a permanent SKIP that reads as "not applicable")
+4. **Are SKIP and PASS distinguishable?** Exit `2` for skip, `0` for pass, `1` for fail — never `0` after printing a skip.
+5. **Does it ACTUALLY RUN?** Is it matched by a runner's glob, and is it not skipped because an earlier step failed?
+6. **Does the assertion state INTENT, or merely current behaviour?** "The counter is untouched" must not be written as "no call was made" — that reads as intent and behaves as a snapshot.
+
+The statically decidable half is enforced by `scripts/check-verification-plane.mjs` (`node scripts/check-verification-plane.mjs`, wired into CI and the AFK loop). Questions 1, 2, 3 and 6 still require a reviewer, and the answer is only credible if the reviewer ran the negative control themselves.
+
+**Rule:** a probe or gate with no demonstrated failure mode does not count as evidence. Say "unproven", not "green".
 
 ---
 
