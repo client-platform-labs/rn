@@ -130,6 +130,15 @@ describe("applyIndustrialShell (工业壳生成化)", () => {
             `${label} must not re-inline the boot sequence (${symbol})`,
           );
         }
+        // #271: release diagnostics are emitted by shell-core's boot module, for
+        // the same reason the sequence is — two hosts writing their own
+        // diagnostics is how they drift (the signed-CRL check existed in only one
+        // of the two copies before #257). A host that calls logJs directly is
+        // re-inlining again.
+        assert.ok(
+          !src.includes("logJs"),
+          `${label} must not emit its own OTA diagnostics — shell-core does it`,
+        );
       }
     } finally {
       rmSync(root, { recursive: true, force: true });

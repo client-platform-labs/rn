@@ -13,6 +13,7 @@ import { describe, it } from "node:test";
 import {
   bootReleaseOta,
   CONTROL_PLANE_UNCONFIGURED_WARNING,
+  DEFAULT_CRASH_LOOP_MAX,
   type OtaNativeAdapter,
 } from "../dist/index.js";
 
@@ -90,6 +91,8 @@ type NativeSpy = {
   adapter: OtaNativeAdapter;
   calls: string[];
   persisted: string[];
+  /** Messages the boot sequence forwarded to the host log (#271). */
+  logs: string[];
 };
 
 function fakeNative(
@@ -102,6 +105,7 @@ function fakeNative(
 ): NativeSpy {
   const calls: string[] = [];
   const persisted: string[] = [];
+  const logs: string[] = [];
   const record = (name: string) => {
     calls.push(name);
   };
@@ -124,9 +128,14 @@ function fakeNative(
       record("setInstalledUpdateId");
       persisted.push(updateId);
     },
+    // #271: the release observability bridge the Kotlin template ships.
+    logJs: async (message: string) => {
+      record("logJs");
+      logs.push(message);
+    },
     ...opts.overrides,
   };
-  return { adapter, calls, persisted };
+  return { adapter, calls, persisted, logs };
 }
 
 type Route = { status: number; body?: unknown; bytes?: Uint8Array };
@@ -320,10 +329,70 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
     }
   });
 
+  it("#271: release diagnostics reach the host log at each decision point", async () => {
+    // Crash-loop path: the budget and the threshold are the two facts a field
+    // engineer needs, and both exist only on the JS side.
+    const stuck = fakeNative({ failures: 3, pubKeys: [] });
+    await bootReleaseOta(
+      { native: stuck.adapter, controlPlaneBaseUrl: BASE },
+      MODULE,
+    );
+    assert.ok(
+      stuck.logs.some(
+        (m) =>
+          m.includes("crash-loop rollback") &&
+          m.includes("failCount=3") &&
+          m.includes(`threshold=${DEFAULT_CRASH_LOOP_MAX}`),
+      ),
+      `crash-loop diagnostics missing, got: ${JSON.stringify(stuck.logs)}`,
+    );
+
+    // Happy path: the outcome itself.
+    const signer = keypair();
+    const ok = fakeNative({ pubKeys: [signer.pubHex] });
+    const plane = installFetch(happyPlane(signer.privateKey));
+    try {
+      await bootReleaseOta(
+        { native: ok.adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.ok(
+        ok.logs.some((m) => m.includes("status=installed")),
+        `install outcome missing, got: ${JSON.stringify(ok.logs)}`,
+      );
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("#271: a broken log bridge never changes the boot outcome", async () => {
+    // Observation is best-effort BY CONTRACT: a host whose log bridge rejects
+    // must still install, rather than fail-closed on a logging problem.
+    const signer = keypair();
+    const { adapter } = fakeNative({
+      pubKeys: [signer.pubHex],
+      overrides: {
+        logJs: async () => {
+          throw new Error("log bridge down");
+        },
+      },
+    });
+    const plane = installFetch(happyPlane(signer.privateKey));
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "installed");
+    } finally {
+      plane.restore();
+    }
+  });
+
   it("G3/ADR-024: an UNSIGNED revocation list fails closed before any artifact fetch", async () => {
     const signer = keypair();
     const manifestBody = manifest({ signature: updateSeal(signer.privateKey) });
-    const { adapter } = fakeNative({ pubKeys: [signer.pubHex] });
+    const { adapter, logs } = fakeNative({ pubKeys: [signer.pubHex] });
     const plane = installFetch((url) => {
       if (url.startsWith(`${BASE}/v1/js-updates/check`)) return { status: 200, body: manifestBody };
       if (url === `${BASE}/v1/crl`) {
@@ -341,6 +410,12 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       if (outcome.result?.status === "failed") {
         assert.match(outcome.result.reason, /CRL unsigned/);
       }
+      // #271: on a release build this is the ONLY JS-side explanation a field
+      // engineer can see, so it must reach the host log, not just the return value.
+      assert.ok(
+        logs.some((m) => m.includes("CRL unsigned")),
+        `the refusal reason must be logged, got: ${JSON.stringify(logs)}`,
+      );
       // Fail-closed: the update artifact was never requested.
       assert.ok(!plane.urls.includes(manifestBody.url));
     } finally {
@@ -449,8 +524,14 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       assert.equal(outcome.skippedReason, "control_plane_unconfigured");
       assert.deepEqual(warnings, [CONTROL_PLANE_UNCONFIGURED_WARNING]);
       assert.deepEqual(plane.urls, []);
-      // The crash counter is untouched: this boot never got to decide.
-      assert.deepEqual(calls, []);
+      // The crash counter is untouched: this boot never got to decide. Stated as
+      // the property that matters rather than "no native call at all", so a
+      // diagnostic (#271: logJs) is not mistaken for a state change.
+      assert.ok(
+        !calls.includes("recordStartupFailure") &&
+          !calls.includes("resetStartupFailures"),
+        `the crash counter must be untouched, got: ${JSON.stringify(calls)}`,
+      );
     } finally {
       plane.restore();
     }

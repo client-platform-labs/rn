@@ -38,6 +38,15 @@ export interface OtaNativeAdapter {
    * NOT `Array.isArray` in JS — use `Array.from()` on the JS side as a fallback.
    */
   getOtaPublicKeys(): string[];
+  /**
+   * Release-mode diagnostics (#271): forward a JS-side message to the host log
+   * (`Log.e("OTA", …)` in the Kotlin template). The template ships this because
+   * the JS console is silent in a release build, so without it an on-device OTA
+   * decision is invisible — a device-acceptance run had to patch a diagnostic
+   * into the shell and rebuild to see anything. Optional: a host without it
+   * degrades silently, because observation must never change a boot outcome.
+   */
+  logJs?(message: string): Promise<void>;
   /** Baked backup key K2 (hex) used to verify the revocation list (ADR-018). */
   getRevocationKey?(): string;
   /** Installed update_id (persisted natively) — used to skip re-pull on boot (ADR-014). */
