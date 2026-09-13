@@ -48,7 +48,12 @@ describe("enterprise doctor · p0-native-ota-adapter (G2/D4)", () => {
       assert.ok(probe, "p0-native-ota-adapter probe must exist");
       assert.equal(probe.ok, false);
       assert.equal(probe.blocking, true);
-      assert.match(probe.summary, /apply-ota --rca-pubkey-hex/);
+      assert.match(probe.summary, /rn ota install --rca-pubkey-hex/);
+      // #265: the remediation must name a command that EXISTS. It previously
+      // said `apply-ota`, which is neither a bin nor a registered command
+      // anywhere in this repo — users pasting it got "command not found".
+      // Asserted absent so the phantom cannot come back.
+      assert.doesNotMatch(probe.summary, /\bapply-ota\b/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

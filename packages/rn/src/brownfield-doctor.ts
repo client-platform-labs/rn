@@ -12,6 +12,7 @@ import {
   negotiateDevSessionProtocol,
   resolveDevSessionProtocolVersion,
   type DevSessionConfig,
+  type DiagnosticCheck,
 } from "@client-platform/core";
 
 import { evaluateBrownfieldNativeDoctor } from "./brownfield-native-doctor.js";
@@ -22,30 +23,23 @@ export const HOST_PROFILE_RELATIVE = path.join(".rn", "host-profile.jsonc");
 export type DoctorProfile = "greenfield" | "brownfield" | "expo";
 
 /**
- * The single doctor check record (#260).
+ * The doctor plane's name for the shared diagnostic record (#260).
  *
- * Every doctor check family — brownfield profile delta, expo interop,
- * enterprise P0 gates, release hygiene — returns this shape. It is declared
- * exactly once, here; `expo-doctor.ts`, `enterprise-doctor.ts` and
- * `brownfield-native-doctor.ts` import it instead of declaring their own
- * structurally identical twin (the expo twin was field-for-field identical).
+ * The record itself is declared once, in `@client-platform/core`'s
+ * `diagnostics.ts`, because ADR-021's dependency DAG makes `core` the lowest
+ * plane that both `rn` and `ship` may import. Declaring it here (as this module
+ * used to) forced `core`'s and `ship`'s twins to stay compatible by structural
+ * luck.
  *
- * `@client-platform/core`'s `ReleaseHygieneCheck` and `ship`'s
- * `DeliveryValidateCheck` already satisfy this shape structurally, so the
- * cross-plane check interface is this one type without either package having to
- * import the other's name.
+ * Kept as a named alias because "doctor check" is this plane's vocabulary:
+ * every doctor family — brownfield profile delta, expo interop, enterprise P0
+ * gates, native adapter, shell template drift — returns `DoctorCheck[]`.
  *
- * WHY this file: enterprise + native doctors already imported their check type
- * from here, so this is the established home; a dedicated diagnostics module
- * would be the better long-term home (see #260 report).
+ * NOT the same concept: `ChannelProfileIssue` (`@client-platform/core`)
+ * carries a `blocking` flag too, but it is an issue inside a validation result
+ * (identified by `code` + `message`, never "ok").
  */
-export type DoctorCheck = {
-  id: string;
-  ok: boolean;
-  summary: string;
-  /** When true, failure fails doctor even without --strict. */
-  blocking: boolean;
-};
+export type DoctorCheck = DiagnosticCheck;
 
 export function parseDoctorProfile(raw: string | undefined): DoctorProfile {
   if (!raw || raw === "greenfield") return "greenfield";

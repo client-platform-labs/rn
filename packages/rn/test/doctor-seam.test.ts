@@ -124,44 +124,84 @@ function findCheckShapeDeclarations(): Array<{ file: string; name: string }> {
 }
 
 /**
- * The only declarations of the check shape allowed in the repo.
+ * The one declaration of the check shape (#260).
  *
- * `DoctorCheck` is the record the doctor plane uses. The other two are
- * byte-identical twins in packages this ticket's file scope excluded; they are
- * structurally the same interface to TypeScript, so no consumer needs a cast,
- * but they must be folded into one home by a follow-up (#260 report). Listing
- * them here means a *new* twin fails this probe instead of accumulating.
+ * It lives in `core` because ADR-021's DAG (`core` ← {`rn`, `ship`}) makes core
+ * the lowest plane BOTH consumers may import. The plane-specific names —
+ * `DoctorCheck` (rn), `ReleaseHygieneCheck` (core, public API) and
+ * `DeliveryValidateCheck` (ship) — are now type ALIASES of it, not twin
+ * declarations, so they cannot drift. Before this, four structurally identical
+ * declarations stayed in step only by luck (TypeScript accepts them
+ * interchangeably).
  */
-const ALLOWED_CHECK_SHAPE_TWINS = [
-  "packages/rn/src/brownfield-doctor.ts:DoctorCheck",
-  "packages/core/src/release-hygiene.ts:ReleaseHygieneCheck",
-  "packages/ship/src/validate.ts:DeliveryValidateCheck",
-];
+const CANONICAL_CHECK_SHAPE = "packages/core/src/diagnostics.ts:DiagnosticCheck";
+
+/** Body of a `type X = { … }` / `interface X { … }` declaration, brace-matched. */
+function recordBody(relFile: string, name: string): string {
+  const text = readFileSync(path.join(REPO_ROOT, relFile), "utf8");
+  // Plain string search rather than a built regex: interpolating `name` into a
+  // RegExp is both flagged as unsafe and unnecessary here.
+  const at = [`type ${name} = {`, `interface ${name} {`]
+    .map((needle) => ({ needle, at: text.indexOf(needle) }))
+    .filter((m) => m.at >= 0)
+    .sort((a, b) => a.at - b.at)[0];
+  assert.ok(at, `${name} not found in ${relFile}`);
+  const open = at.at + at.needle.length - 1;
+  const close = matchingBrace(text, open);
+  assert.ok(close > 0, `unbalanced braces for ${name} in ${relFile}`);
+  return text.slice(open + 1, close);
+}
 
 describe("doctor check seam (#260) · record", () => {
-  it("declares the check shape exactly once in the doctor plane", () => {
-    const decls = findCheckShapeDeclarations().map((d) => `${d.file}:${d.name}`);
-    const inDoctorPlane = decls.filter((d) => d.startsWith("packages/rn/src/"));
+  it("declares the check shape exactly once in the repo", () => {
     assert.deepEqual(
-      inDoctorPlane,
-      ["packages/rn/src/brownfield-doctor.ts:DoctorCheck"],
-      "the rn doctor plane must declare the check record exactly once",
+      findCheckShapeDeclarations().map((d) => `${d.file}:${d.name}`),
+      [CANONICAL_CHECK_SHAPE],
+      "the {id, ok, summary, blocking} record must be declared exactly once — in core, the lowest plane both rn and ship may import (ADR-021)",
     );
   });
 
-  it("allows no check-shape twin beyond the documented allowlist", () => {
-    const decls = findCheckShapeDeclarations().map((d) => `${d.file}:${d.name}`);
+  it("leaves no check-shape declaration in a consumer plane", () => {
+    const consumerPlaneTwins = findCheckShapeDeclarations()
+      .map((d) => `${d.file}:${d.name}`)
+      .filter((d) => d !== CANONICAL_CHECK_SHAPE);
     assert.deepEqual(
-      [...decls].sort(),
-      [...ALLOWED_CHECK_SHAPE_TWINS].sort(),
-      "a new {id, ok, summary, blocking} twin appeared — unify it or update the allowlist with a reason",
+      consumerPlaneTwins,
+      [],
+      "a plane re-declared the check shape — make it an alias of core's DiagnosticCheck instead",
     );
   });
 
-  it("core's ReleaseHygieneCheck stays assignable to the doctor record", () => {
-    // Compile-time guard: if core's record drifts, this stops compiling.
-    const crossPackage: DoctorCheck[] = [] as ReleaseHygieneCheck[];
-    assert.deepEqual(crossPackage, []);
+  it("keeps ChannelProfileIssue OUT of the check shape (a different concept)", () => {
+    // `ChannelProfileIssue` also carries `blocking`, so a naive
+    // `blocking: boolean` census would flag it — and satisfying the ticket
+    // literally would have forced a semantically wrong unification. It is an
+    // ISSUE inside a validation result, identified by a `code` union and a
+    // `message`; it has no id/ok/summary because an issue is never "ok".
+    // Pinning that boundary here stops a future reader from "fixing" it.
+    const body = recordBody(
+      "packages/core/src/channel-profile.ts",
+      "ChannelProfileIssue",
+    );
+    assert.match(body, /\bblocking\s*:/, "shares the word blocking…");
+    assert.match(body, /\bcode\s*:/, "…but is identified by a code");
+    assert.doesNotMatch(body, /\bok\s*:/, "…and has no verdict");
+    assert.doesNotMatch(body, /\bsummary\s*:/);
+    assert.doesNotMatch(body, /\bid\s*:/);
+    assert.ok(
+      !findCheckShapeDeclarations().some((d) =>
+        d.file.endsWith("channel-profile.ts"),
+      ),
+      "ChannelProfileIssue must not be detected as a check record",
+    );
+  });
+
+  it("plane names are aliases of the one record (compile-time guard)", () => {
+    // If any plane re-introduces a twin, these stop compiling. ship's alias is
+    // guarded in packages/ship/test/ — ADR-021 forbids rn importing ship.
+    const viaDoctor: DoctorCheck[] = [] as ReleaseHygieneCheck[];
+    const back: ReleaseHygieneCheck[] = [] as DoctorCheck[];
+    assert.deepEqual([viaDoctor, back], [[], []]);
   });
 });
 
