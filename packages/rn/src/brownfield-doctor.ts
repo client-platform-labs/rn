@@ -21,7 +21,25 @@ export const HOST_PROFILE_RELATIVE = path.join(".rn", "host-profile.jsonc");
 
 export type DoctorProfile = "greenfield" | "brownfield" | "expo";
 
-export type BrownfieldCheck = {
+/**
+ * The single doctor check record (#260).
+ *
+ * Every doctor check family — brownfield profile delta, expo interop,
+ * enterprise P0 gates, release hygiene — returns this shape. It is declared
+ * exactly once, here; `expo-doctor.ts`, `enterprise-doctor.ts` and
+ * `brownfield-native-doctor.ts` import it instead of declaring their own
+ * structurally identical twin (the expo twin was field-for-field identical).
+ *
+ * `@client-platform/core`'s `ReleaseHygieneCheck` and `ship`'s
+ * `DeliveryValidateCheck` already satisfy this shape structurally, so the
+ * cross-plane check interface is this one type without either package having to
+ * import the other's name.
+ *
+ * WHY this file: enterprise + native doctors already imported their check type
+ * from here, so this is the established home; a dedicated diagnostics module
+ * would be the better long-term home (see #260 report).
+ */
+export type DoctorCheck = {
   id: string;
   ok: boolean;
   summary: string;
@@ -38,12 +56,21 @@ export function parseDoctorProfile(raw: string | undefined): DoctorProfile {
   );
 }
 
-export function loadHostProfile(projectRoot: string): {
+export type HostProfile = {
   profile: DoctorProfile;
   schemaVersion?: number;
   topology?: string;
   runtimeContract?: BrownfieldRuntimeContract;
-} | null {
+};
+
+/**
+ * Memoizable host-profile read (#260). `rn doctor` passes one loader through the
+ * family context so `.rn/host-profile.jsonc` is read once per run instead of
+ * once per evaluator; calling it directly (tests, other commands) is unchanged.
+ */
+export type HostProfileLoader = () => HostProfile | null;
+
+export function loadHostProfile(projectRoot: string): HostProfile | null {
   const file = path.join(projectRoot, HOST_PROFILE_RELATIVE);
   if (!existsSync(file)) return null;
   const raw = readFileSync(file, "utf8");
@@ -153,8 +180,10 @@ function findSurfaceHostStub(projectRoot: string): string | null {
 export function evaluateBrownfieldDoctor(options: {
   projectRoot: string;
   session: DevSessionConfig | null;
-}): BrownfieldCheck[] {
-  const checks: BrownfieldCheck[] = [];
+  /** Optional shared reader (#260) — defaults to a fresh read for direct callers. */
+  hostProfile?: HostProfileLoader;
+}): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
   const root = options.projectRoot;
 
   // 1) Protocol factory is importable (this module already imported it).
@@ -165,7 +194,9 @@ export function evaluateBrownfieldDoctor(options: {
     blocking: true,
   });
 
-  const hostProfile = loadHostProfile(root);
+  const hostProfile = options.hostProfile
+    ? options.hostProfile()
+    : loadHostProfile(root);
   checks.push({
     id: "bf-host-profile",
     ok: hostProfile?.profile === "brownfield",
@@ -267,7 +298,11 @@ export function evaluateBrownfieldDoctor(options: {
     }
   }
 
-  checks.push(...evaluateBrownfieldNativeDoctor(root));
+  checks.push(
+    ...evaluateBrownfieldNativeDoctor(root, {
+      hostProfile: options.hostProfile,
+    }),
+  );
 
   return checks;
 }

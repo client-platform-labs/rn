@@ -11,8 +11,9 @@ import {
 
 import {
   loadHostProfile,
-  type BrownfieldCheck,
   type BrownfieldRuntimeContract,
+  type DoctorCheck,
+  type HostProfileLoader,
 } from "./brownfield-doctor.js";
 
 const EXPECTED_AGP_PREFIX = "8.";
@@ -104,14 +105,29 @@ function parseGradleBoolProp(
   return null;
 }
 
-function readPackageJson(projectRoot: string): {
+/**
+ * Text of the project package.json, read once per doctor run and shared with the
+ * other evaluators (#260). Returns undefined when the file is absent; parse
+ * errors stay the caller's business so each family keeps its current semantics.
+ */
+export type PackageJsonTextLoader = () => string | undefined;
+
+function readPackageJson(
+  projectRoot: string,
+  packageJsonText?: PackageJsonTextLoader,
+): {
   rnVersion: string | null;
   hasCodegenConfig: boolean;
 } {
-  const file = path.join(projectRoot, "package.json");
-  if (!existsSync(file)) return { rnVersion: null, hasCodegenConfig: false };
+  const text = packageJsonText
+    ? packageJsonText()
+    : (() => {
+        const file = path.join(projectRoot, "package.json");
+        return existsSync(file) ? readFileSync(file, "utf8") : undefined;
+      })();
+  if (text === undefined) return { rnVersion: null, hasCodegenConfig: false };
   try {
-    const pkg = JSON.parse(readFileSync(file, "utf8")) as {
+    const pkg = JSON.parse(text) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
       codegenConfig?: unknown;
@@ -158,8 +174,11 @@ function findNativeSpecSurface(androidRoot: string): boolean {
   return false;
 }
 
-function resolveContract(projectRoot: string): BrownfieldRuntimeContract {
-  const profile = loadHostProfile(projectRoot);
+function resolveContract(
+  projectRoot: string,
+  hostProfile?: HostProfileLoader,
+): BrownfieldRuntimeContract {
+  const profile = hostProfile ? hostProfile() : loadHostProfile(projectRoot);
   const c = profile?.runtimeContract ?? {};
   return {
     hermesEnabled: c.hermesEnabled ?? true,
@@ -172,10 +191,15 @@ function resolveContract(projectRoot: string): BrownfieldRuntimeContract {
 /** P4/P6 native-side brownfield doctor checks. */
 export function evaluateBrownfieldNativeDoctor(
   projectRoot: string,
-): BrownfieldCheck[] {
-  const checks: BrownfieldCheck[] = [];
+  /** Optional shared readers (#260) — omitted, each read happens locally. */
+  ctx: {
+    hostProfile?: HostProfileLoader;
+    packageJsonText?: PackageJsonTextLoader;
+  } = {},
+): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
   const androidRoot = findAndroidRoot(projectRoot);
-  const contract = resolveContract(projectRoot);
+  const contract = resolveContract(projectRoot, ctx.hostProfile);
 
   if (!androidRoot) {
     checks.push({
@@ -311,7 +335,10 @@ export function evaluateBrownfieldNativeDoctor(
     });
   }
 
-  const { rnVersion, hasCodegenConfig } = readPackageJson(projectRoot);
+  const { rnVersion, hasCodegenConfig } = readPackageJson(
+    projectRoot,
+    ctx.packageJsonText,
+  );
   const train = contract.rnTrain ?? RN_GREENFIELD_MAJOR_MINOR;
   if (!rnVersion) {
     checks.push({

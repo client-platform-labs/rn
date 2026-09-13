@@ -15,20 +15,27 @@ import {
   snapshotExpoPackageJson,
 } from "@client-platform/rn-engine";
 
-export type ExpoDoctorCheck = {
-  id: string;
-  ok: boolean;
-  summary: string;
-  blocking: boolean;
-};
+import type { DoctorCheck } from "./brownfield-doctor.js";
+import type { PackageJsonTextLoader } from "./brownfield-native-doctor.js";
 
-function readPackageJsonDeps(projectRoot: string): {
+function readPackageJsonDeps(
+  projectRoot: string,
+  packageJsonText?: PackageJsonTextLoader,
+): {
   expo?: string;
   "react-native"?: string;
 } {
-  const file = path.join(projectRoot, "package.json");
-  if (!existsSync(file)) return {};
-  const parsed = JSON.parse(readFileSync(file, "utf8")) as {
+  const text = packageJsonText
+    ? packageJsonText()
+    : (() => {
+        const file = path.join(projectRoot, "package.json");
+        return existsSync(file) ? readFileSync(file, "utf8") : undefined;
+      })();
+  // Parse errors stay hard failures here: expo-doctor has always let a
+  // malformed package.json throw rather than silently reporting "no expo dep"
+  // (#260 keeps that behaviour while sharing the disk read).
+  if (text === undefined) return {};
+  const parsed = JSON.parse(text) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
   };
@@ -76,9 +83,13 @@ function loadInteropConfig(projectRoot: string): InteropConfig | undefined {
   return loaded.manifest.interop;
 }
 
-export function evaluateExpoDoctor(projectRoot: string): ExpoDoctorCheck[] {
-  const checks: ExpoDoctorCheck[] = [];
-  const deps = readPackageJsonDeps(projectRoot);
+export function evaluateExpoDoctor(
+  projectRoot: string,
+  /** Optional shared readers (#260) — omitted, the read happens locally. */
+  ctx: { packageJsonText?: PackageJsonTextLoader } = {},
+): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
+  const deps = readPackageJsonDeps(projectRoot, ctx.packageJsonText);
   const snapshot = snapshotExpoPackageJson(deps);
 
   checks.push({

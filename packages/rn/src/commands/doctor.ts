@@ -10,6 +10,7 @@ import {
   findWorkspaceRoot,
   loadProjectManifest,
   MANIFEST_FILENAME,
+  type DevSessionConfig,
 } from "@client-platform/core";
 import {
   isGreenfieldRnTrain,
@@ -42,9 +43,12 @@ import { probeAndroidHost } from "../host-env.js";
 import { loadDevSessionConfig } from "../dev-session-config.js";
 import {
   evaluateBrownfieldDoctor,
-  parseDoctorProfile,
+  loadHostProfile,
+  type DoctorCheck,
   type DoctorProfile,
+  type HostProfileLoader,
 } from "../brownfield-doctor.js";
+import type { PackageJsonTextLoader } from "../brownfield-native-doctor.js";
 import { evaluateEnterpriseDoctor } from "../enterprise-doctor.js";
 import {
   INDUSTRIAL_TEMPLATE_VERSION,
@@ -53,6 +57,7 @@ import {
 import { evaluateExpoDoctor } from "../expo-doctor.js";
 import {
   collectPreflightFindings,
+  collectPreflightIssues,
   evaluatePreflight,
   printHostLayers,
   type PreflightFinding,
@@ -69,6 +74,229 @@ function canResolve(specifier: string, parentHref: string): boolean {
 
 export function nodeMajor(version = process.versions.node): number {
   return Number.parseInt(version.split(".")[0] ?? "0", 10);
+}
+
+/* ─────────────────────── doctor check seam (#260) ─────────────────────── */
+
+/**
+ * Before: four check families each declared the same
+ * `{ id, ok, summary, blocking }` record, `runDoctor` wrote one issue-push loop
+ * and one print loop per family (4 + 4), and two independent verdicts
+ * (`host.ok` and `issues.length === 0`) both fed the payload.
+ *
+ * After: one record (`DoctorCheck`), one evaluator interface
+ * (`DoctorCheckFamily.evaluate(ctx) -> DoctorCheck[]`), one collect, one render,
+ * one verdict. A new check family is one entry in `DOCTOR_CHECK_FAMILIES`.
+ */
+export type DoctorCheckFamily = {
+  /** Issue prefix and stable id in machine output (`[enterprise] ...`). */
+  id: string;
+  /** Human section title. */
+  title: string;
+  /** Render a blank line before this section's title. */
+  blankBefore: boolean;
+  /**
+   * Tag for a non-blocking failure. Doctor has always rendered expo advisory
+   * gaps as WARN and every other family as INFO; preserved from the old loops.
+   */
+  advisory: "INFO" | "WARN";
+  /**
+   * Whether `--strict` escalates this family's non-blocking failures into
+   * issues. Release hygiene opts out (blocking-only) — preserved behaviour.
+   */
+  strictEscalates: boolean;
+  /** Profile gate: whether this family runs for a given profile. */
+  appliesTo: (profile: DoctorProfile) => boolean;
+  /** The F25 template-drift block is rendered before this family. */
+  driftBefore?: boolean;
+  /** The evaluator: one family in, checks out. */
+  evaluate: (ctx: DoctorCheckContext) => DoctorCheck[];
+};
+
+/**
+ * Everything a check family may consume. Files are read once per doctor run and
+ * handed to every family through these loaders (#260), so four evaluators no
+ * longer re-read the same `package.json` / `.rn/host-profile.jsonc`. Direct
+ * callers of an evaluator omit the loaders and that family reads for itself.
+ */
+export type DoctorCheckContext = {
+  projectRoot: string;
+  session: DevSessionConfig | null;
+  readHostProfile: HostProfileLoader;
+  readPackageJsonText: PackageJsonTextLoader;
+};
+
+/**
+ * The check families, in issue order. Order is load-bearing: the collected issue
+ * list is what `CliError` reports, and `driftBefore` places the F25
+ * template-drift block in the human output.
+ */
+export const DOCTOR_CHECK_FAMILIES: readonly DoctorCheckFamily[] = [
+  {
+    id: "brownfield",
+    title: "L3b Brownfield contract (map-a/#5)",
+    blankBefore: true,
+    advisory: "INFO",
+    strictEscalates: true,
+    appliesTo: (profile) => profile === "brownfield",
+    evaluate: (ctx) =>
+      evaluateBrownfieldDoctor({
+        projectRoot: ctx.projectRoot,
+        session: ctx.session,
+        hostProfile: ctx.readHostProfile,
+      }),
+  },
+  {
+    id: "expo",
+    title: "Expo interop",
+    blankBefore: true,
+    advisory: "WARN",
+    strictEscalates: true,
+    appliesTo: (profile) => profile === "expo",
+    evaluate: (ctx) =>
+      evaluateExpoDoctor(ctx.projectRoot, {
+        packageJsonText: ctx.readPackageJsonText,
+      }),
+  },
+  {
+    id: "enterprise",
+    title: "Enterprise readiness gates",
+    blankBefore: false,
+    advisory: "INFO",
+    strictEscalates: true,
+    driftBefore: true,
+    appliesTo: () => true,
+    evaluate: (ctx) =>
+      evaluateEnterpriseDoctor({
+        projectRoot: ctx.projectRoot,
+        session: ctx.session,
+        hostProfile: ctx.readHostProfile,
+        packageJsonText: ctx.readPackageJsonText,
+      }),
+  },
+  {
+    id: "release",
+    title: "L3f Release hygiene (M2 / G-P0)",
+    blankBefore: true,
+    advisory: "INFO",
+    // Release hygiene has always been blocking-only: `--strict` never escalated
+    // a non-blocking release finding into an issue.
+    strictEscalates: false,
+    appliesTo: () => true,
+    evaluate: (ctx) => evaluateReleaseSourceHygiene(ctx.projectRoot),
+  },
+];
+
+/**
+ * Read-once-per-run loaders handed to every family (#260). Memoised so the
+ * second caller sees the first read's value rather than touching disk again.
+ */
+export function createDoctorReaders(projectRoot: string): {
+  readHostProfile: HostProfileLoader;
+  readPackageJsonText: PackageJsonTextLoader;
+} {
+  const memoize = <T>(load: () => T): (() => T) => {
+    let loaded = false;
+    let value: T;
+    return () => {
+      if (!loaded) {
+        value = load();
+        loaded = true;
+      }
+      return value;
+    };
+  };
+  return {
+    readHostProfile: memoize(() => loadHostProfile(projectRoot)),
+    readPackageJsonText: memoize(() => {
+      const file = path.join(projectRoot, "package.json");
+      return existsSync(file) ? readFileSync(file, "utf8") : undefined;
+    }),
+  };
+}
+
+/** The single collect (#260): `[family] summary` for every escalated failure. */
+export function collectDoctorIssues(
+  families: readonly {
+    id: string;
+    checks: readonly DoctorCheck[];
+    strictEscalates?: boolean;
+  }[],
+  options: { strict?: boolean } = {},
+): string[] {
+  const issues: string[] = [];
+  const strict = options.strict === true;
+  for (const family of families) {
+    const escalate = strict && family.strictEscalates !== false;
+    for (const check of family.checks) {
+      if (check.ok) continue;
+      if (!check.blocking && !escalate) continue;
+      issues.push(`[${family.id}] ${check.summary}`);
+    }
+  }
+  return issues;
+}
+
+/** Row tag for one check: `OK  ` / `NEED` / the family's advisory tag. */
+export function doctorCheckTag(
+  check: DoctorCheck,
+  advisory: "INFO" | "WARN" = "INFO",
+): string {
+  if (check.ok) return "OK  ";
+  return check.blocking ? "NEED" : advisory;
+}
+
+/**
+ * The single verdict (#260). Doctor passes iff the collect produced no issue —
+ * a family's own partial verdict can no longer disagree with it.
+ */
+export function doctorIssueVerdict(issues: readonly string[]): boolean {
+  return issues.length === 0;
+}
+
+export type DoctorCheckSection = {
+  /** Omitted for untitled blocks (the F25 template-drift line). */
+  title?: string;
+  blankBefore: boolean;
+  advisory?: "INFO" | "WARN";
+  checks: readonly DoctorCheck[];
+  /** Printed only when at least one check in the section failed. */
+  hintOnFailure?: string;
+};
+
+/** The single renderer (#260) — replaced four per-family print loops. */
+export function printDoctorCheckSections(
+  logger: { writeHuman(message: string): void },
+  sections: readonly DoctorCheckSection[],
+): void {
+  for (const section of sections) {
+    if (section.blankBefore) logger.writeHuman("");
+    if (section.title !== undefined) logger.writeHuman(section.title);
+    for (const check of section.checks) {
+      logger.writeHuman(
+        `  [${doctorCheckTag(check, section.advisory ?? "INFO")}] ${check.summary}`,
+      );
+    }
+    if (
+      section.hintOnFailure &&
+      section.checks.some((check) => !check.ok)
+    ) {
+      logger.writeHuman(section.hintOnFailure);
+    }
+  }
+}
+
+/**
+ * F25 shell-template drift as a check (#260): it used to be the one diagnostic
+ * row printed outside any family. Human output only — not part of the payload.
+ */
+export function shellTemplateDriftCheck(drift: string | null): DoctorCheck {
+  return {
+    id: "shell-template",
+    ok: drift === null,
+    summary: drift ?? `shell template is current (v${INDUSTRIAL_TEMPLATE_VERSION})`,
+    blocking: true,
+  };
 }
 
 /**
@@ -102,21 +330,10 @@ export async function runDoctor(options: {
       `Node.js ${process.versions.node} is not 24.x (rn doctor requires Node 24.x)`,
     );
   }
-  if (!host.ok) {
-    for (const f of findings) {
-      if (f.status !== "missing") {
-        continue;
-      }
-      if (f.plane === "cli") {
-        issues.push(f.summary);
-      } else if (
-        strict &&
-        (f.plane === "assisted" || (f.plane === "manual" && f.id === "ios"))
-      ) {
-        issues.push(f.summary);
-      }
-    }
-  }
+  // Host layers contribute their issues through the module that owns the L0–L2
+  // record (#260). `host.ok` is a gate over that family, NOT the run verdict —
+  // the verdict is doctorIssueVerdict(issues) below.
+  issues.push(...collectPreflightIssues(findings, host, { strict }));
 
   const workspaceRoot = findWorkspaceRoot(cwd);
   const packages: Array<{ name: string; ok: boolean }> = [];
@@ -222,47 +439,33 @@ export async function runDoctor(options: {
     issues.push(err instanceof Error ? err.message : String(err));
   }
 
-  const brownfieldChecks =
-    profile === "brownfield"
-      ? evaluateBrownfieldDoctor({
-          projectRoot: cwd,
-          session: sessionConfig,
-        })
-      : [];
-
-  const expoChecks =
-    profile === "expo" ? evaluateExpoDoctor(cwd) : [];
-
-  for (const check of brownfieldChecks) {
-    if (!check.ok && (check.blocking || strict)) {
-      issues.push(`[brownfield] ${check.summary}`);
-    }
-  }
-
-  for (const check of expoChecks) {
-    if (!check.ok && (check.blocking || strict)) {
-      issues.push(`[expo] ${check.summary}`);
-    }
-  }
-
-  const enterpriseChecks = evaluateEnterpriseDoctor({
+  // One evaluator interface, one collect (#260). Families are profile-gated by
+  // the registry, evaluated with shared readers, and their issues gathered in
+  // registry order so the CliError message stays stable.
+  const readers = createDoctorReaders(cwd);
+  const ctx: DoctorCheckContext = {
     projectRoot: cwd,
     session: sessionConfig,
-  });
-  for (const check of enterpriseChecks) {
-    if (!check.ok && (check.blocking || strict)) {
-      issues.push(`[enterprise] ${check.summary}`);
-    }
-  }
+    readHostProfile: readers.readHostProfile,
+    readPackageJsonText: readers.readPackageJsonText,
+  };
+  const activeFamilies = DOCTOR_CHECK_FAMILIES.filter((family) =>
+    family.appliesTo(profile),
+  );
+  const familyChecks = activeFamilies.map((family) => ({
+    id: family.id,
+    checks: family.evaluate(ctx),
+    strictEscalates: family.strictEscalates,
+  }));
+  issues.push(...collectDoctorIssues(familyChecks, { strict }));
 
-  const releaseChecks = evaluateReleaseSourceHygiene(cwd);
-  for (const check of releaseChecks) {
-    if (!check.ok && check.blocking) {
-      issues.push(`[release] ${check.summary}`);
-    }
-  }
+  // The payload keeps one key per family even when the profile gated that family
+  // out (greenfield reports brownfield/expo as present-but-empty) — field
+  // compatibility for `rn doctor --json` consumers.
+  const checksFor = (familyId: string): DoctorCheck[] =>
+    familyChecks.find((family) => family.id === familyId)?.checks ?? [];
 
-  const ok = issues.length === 0;
+  const ok = doctorIssueVerdict(issues);
   const payload = {
     ok,
     strict,
@@ -289,10 +492,10 @@ export async function runDoctor(options: {
       manifest,
       plugins,
       multiMetro: devSessionSummary,
-      brownfield: brownfieldChecks,
-      expo: expoChecks,
-      enterprise: enterpriseChecks,
-      releaseHygiene: releaseChecks,
+      brownfield: checksFor("brownfield"),
+      expo: checksFor("expo"),
+      enterprise: checksFor("enterprise"),
+      releaseHygiene: checksFor("release"),
     },
     autofix: {
       available: false,
@@ -378,56 +581,29 @@ export async function runDoctor(options: {
       logger.writeHuman("  [INFO] .rn/dev-session.jsonc: (none)");
     }
 
-    if (profile === "brownfield") {
-      logger.writeHuman("");
-      logger.writeHuman("L3b Brownfield contract (map-a/#5)");
-      for (const check of brownfieldChecks) {
-        logger.writeHuman(
-          `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,
-        );
+    // One renderer (#260): sections in registry order, with the F25 drift block
+    // placed by `driftBefore`. Titles, blank lines, tags and the release hint are
+    // identical to the four per-family loops this replaced.
+    const sections: DoctorCheckSection[] = [];
+    for (const family of activeFamilies) {
+      if (family.driftBefore) {
+        sections.push({
+          blankBefore: true,
+          checks: [shellTemplateDriftCheck(shellTemplateDrift(cwd))],
+        });
       }
+      sections.push({
+        title: family.title,
+        blankBefore: family.blankBefore,
+        advisory: family.advisory,
+        checks: checksFor(family.id),
+        hintOnFailure:
+          family.id === "release"
+            ? "  hint: run rn dev-support remove before ship build --profile release"
+            : undefined,
+      });
     }
-
-    if (profile === "expo") {
-      logger.writeHuman("");
-      logger.writeHuman("Expo interop");
-      for (const check of expoChecks) {
-        logger.writeHuman(
-          `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "WARN"}] ${check.summary}`,
-        );
-      }
-    }
-
-    logger.writeHuman("");
-    {
-      // F25: shell template drift — template fixes don't propagate to existing projects.
-      const drift = shellTemplateDrift(cwd);
-      logger.writeHuman(
-        drift
-          ? `  [NEED] ${drift}`
-          : `  [OK  ] shell template is current (v${INDUSTRIAL_TEMPLATE_VERSION})`,
-      );
-    }
-
-    logger.writeHuman("Enterprise readiness gates");
-    for (const check of enterpriseChecks) {
-      logger.writeHuman(
-        `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,
-      );
-    }
-
-    logger.writeHuman("");
-    logger.writeHuman("L3f Release hygiene (M2 / G-P0)");
-    for (const check of releaseChecks) {
-      logger.writeHuman(
-        `  [${check.ok ? "OK  " : check.blocking ? "NEED" : "INFO"}] ${check.summary}`,
-      );
-    }
-    if (releaseChecks.some((c) => !c.ok)) {
-      logger.writeHuman(
-        "  hint: run rn dev-support remove before ship build --profile release",
-      );
-    }
+    printDoctorCheckSections(logger, sections);
 
     logger.writeHuman(
       "  [INFO] autofix: not available (safe autofix TODO; unsafe never)",

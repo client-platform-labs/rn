@@ -17,7 +17,12 @@ import {
   type DevSessionConfig,
 } from "@client-platform/core";
 
-import { loadHostProfile, type BrownfieldCheck } from "./brownfield-doctor.js";
+import {
+  loadHostProfile,
+  type DoctorCheck,
+  type HostProfileLoader,
+} from "./brownfield-doctor.js";
+import type { PackageJsonTextLoader } from "./brownfield-native-doctor.js";
 import { metroModuleConfigPath } from "./metro-module-config.js";
 import { MODULES_DIR, moduleWorkspaceRoot } from "./module-workspace.js";
 import { nativeOtaAdapterPresent } from "./industrial-shell.js";
@@ -113,21 +118,34 @@ function scanPollution(projectRoot: string): {
   return { ok: hits.length === 0, hits };
 }
 
-function collectReactNativeVersions(projectRoot: string): Map<string, string> {
+function collectReactNativeVersions(
+  projectRoot: string,
+  packageJsonText?: PackageJsonTextLoader,
+): Map<string, string> {
   const versions = new Map<string, string>();
-  const pkgPaths = [path.join(projectRoot, "package.json")];
+  const rootPkgText = packageJsonText ? packageJsonText() : undefined;
+  const pkgPaths: Array<{ path: string; text?: string }> = [
+    { path: path.join(projectRoot, "package.json"), text: rootPkgText },
+  ];
   const modulesRoot = path.join(projectRoot, MODULES_DIR);
   if (existsSync(modulesRoot)) {
     for (const entry of readdirSync(modulesRoot, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const p = path.join(modulesRoot, entry.name, "package.json");
-      if (existsSync(p)) pkgPaths.push(p);
+      if (existsSync(p)) pkgPaths.push({ path: p });
     }
   }
   for (const pkgPath of pkgPaths) {
-    if (!existsSync(pkgPath)) continue;
+    // A missing package.json is skipped, not an error (pre-#260 behaviour kept);
+    // the shared loader already hands back undefined for an absent root file.
+    const text =
+      pkgPath.text ??
+      (existsSync(pkgPath.path)
+        ? readFileSync(pkgPath.path, "utf8")
+        : undefined);
+    if (text === undefined) continue;
     try {
-      const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
+      const pkg = JSON.parse(text) as {
         name?: string;
         dependencies?: Record<string, string>;
         peerDependencies?: Record<string, string>;
@@ -136,7 +154,10 @@ function collectReactNativeVersions(projectRoot: string): Map<string, string> {
         pkg.dependencies?.["react-native"] ??
         pkg.peerDependencies?.["react-native"];
       if (ver) {
-        versions.set(pkg.name ?? path.relative(projectRoot, pkgPath), ver);
+        versions.set(
+          pkg.name ?? path.relative(projectRoot, pkgPath.path),
+          ver,
+        );
       }
     } catch {
       /* ignore */
@@ -151,10 +172,15 @@ function collectReactNativeVersions(projectRoot: string): Map<string, string> {
 export function evaluateEnterpriseDoctor(options: {
   projectRoot: string;
   session: DevSessionConfig | null;
-}): BrownfieldCheck[] {
-  const checks: BrownfieldCheck[] = [];
+  /** Optional shared readers (#260) — omitted, each read happens locally. */
+  hostProfile?: HostProfileLoader;
+  packageJsonText?: PackageJsonTextLoader;
+}): DoctorCheck[] {
+  const checks: DoctorCheck[] = [];
   const root = options.projectRoot;
-  const hostProfile = loadHostProfile(root);
+  const hostProfile = options.hostProfile
+    ? options.hostProfile()
+    : loadHostProfile(root);
   const isTopologyB = hostProfile?.topology === "shell-plus-modules";
 
   checks.push({
@@ -258,7 +284,7 @@ export function evaluateEnterpriseDoctor(options: {
   });
 
   if (existsSync(path.join(root, MODULES_DIR))) {
-    const versions = collectReactNativeVersions(root);
+    const versions = collectReactNativeVersions(root, options.packageJsonText);
     const unique = new Set(versions.values());
     const aligned = unique.size <= 1;
     checks.push({

@@ -604,6 +604,37 @@ export function evaluatePreflight(
 
 const PLANE_ORDER: PreflightPlane[] = ["cli", "assisted", "manual"];
 
+/**
+ * Host-layer contribution to the run's issue list (#260).
+ *
+ * The gate and the selection are exactly what `rn doctor` did inline before this
+ * module owned them: findings are only escalated when the host layers are not OK,
+ * `--strict` extends escalation to assisted packages and the human-gated iOS
+ * step, and anything that is not `missing` never becomes an issue. Kept next to
+ * `evaluatePreflight` because both answer questions about the same record.
+ */
+export function collectPreflightIssues(
+  findings: readonly PreflightFinding[],
+  host: { ok: boolean },
+  options: { strict?: boolean } = {},
+): string[] {
+  if (host.ok) return [];
+  const issues: string[] = [];
+  for (const finding of findings) {
+    if (finding.status !== "missing") continue;
+    if (finding.plane === "cli") {
+      issues.push(finding.summary);
+    } else if (
+      options.strict === true &&
+      (finding.plane === "assisted" ||
+        (finding.plane === "manual" && finding.id === "ios"))
+    ) {
+      issues.push(finding.summary);
+    }
+  }
+  return issues;
+}
+
 /** Shared human printer for L0–L2 (used by `rn doctor`). */
 export function printHostLayers(
   logger: { writeHuman(message: string): void },
