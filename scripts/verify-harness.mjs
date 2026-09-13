@@ -37,12 +37,28 @@ const SCRIPTS = path.join(REPO_ROOT, "scripts");
 
 /**
  * Probes that declare the fixture instead of rebuilding the scaffolding they
- * used to hand-roll (#259). Their old scaffolding counts are frozen below.
+ * used to hand-roll (#259). Asserted below to import the fixture and to have
+ * none of the old scaffolding left, so a migration cannot be half-done.
  */
 const MIGRATED = [
   "verify-cp-auth.mjs",
   "verify-cp-rbac.mjs",
   "verify-cp-rollout-steps.mjs",
+  "verify-cp-dependency-gates.mjs",
+  "verify-cp-dependency-manifest-api.mjs",
+  "verify-cp-device-lane.mjs",
+  "verify-cp-e2e-promote-gate.mjs",
+  "verify-cp-enterprise.mjs",
+  "verify-cp-governance-promote-gate.mjs",
+  "verify-cp-host-install-portal.mjs",
+  "verify-cp-js-offline-console.mjs",
+  "verify-cp-kill-pause.mjs",
+  "verify-cp-registry-postgres.mjs",
+  "verify-cp-registry-sqlite.mjs",
+  "verify-cp-rollout-tick.mjs",
+  "verify-cp-sbom-promote-gate.mjs",
+  "verify-cp-service.mjs",
+  "verify-cp-stub-api.mjs",
 ];
 
 /**
@@ -51,10 +67,12 @@ const MIGRATED = [
  * migrations lower them and a regression cannot raise them silently.
  */
 const FROZEN = {
-  "function step": 34,
-  "async function fetchJson": 5,
-  "registry.json": 19,
-  mkdtempSync: 21,
+  // Measured after the 18-probe cp-* migration. `async function fetchJson`
+  // reached ZERO: every hand-rolled copy is gone.
+  "function step": 30,
+  "async function fetchJson": 0,
+  "registry.json": 8,
+  mkdtempSync: 6,
 };
 
 const h = createHarness({ name: "verify-harness" });

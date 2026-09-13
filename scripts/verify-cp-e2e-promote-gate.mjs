@@ -2,25 +2,39 @@
 /**
  * Map C C1 — P7 e2e_fail signal fail-closed on promote (self-contained).
  *
+ * Migrated onto the verify fixture (#259). Records a real quality signal through
+ * the CLI, checks the gate directly, then checks that the CLI agrees — and that
+ * clearing the signal re-opens promote. Fail-closed is the subject, so the
+ * "after clear" case matters as much as the block.
+ *
  * Usage:
  *   node scripts/verify-cp-e2e-promote-gate.mjs
+ *   node scripts/_run-verify.mjs cp-e2e-promote-gate
  */
-import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-c1-e2e-"));
-const rd = path.join(repoRoot, "packages/ship/bin/ship.mjs");
+import {
+  createHarness,
+  emptyRegistry,
+  REPO_ROOT,
+} from "./lib/verify/fixture.mjs";
 
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "c1-e2e" }));
+const { evaluateQualityPromoteGate } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/core/dist/quality-promote-gate.js"))
+    .href
+);
+const { loadQualitySignals } = await import(
+  pathToFileURL(path.join(REPO_ROOT, "packages/ship/dist/quality-signals.js"))
+    .href
+);
 
-const digest = "a".repeat(64);
+const h = createHarness({ name: "verify-cp-e2e-promote-gate" });
+
+const DIGEST = "a".repeat(64);
+
 const candidate = {
-  digest,
+  digest: DIGEST,
   release_id: "rel-e2e",
   update_id: "main-e2e-1",
   business_module: "main",
@@ -32,97 +46,52 @@ const candidate = {
   supply_chain: {
     host: {},
     js_update: {
-      sbom: {
-        artifact_kind: "js-update",
-        format: "stub",
-        digest,
-      },
+      sbom: { artifact_kind: "js-update", format: "stub", digest: DIGEST },
     },
   },
 };
 
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify(
-    {
-      schemaVersion: 1,
-      staging: [candidate],
-      production: [],
-      blocked: [],
-      kills: [],
-      pauses: [],
-      rollouts: [],
-    },
-    null,
-    2,
-  ),
-);
-
-const { evaluateQualityPromoteGate } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/core/dist/quality-promote-gate.js"),
-  ).href
-);
-const { loadQualitySignals } = await import(
-  pathToFileURL(
-    path.join(repoRoot, "packages/ship/dist/quality-signals.js"),
-  ).href
-);
-
-function run(args) {
-  return spawnSync(process.execPath, [rd, ...args], {
-    cwd: projectRoot,
-    encoding: "utf8",
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-e2e-promote-gate",
+    registry: { ...emptyRegistry(), staging: [candidate] },
   });
-}
+  const ship = (args) => h.cli("ship", args, { cwd: p.root });
 
-run(["signal", "clear"]);
+  await ship(["signal", "clear"]);
 
-const record = run([
-  "signal",
-  "record",
-  "--module",
-  candidate.business_module,
-  "--update-id",
-  candidate.update_id,
-  "--kind",
-  "e2e_fail",
-  "--digest",
-  candidate.digest,
-  "--detail",
-  "Map C C1 e2e fail-closed drill",
-]);
-if (record.status !== 0) {
-  console.error(record.stderr || record.stdout);
-  process.exit(1);
-}
+  h.step("record an e2e_fail quality signal");
+  const record = await ship([
+    "signal",
+    "record",
+    "--module",
+    candidate.business_module,
+    "--update-id",
+    candidate.update_id,
+    "--kind",
+    "e2e_fail",
+    "--digest",
+    candidate.digest,
+    "--detail",
+    "Map C C1 e2e fail-closed drill",
+  ]);
+  h.assertCmdOk(record, "signal record succeeds");
 
-const store = loadQualitySignals(projectRoot);
-const gate = evaluateQualityPromoteGate(store.signals, {
-  digest: candidate.digest,
-  business_module: candidate.business_module,
-  update_id: candidate.update_id,
-  release_id: candidate.release_id,
+  h.step("the promote gate fails closed on e2e_fail");
+  const store = loadQualitySignals(p.root);
+  const gate = evaluateQualityPromoteGate(store.signals, {
+    digest: candidate.digest,
+    business_module: candidate.business_module,
+    update_id: candidate.update_id,
+    release_id: candidate.release_id,
+  });
+  h.assertTruthy(!gate.ok, `the gate blocks with a reason (${gate.reason ?? "none"})`);
+  h.assertCmdFails(await ship(["promote", "--digest", DIGEST]), "promote is rejected");
+
+  h.step("clearing the signal re-opens promote");
+  await ship(["signal", "clear"]);
+  h.assertCmdOk(
+    await ship(["promote", "--digest", DIGEST]),
+    "promote succeeds after clear",
+  );
 });
-if (gate.ok) {
-  console.error("FAIL: e2e_fail should block promote gate");
-  process.exit(1);
-}
-console.log(`[OK] ${gate.reason}`);
-
-const promoteBlocked = run(["promote", "--digest", candidate.digest]);
-if (promoteBlocked.status === 0) {
-  console.error("FAIL: promote should be blocked by e2e_fail");
-  process.exit(1);
-}
-console.log("[OK] promote rejected under e2e_fail");
-
-run(["signal", "clear"]);
-const promoteOk = run(["promote", "--digest", candidate.digest]);
-if (promoteOk.status !== 0) {
-  console.error(promoteOk.stderr || promoteOk.stdout);
-  console.error("FAIL: promote should succeed after clear");
-  process.exit(1);
-}
-console.log("[OK] promote succeeds after clear");
-console.log("PASS verify-cp-e2e-promote-gate");

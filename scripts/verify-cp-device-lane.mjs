@@ -2,182 +2,111 @@
 /**
  * C6.3 grey slicing + C6.4 audit log — device→lane routing on CP write routes.
  *
+ * Migrated onto the verify fixture (#259). The audit assertions are the reason
+ * this probe exists: a denied write must be RECORDED, and every line must be
+ * structured — so the log is read back and validated entry by entry instead of
+ * being assumed to exist.
+ *
  * Usage:
  *   node scripts/verify-cp-device-lane.mjs
+ *   node scripts/_run-verify.mjs cp-device-lane
  */
-import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync, mkdtempSync, readFileSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
-const projectRoot = mkdtempSync(path.join(tmpdir(), "rn-cp-device-lane-"));
-const port = 19040 + Math.floor(Math.random() * 1000);
-const token = "map-b-device-lane-token";
-const bin = path.join(repoRoot, "packages/ship/bin/ship.mjs");
+import { createHarness, emptyRegistry } from "./lib/verify/fixture.mjs";
 
-mkdirSync(path.join(projectRoot, ".rn/delivery"), { recursive: true });
-writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ name: "cp-device-lane-demo" }));
-writeFileSync(
-  path.join(projectRoot, ".rn/delivery/registry.json"),
-  JSON.stringify({
-    schemaVersion: 1,
-    staging: [
-      {
-        digest: "a".repeat(64),
-        release_id: "r1",
-        business_module: "desk",
-        platform: "android",
-        artifact_kind: "js-update",
-        stage: "promote",
-      },
-    ],
-    production: [],
-    gray: [],
-    devices: {},
-    blocked: [],
-    kills: [],
-    pauses: [],
-    rollouts: [],
-  }),
-);
+const h = createHarness({ name: "verify-cp-device-lane" });
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function fetchJson(url, init) {
-  const res = await fetch(url, init);
-  const body = await res.json().catch(() => ({}));
-  return { status: res.status, body };
-}
-
-let failed = false;
-function fail(msg) {
-  console.error(`FAIL: ${msg}`);
-  failed = true;
-}
-function ok(msg) {
-  console.log(`OK ${msg}`);
-}
-
-const base = `http://127.0.0.1:${port}`;
-const auth = {
-  "content-type": "application/json",
-  authorization: `Bearer ${token}`,
-};
-
-const auditPath = path.join(projectRoot, ".rn/distribution-lab/logs/cp-audit.log");
-
-try {
-  const admin = spawn(
-    process.execPath,
-    [bin, "serve", "--port", String(port), "--host", "127.0.0.1"],
-    {
-      cwd: projectRoot,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, RN_CP_TOKEN: token, RN_CP_ROLE: "admin" },
+await h.run(async () => {
+  const p = h.project({
+    name: "cp-device-lane",
+    registry: {
+      ...emptyRegistry(),
+      staging: [
+        {
+          digest: "a".repeat(64),
+          release_id: "r1",
+          business_module: "desk",
+          platform: "android",
+          artifact_kind: "js-update",
+          stage: "promote",
+        },
+      ],
     },
-  );
-  await sleep(700);
+  });
+  const cp = await h.serve({ project: p, role: "admin" });
+  const auditPath = path.join(p.root, ".rn/distribution-lab/logs/cp-audit.log");
+  const jsonHeaders = { "content-type": "application/json" };
 
-  // 1. no token PUT → 401 + denied audit
-  const deny = await fetchJson(`${base}/v1/devices/ABC/lane`, {
+  h.step("device→lane routing is bearer-gated");
+  const denied = await cp.json("/v1/devices/ABC/lane", {
     method: "PUT",
-    headers: { "content-type": "application/json" },
+    headers: jsonHeaders,
     body: JSON.stringify({ lane: "staging" }),
   });
-  if (deny.status !== 401) {
-    fail(`no-token PUT should 401, got ${deny.status}`);
-  } else {
-    ok("no-token PUT /v1/devices → 401");
-  }
+  h.assertStatus(denied, 401, "a write without a token is rejected");
 
-  // 2. GET default lane → production (fallback)
-  const dflt = await fetchJson(`${base}/v1/devices/ABC/lane`);
-  if (dflt.status !== 200 || dflt.body.lane !== "production") {
-    fail(`default lane should be production, got ${dflt.status} ${JSON.stringify(dflt.body)}`);
-  } else {
-    ok("default device lane = production (fallback)");
-  }
+  const dflt = await cp.json("/v1/devices/ABC/lane");
+  h.assertStatus(dflt, 200, "GET a device lane");
+  h.assertEq(
+    dflt.body.lane,
+    "production",
+    "an unassigned device falls back to production",
+  );
 
-  // 3. PUT valid lane → ok + roundtrip
-  const set = await fetchJson(`${base}/v1/devices/ABC/lane`, {
+  h.step("lane assignment round-trips");
+  const set = await cp.json("/v1/devices/ABC/lane", {
     method: "PUT",
-    headers: auth,
+    headers: cp.auth,
     body: JSON.stringify({ lane: "gray" }),
   });
-  if (set.status !== 200 || set.body.lane !== "gray") {
-    fail(`PUT gray failed ${set.status} ${JSON.stringify(set.body)}`);
-  } else {
-    ok("PUT device → gray");
-  }
+  h.assertStatus(set, 200, "PUT a device lane");
+  h.assertEq(set.body.lane, "gray", "the write reports the new lane");
 
-  const got = await fetchJson(`${base}/v1/devices/ABC/lane`);
-  if (got.status !== 200 || got.body.lane !== "gray") {
-    fail(`roundtrip lane should be gray, got ${JSON.stringify(got.body)}`);
-  } else {
-    ok("roundtrip: device lane = gray");
-  }
+  const got = await cp.json("/v1/devices/ABC/lane");
+  h.assertEq(got.body.lane, "gray", "the assignment is read back");
 
-  // 4. PUT invalid lane → 400
-  const bad = await fetchJson(`${base}/v1/devices/ABC/lane`, {
+  const invalid = await cp.json("/v1/devices/ABC/lane", {
     method: "PUT",
-    headers: auth,
+    headers: cp.auth,
     body: JSON.stringify({ lane: "purple" }),
   });
-  if (bad.status !== 400) {
-    fail(`invalid lane should 400, got ${bad.status}`);
-  } else {
-    ok("PUT invalid lane → 400");
-  }
+  h.assertStatus(invalid, 400, "an unknown lane is rejected");
 
-  // 5. GET /v1/devices lists routing table
-  const list = await fetchJson(`${base}/v1/devices`);
-  if (list.status !== 200 || list.body.devices?.ABC?.lane !== "gray") {
-    fail(`/v1/devices list should contain ABC=gray, got ${JSON.stringify(list.body)}`);
-  } else {
-    ok("/v1/devices lists device routing table");
-  }
+  h.step("the routing table is listed");
+  const list = await cp.json("/v1/devices");
+  h.assertStatus(list, 200, "GET /v1/devices");
+  h.assertEq(list.body.devices?.ABC?.lane, "gray", "the table carries the assignment");
 
-  // 6. gray lane filtering is wired (empty gray → 0 candidates, not error)
-  const grayQ = await fetchJson(`${base}/v1/js-updates?lane=gray&module=desk`);
-  if (grayQ.status !== 200 || !Array.isArray(grayQ.body.candidates)) {
-    fail(`gray lane query should 200 array, got ${grayQ.status} ${JSON.stringify(grayQ.body)}`);
-  } else {
-    ok(`gray lane query → ${grayQ.body.candidates.length} candidates (empty gray) `);
-  }
+  h.step("gray-lane filtering is wired");
+  const grayQ = await cp.json("/v1/js-updates?lane=gray&module=desk");
+  h.assertStatus(grayQ, 200, "GET /v1/js-updates?lane=gray");
+  h.assertTruthy(
+    Array.isArray(grayQ.body.candidates),
+    "an empty gray lane is a list, not an error",
+  );
 
-  // 7. audit log is structured
-  const hasAudit = existsSync(auditPath);
-  if (!hasAudit) {
-    fail("cp-audit.log not written");
-  } else {
-    const lines = readFileSync(auditPath, "utf8").split("\n").filter(Boolean);
-    const malformed = lines.filter((l) => {
-      try {
-        const o = JSON.parse(l);
-        return !(o.ts && o.method && o.path && o.outcome);
-      } catch {
-        return true;
-      }
-    });
-    if (malformed.length > 0) {
-      fail(`audit log has malformed lines: ${malformed.length}`);
-    } else if (lines.length < 3) {
-      fail(`audit log should have ≥3 entries, got ${lines.length}`);
-    } else {
-      ok(`audit log structured (${lines.length} entries incl denied + ok)`);
+  h.step("the audit log records the denied and accepted writes");
+  h.assertFileExists(auditPath, "cp-audit.log is written");
+  const lines = readFileSync(auditPath, "utf8")
+    .split("\n")
+    .filter(Boolean);
+  const malformed = lines.filter((line) => {
+    try {
+      const entry = JSON.parse(line);
+      return !(entry.ts && entry.method && entry.path && entry.outcome);
+    } catch {
+      return true;
     }
-  }
-
-  admin.kill("SIGTERM");
-} finally {
-  // best-effort cleanup
-}
-
-if (failed) {
-  console.error("verify-cp-device-lane: FAIL");
-  process.exit(1);
-}
-console.log("verify-cp-device-lane: PASS");
+  });
+  h.assertEq(malformed.length, 0, "every audit line is structured JSON");
+  h.assertTruthy(
+    lines.length >= 3,
+    `the log holds the denied and accepted writes (${lines.length} entries)`,
+  );
+  h.assertTruthy(
+    lines.some((l) => l.includes('"denied"')) && lines.some((l) => l.includes('"ok"')),
+    "both a denied and an accepted outcome are recorded",
+  );
+});
