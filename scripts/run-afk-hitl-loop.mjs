@@ -123,10 +123,21 @@ const STEPS = [
     run: () => runNode(path.join(repoRoot, "scripts/check-architecture-governance.mjs")),
   },
   {
+    // #256: the anti-vacuity gate. Static and dependency-free, so it runs first
+    // alongside governance — a class of defect that no other step can catch is a
+    // test file no glob expands, an e2e chain that can exit 0 after a SKIP, a
+    // step the operator is told to run that does not exist, or a probe that is
+    // referenced but absent on disk.
+    id: "L0-verify-plane",
+    kind: "afk",
+    title: "verification plane (anti-vacuity)",
+    run: () => runNode(path.join(repoRoot, "scripts/check-verification-plane.mjs")),
+  },
+  {
     id: "L0-test",
     kind: "afk",
     title: "pnpm test (tsc + unit)",
-    deps: ["L0-gov"],
+    deps: ["L0-gov", "L0-verify-plane"],
     run: () => runPnpm(["test"]),
   },
   {

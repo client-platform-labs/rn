@@ -19,6 +19,11 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: node scripts/check-architecture-governance.mjs
+      # #256: the verification plane's own gate. Catches the classes where a check
+      # "looked like it verified" but could not: a test file that no glob expands,
+      # an e2e chain that can exit 0 after a SKIP, a step the operator is told to
+      # run that does not exist, and a probe referenced but absent on disk.
+      - run: node scripts/check-verification-plane.mjs
       # #259: the fixture harness's own probe. It lives in scripts/, not in any
       # package test glob, so it must be invoked explicitly or it is unenforced
       # (and it honestly listed itself as an orphan until this line existed).
