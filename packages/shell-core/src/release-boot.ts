@@ -22,7 +22,7 @@
  */
 import { verifyRevocationSealAny } from "@client-platform/core/ota";
 
-import { shouldRollbackOnCrashLoop } from "./crash-loop.js";
+import { DEFAULT_CRASH_LOOP_MAX, shouldRollbackOnCrashLoop } from "./crash-loop.js";
 import type { OtaNativeAdapter, OtaSidecar } from "./ota-native.js";
 import { createOtaClient } from "./ota-client.js";
 import {
@@ -169,6 +169,30 @@ async function cacheBakedPublicKeys(
 /**
  * Run the release boot for one module. Never rejects — see the module docblock.
  */
+/**
+ * Release-mode diagnostics (#271).
+ *
+ * The Kotlin adapter ships `logJs` → `Log.e("OTA", …)` precisely because the JS
+ * console is silent in a release build, but nothing ever called it: on-device OTA
+ * decisions (crash-loop budget, CRL rejection reason, pull outcome) were
+ * invisible, and a device-acceptance run had to patch a diagnostic into ShellHost
+ * and rebuild an APK to see anything at all.
+ *
+ * Emitted from HERE — the one boot module — rather than from both host templates,
+ * for the same reason #257 collapsed the boot sequence: two hosts writing their
+ * own diagnostics is how they drift.
+ *
+ * Observation must never change a boot outcome, so a missing adapter method or a
+ * rejected bridge call is swallowed.
+ */
+async function diag(native: OtaNativeAdapter, message: string): Promise<void> {
+  try {
+    await native.logJs?.(message);
+  } catch {
+    /* observability is best-effort — never affect the boot */
+  }
+}
+
 export async function bootReleaseOta(
   host: ReleaseOtaBootHost,
   moduleId: string,
@@ -182,6 +206,7 @@ export async function bootReleaseOta(
     const base = host.controlPlaneBaseUrl;
     if (!base) {
       warn(CONTROL_PLANE_UNCONFIGURED_WARNING);
+      await diag(native, "control-plane base URL not configured — booting baseline");
       return { phase: "baseline", skippedReason: "control_plane_unconfigured" };
     }
 
@@ -204,6 +229,10 @@ export async function bootReleaseOta(
       // Expo Updates, and Android's own RescueParty, all clear the
       // consecutive-failure counter once the rolled-back bundle is up.
       await native.resetStartupFailures?.(moduleId);
+      await diag(
+        native,
+        `crash-loop rollback: failCount=${failCount} threshold=${DEFAULT_CRASH_LOOP_MAX} — clearing budget, booting embedded baseline`,
+      );
       try {
         await client.rollbackToEmbeddedBaseline(moduleId);
       } catch {
@@ -222,12 +251,25 @@ export async function bootReleaseOta(
     // failed) means the JS survived to this point, so the counter resets. Only a
     // boot that dies mid-flight (before this reset) keeps it rising.
     await native.resetStartupFailures?.(moduleId);
+    // The reason matters most when the pull was refused: on device this is the
+    // only JS-side explanation of WHY (e.g. "CRL unsigned", "CRL seal invalid",
+    // "Ed25519 signature verification failed").
+    await diag(
+      native,
+      result.status === "failed"
+        ? `pull refused: status=failed reason=${result.reason}`
+        : `pull outcome: status=${result.status}`,
+    );
 
     return {
       phase: result.status === "installed" ? "installed" : "baseline",
       result,
     };
   } catch (err) {
+    await diag(
+      native,
+      `boot failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return {
       phase: "baseline",
       result: {
