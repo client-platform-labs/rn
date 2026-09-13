@@ -195,7 +195,7 @@ bash scripts/e2e/run-all.sh 3 5 9    # 或只跑高价值三条（壳加载/业�
 
 ---
 
-## 8. 首次真机执行的实测记录（2026-09-13）
+## 7. 首次真机执行的实测记录（2026-09-13）
 
 在 vivo V2425A / Android 16 (SDK 36) 上按本 runbook 实跑，得到的事实（可直接引用，含反例）：
 
@@ -206,7 +206,7 @@ bash scripts/e2e/run-all.sh 3 5 9    # 或只跑高价值三条（壳加载/业�
 | `safe_install`（含 vivo 弹窗） | **14s** |
 | 一次完整启动对 CP 的请求顺序 | **`GET /v1/crl` → `GET /v1/js-updates/check`** —— 与 `pull-ota.ts` 一致（吊销先于 manifest，fail-closed 顺序） |
 
-### 8.1 ⚠️ 崩溃环回滚是**单向陷阱**（首次真机发现）
+### 7.1 ⚠️ 崩溃环回滚是**单向陷阱**（首次真机发现）
 
 `shell-core/release-boot.ts` 的回滚分支：
 ```ts
@@ -223,29 +223,29 @@ if (shouldRollbackOnCrashLoop(failCount)) {
 
 对照业界：CodePush / Expo Updates 的回滚在设备**成功跑起回滚后 bundle** 后重置计数，以便后续修复能到位；Android RescueParty 也在成功后复位。**本实现对运维是单向门。** 已在 #268 记为待修项。
 
-### 8.2 已实测通过的断言
+### 7.2 已实测通过的断言
 
 - **leg A（崩溃环）**：预算=3 时，第 1/2 次启动有 CP 请求、**第 3 次起为 0**（与 `DEFAULT_CRASH_LOOP_MAX=3` 完全吻合）；回滚启动 **crl=0 · check=0**，且应用仍在前台（基线可用）。**PASS**
 - **leg B（不可信 CRL）**：把设备 4040 反代到 `--mode unsigned` 的 stub → stub 收到 **1** 次 `/v1/crl`，而 CP **收到 0 次** manifest 请求；换成 `--mode ok` → **1 / 1**。唯一变量是 CRL 可信度，行为随之翻转。**PASS**
 - 未能覆盖：**“已安装更新时被篡改 CRL 拒绝”**——需要一个设备信任的候选。实测发现 CP 里已有的 `main-REV2` 候选是用**未知密钥**签的（真实 `gateBundleLoad` 对两把已知密钥都返回 `Ed25519 signature verification failed`），所以设备正确地拒绝了它；要造可安装候选需先走 `ship` 的 release/promote 流水线（本次未完成）。
 
-### 8.3 其他实测教训
+### 7.3 其他实测教训
 
 - `run-as` 对 **release** 包无效（`package not debuggable`）——读 `installed_update_id`/计数需 debug 包或 root。
 - 清 prefs 后 `installed_update_id` 一并丢失，于是任何 production 候选都会被视作 pending。
 - `pm clear` 会同时清掉业务数据（本 DUT 无业务数据，影响可忽略）。
 
-## 7. 结果回填（贴到 #268）
+## 8. 结果回填（贴到 #268）
 
 ```text
 DUT: <项目路径> / <package> / <APK digest>
 信任根: root_ca_public_key_hex = <…>（确认已烘焙，非模板默认值）
 CP: <base url> · /v1/crl 有 seal/payload: <是/否>
 链 C  : <PASS/FAIL/证据>
-链 B1 : <命令 / 观察 pid 变化 / 判定>        ← 需一个设备信任的候选（见 §8.2）
+链 B1 : <命令 / 观察 pid 变化 / 判定>        ← 需一个设备信任的候选（见 §7.2）
 链 B2 : <stub 命中次数 / manifest 是否发生 / 判定>
 链 A  : <注入次数 / manifest 命中次数 / 判定>
 E     : <run-all.sh 结果表 / SKIP 项>
 结论  : <平台 bug 清单 | 全绿 | 环境抖动清单>
-待修  : <如 §8.1 的单向陷阱>
+待修  : <如 §7.1 的单向陷阱>
 ```
