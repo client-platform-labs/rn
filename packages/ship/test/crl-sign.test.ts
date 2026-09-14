@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
@@ -22,6 +22,8 @@ describe("G3: signed CRL doc (buildCrlDoc)", () => {
     "RN_DELIVERY_SIGN_KEY_PEM",
     "RN_DELIVERY_SIGN_KEY_FILE",
     "RN_DELIVERY_SIGNER",
+    "RN_DELIVERY_LEAF_CERT",
+    "RN_DELIVERY_LEAF_PUBKEY_HEX",
   ];
 
   function makeRoot(): string {
@@ -104,5 +106,35 @@ describe("G3: signed CRL doc (buildCrlDoc)", () => {
       ),
     );
     return ok.then((v) => assert.equal(v, true));
+  });
+
+  it("cert mode: attaches cert_chain from the leaf env vars (#256/P1)", () => {
+    const { pem } = rawPubHex();
+    process.env.RN_DELIVERY_SIGN_KEY_PEM = pem.replace(/\n/g, "\\n");
+    const FIX = path.join(import.meta.dirname, "../../core/test/fixtures/cert-chain");
+    const leafPem = readFileSync(path.join(FIX, "leaf.crt"), "utf8").trim();
+    const leafPubHex = readFileSync(path.join(FIX, "leaf-pubkey-hex.txt"), "utf8").trim();
+    process.env.RN_DELIVERY_LEAF_CERT = leafPem;
+    process.env.RN_DELIVERY_LEAF_PUBKEY_HEX = leafPubHex;
+    const root = makeRoot();
+    addRevocation(root, { public_key_hex: "e".repeat(64), reason: "p1" });
+    const doc = buildCrlDoc(root);
+    assert.ok(doc.seal && doc.seal.startsWith("pem:ed25519:"), "seal must be present");
+    assert.deepEqual(doc.cert_chain, {
+      leafCertPem: leafPem,
+      leafPubkeyHex: leafPubHex,
+    });
+  });
+
+  it("legacy mode: no cert_chain when the leaf env vars are absent (#256/P1)", () => {
+    const { pem } = rawPubHex();
+    process.env.RN_DELIVERY_SIGN_KEY_PEM = pem.replace(/\n/g, "\\n");
+    delete process.env.RN_DELIVERY_LEAF_CERT;
+    delete process.env.RN_DELIVERY_LEAF_PUBKEY_HEX;
+    const root = makeRoot();
+    addRevocation(root, { public_key_hex: "f".repeat(64), reason: "p1" });
+    const doc = buildCrlDoc(root);
+    assert.equal(doc.seal !== null, true);
+    assert.equal(doc.cert_chain, undefined);
   });
 });

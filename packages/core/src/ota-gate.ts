@@ -8,6 +8,8 @@
  * that Metro cannot resolve on device.
  */
 export { gateBundleLoad } from "./bundle-load-gate.js";
+export { verifyX509Ed25519Leaf } from "./cert-chain.js";
+export type { CertChainVerifyResult } from "./cert-chain.js";
 export {
   verifyEd25519Seal,
   verifyRevocationSeal,

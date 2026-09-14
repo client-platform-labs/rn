@@ -21,7 +21,11 @@
  * and could stay pending forever (blank screen) — returning an outcome instead
  * makes that class of hang impossible.
  */
-import { verifyRevocationSealAny } from "@client-platform/core/ota";
+import {
+  verifyRevocationSeal,
+  verifyRevocationSealAny,
+  verifyX509Ed25519Leaf,
+} from "@client-platform/core/ota";
 
 import { DEFAULT_CRASH_LOOP_MAX, shouldRollbackOnCrashLoop } from "./crash-loop.js";
 import type { OtaNativeAdapter, OtaSidecar } from "./ota-native.js";
@@ -122,19 +126,50 @@ export function createControlPlaneFetch(
       revoked?: unknown;
       payload?: unknown;
       seal?: unknown;
+      cert_chain?: { leafCertPem?: unknown; leafPubkeyHex?: unknown };
     };
     // Fail-closed: an unsigned/tampered revocation list must never be trusted
     // (an attacker who can clear it would re-enable a revoked signing key).
     if (!body || typeof body.seal !== "string" || typeof body.payload !== "string") {
       throw new Error("CRL unsigned");
     }
-    if (
-      !verifyRevocationSealAny(
-        body.seal,
-        body.payload,
-        Array.from(opts.native.getOtaPublicKeys() ?? []),
-      )
-    ) {
+    const bakedKeys = Array.from(opts.native.getOtaPublicKeys() ?? []);
+    const chain = body.cert_chain;
+    if (chain !== undefined && chain !== null) {
+      // ADR-024 cert mode — the SAME trust model as releases (#256/P1): verify
+      // the leaf certificate under a baked root-CA, then the seal under the
+      // leaf key. A cert_chain was attached, so this IS a cert-mode document:
+      // it must be well-formed and verify — never silently fall through to the
+      // legacy path, because mixing models would let an attacker pick whichever
+      // one they can satisfy.
+      if (
+        typeof chain.leafCertPem !== "string" ||
+        typeof chain.leafPubkeyHex !== "string"
+      ) {
+        throw new Error("CRL chain invalid: missing leafCertPem/leafPubkeyHex");
+      }
+      let leafKey: string | null = null;
+      let chainReason = "no baked key verifies the leaf chain";
+      for (const rca of bakedKeys) {
+        const cert = verifyX509Ed25519Leaf(
+          chain.leafCertPem,
+          rca,
+          chain.leafPubkeyHex,
+        );
+        if (cert.ok) {
+          leafKey = cert.leafPubkeyHex;
+          break;
+        }
+        chainReason = cert.reason;
+      }
+      if (leafKey === null) {
+        throw new Error(`CRL chain invalid: ${chainReason}`);
+      }
+      if (!verifyRevocationSeal(body.seal, body.payload, leafKey)) {
+        throw new Error("CRL seal invalid");
+      }
+    } else if (!verifyRevocationSealAny(body.seal, body.payload, bakedKeys)) {
+      // Legacy single-key CRL: the seal must verify against a baked key.
       throw new Error("CRL seal invalid");
     }
     return Array.isArray(body.revoked) ? (body.revoked as string[]) : [];
