@@ -47,7 +47,7 @@ import {
 import { runPromote } from "./promote.js";
 import { buildDeviceJsUpdateManifest } from "./device-manifest.js";
 import { pickCandidate } from "./release-shared.js";
-import { useSqliteRegistry } from "./registry-sqlite.js";
+import { resolveRegistryBackend } from "./registry-backend.js";
 import { assertPortServesProject } from "./port-identity.js";
 import { createLocalDirectoryArtifactStore } from "./artifact-store.js";
 import { DeliveryError, EXIT_FAIL, resolveProjectRoot } from "./util.js";
@@ -340,7 +340,10 @@ export function createControlPlane(options: {
   const port = options.port ?? 4040;
   const host = options.host ?? "127.0.0.1";
   const serviceMode = options.serviceMode ?? "cli-serve";
-  const storage: "file" | "sqlite" = useSqliteRegistry() ? "sqlite" : "file";
+  // map-j/T3: which backend is active is answered in one place.
+  const storage: "file" | "sqlite" = resolveRegistryBackend(
+    projectRoot,
+  ).id as "file" | "sqlite";
   const artifactStore = createLocalDirectoryArtifactStore(projectRoot);
   const cpAuthConfig = resolveCpAuthConfig();
   const cpRole = resolveCpRole();
@@ -419,9 +422,8 @@ export function createControlPlane(options: {
       handler: async (ctx: CpRouteContext) => {
         const { res, projectRoot } = ctx;
         const deliveryDirPath = path.join(projectRoot, ".rn/delivery");
-        const registryFile = useSqliteRegistry()
-          ? path.join(deliveryDirPath, "registry.sqlite")
-          : path.join(deliveryDirPath, "registry.json");
+        // map-j/T3: the backing registry file comes from the resolved backend.
+        const registryFile = resolveRegistryBackend(projectRoot).registryFile();
         const artifactsPath = path.join(deliveryDirPath, "artifacts");
         const checks = {
           registry: existsSync(registryFile),

@@ -8,10 +8,9 @@ step() { printf '\n=== %s ===\n' "$*"; }
 ok()   { printf '  OK   %s\n' "$*"; }
 bad()  { printf '  FAIL %s\n' "$*"; FAILS=$((FAILS+1)); }
 FAILS=0
-# The registry backend the drill rehearses. The seed below writes registry.json
-# only, so the rehearsed default is file; a DRILL_REGISTRY=sqlite rehearsal needs
-# a sqlite-seeded project and is not wired yet (ADR-014 follow-up). backup.mjs and
-# restore.mjs fail closed when the selected backend does not match the project.
+# The registry backend the drill rehearses. The seed writes registry.json only,
+# so the rehearsed default is file; DRILL_REGISTRY=sqlite rehearses the sqlite
+# backend (sqlite is created by the CP's registry.json import during step 1).
 REGISTRY="${DRILL_REGISTRY:-file}"
 # device-trustworthy CRL check — ESM verifier against the device-baked RCA pubkey
 crl_accepts() { # crl-json-file rca-hex -> true|false

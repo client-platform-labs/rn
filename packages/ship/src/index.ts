@@ -53,6 +53,16 @@ export {
 } from "./candidate.js";
 
 export {
+  createFileRegistryBackend,
+  createSqliteRegistryBackend,
+  resolveRegistryBackend,
+} from "./registry-backend.js";
+export type {
+  RegistryBackend,
+  RegistryBackendCapabilities,
+} from "./registry-backend.js";
+
+export {
   candidateMetadataSchema,
   deliveryStagesSchema,
 } from "./schema.js";
