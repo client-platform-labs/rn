@@ -110,6 +110,7 @@ fi
 TOTAL=${#RUN_LIST[@]}
 PASSED=0
 FAILED=0
+SKIPPED=0
 RESULTS=()
 START_TS=$(date +%s)
 
@@ -136,6 +137,7 @@ for i in "${!RUN_LIST[@]}"; do
   elif [[ $rc -eq 2 ]]; then
     warn "chain $num SKIP (前置缺失)"
     RESULTS+=("SKIP  $num")
+    SKIPPED=$((SKIPPED+1))
   else
     err "chain $num FAIL (rc=$rc)"
     FAILED=$((FAILED+1))
@@ -168,6 +170,7 @@ REPORT="$OUT/report-$(date +%Y%m%d-%H%M%S).md"
   done
   echo
   echo "## PASS: $PASSED / $TOTAL"
+  echo "## SKIP: $SKIPPED / $TOTAL"
   echo "## FAIL: $FAILED / $TOTAL"
   echo
   echo "## 日志位置"
@@ -185,3 +188,6 @@ if [[ $FAILED -gt 0 ]]; then
   exit 1
 fi
 ok "全部 chain PASS"
+if [[ $SKIPPED -gt 0 ]]; then
+  warn "$SKIPPED 个 chain SKIP（前置缺失，本次未验证）— SKIP ≠ PASS，见报告"
+fi
