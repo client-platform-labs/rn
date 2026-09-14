@@ -66,7 +66,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   fun setInstalledUpdateId(moduleId: String, updateId: String, promise: Promise) {
     try {
       requireValidModuleId(moduleId)
-      prefs().edit().putString(installedKey(moduleId), updateId).commit()
+      prefs().edit().putString(installedKey(moduleId), updateId).apply()
       promise.resolve(true)
     } catch (e: Exception) {
       promise.reject("ota", e)
@@ -95,7 +95,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
       val edit = prefs().edit()
       if (updateId.isNullOrEmpty()) edit.remove(rolledBackKey(moduleId))
       else edit.putString(rolledBackKey(moduleId), updateId)
-      edit.commit()
+      edit.apply()
       promise.resolve(true)
     } catch (e: Exception) {
       promise.reject("ota", e)
@@ -109,7 +109,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
       requireValidModuleId(moduleId)
       val key = "startup_failures_$moduleId"
       val next = (prefs().getInt(key, 0) + 1)
-      prefs().edit().putInt(key, next).commit()
+      prefs().edit().putInt(key, next).apply()
       promise.resolve(next)
     } catch (e: Exception) {
       promise.reject("ota", e)
@@ -120,7 +120,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   fun resetStartupFailures(moduleId: String, promise: Promise) {
     try {
       requireValidModuleId(moduleId)
-      prefs().edit().remove("startup_failures_$moduleId").commit()
+      prefs().edit().remove("startup_failures_$moduleId").apply()
       promise.resolve(true)
     } catch (e: Exception) {
       promise.reject("ota", e)
@@ -160,7 +160,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   fun setRootModuleId(moduleId: String, promise: Promise) {
     try {
       requireValidModuleId(moduleId)
-      prefs().edit().putString(KEY_ROOT, moduleId).commit()
+      prefs().edit().putString(KEY_ROOT, moduleId).apply()
       promise.resolve(true)
     } catch (e: Exception) {
       promise.reject("ota", e)
@@ -185,7 +185,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
       map[moduleId] = path
       persistPathMap(map)
       if (moduleId == DEFAULT_MODULE) {
-        prefs().edit().putString(KEY_PATH, path).commit()
+        prefs().edit().putString(KEY_PATH, path).apply()
       }
       promise.resolve(true)
     } catch (e: Exception) {
@@ -201,7 +201,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
       map.remove(moduleId)
       persistPathMap(map)
       if (moduleId == DEFAULT_MODULE) {
-        prefs().edit().remove(KEY_PATH).commit()
+        prefs().edit().remove(KEY_PATH).apply()
       }
       promise.resolve(true)
     } catch (e: Exception) {
@@ -310,7 +310,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   private fun persistPathMap(map: Map<String, String>) {
     val obj = JSONObject()
     for ((k, v) in map) obj.put(k, v)
-    prefs().edit().putString(KEY_MAP, obj.toString()).commit()
+    prefs().edit().putString(KEY_MAP, obj.toString()).apply()
   }
 
   private fun resolveUnderFiles(relativePath: String): File {
