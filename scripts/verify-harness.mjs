@@ -71,7 +71,11 @@ const FROZEN = {
   // reached ZERO: every hand-rolled copy is gone.
   "function step": 30,
   "async function fetchJson": 0,
-  "registry.json": 8,
+  // 8 → 9: verify-dr-backup-fail-closed.mjs is a fixture USER (h.project) that
+  // names the registry file because it asserts the backup archive contains it —
+  // not hand-rolled scaffolding. Bump only if the added file is another
+  // fixture user, never for a probe that rebuilds its own registry.
+  "registry.json": 9,
   mkdtempSync: 6,
 };
 
