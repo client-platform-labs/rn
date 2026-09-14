@@ -36,6 +36,8 @@ export interface SbomEvidence {
   /** sha256 of SBOM document bytes when present. */
   digest?: string;
   uri?: string;
+  /** Inline SBOM document (e.g. minimal CycloneDX JSON) generated at sign stage. */
+  document?: string;
 }
 
 /** Per-train provenance / attestation slot (P9). */

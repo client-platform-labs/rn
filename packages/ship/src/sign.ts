@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import {
@@ -11,7 +12,10 @@ import {
 } from "./js-update-sidecar.js";
 import { sealCandidateSignature } from "./signature.js";
 import { pickCandidate } from "./release-shared.js";
-import type { CandidateMetadata } from "./types.js";
+import type {
+  CandidateMetadata,
+  SbomEvidence,
+} from "./types.js";
 import {
   DeliveryError,
   EXIT_FAIL,
@@ -33,7 +37,61 @@ function readRnVersion(projectRoot: string): string {
 }
 
 /**
- * M5 thin sign: digest-seal signature + stub SBOM slot (no HSM).
+ * Minimal CycloneDX 1.4 SBOM document for sign-stage auto-attach (T2).
+ * Real evidence — declares the artifact identity + timestamp — instead of a
+ * `stub` placeholder. Enterprises may still attach their own richer SBOM;
+ * sign preserves it (see {@link resolveSbomEvidence}).
+ */
+export function buildMinimalSbomEvidence(candidate: {
+  release_id: string;
+  business_module?: string;
+  artifact_kind: string;
+  digest: string;
+}): SbomEvidence {
+  const doc = {
+    bomFormat: "CycloneDX",
+    specVersion: "1.4",
+    serialNumber: `urn:client-platform:sbom:${candidate.digest}`,
+    version: 1,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      component: {
+        type: "application",
+        name: candidate.business_module ?? candidate.release_id,
+        version: candidate.release_id,
+        "bom-ref": candidate.digest,
+      },
+    },
+  };
+  const document = JSON.stringify(doc);
+  return {
+    artifact_kind: candidate.artifact_kind as SbomEvidence["artifact_kind"],
+    format: "cyclonedx-json",
+    digest: createHash("sha256").update(document).digest("hex"),
+    document,
+  };
+}
+
+/**
+ * The SBOM evidence to attach at sign: preserve a provided real SBOM
+ * (cyclonedx-json / spdx-json), only fill an empty or stub slot with a
+ * generated minimal CycloneDX.
+ */
+export function resolveSbomEvidence(
+  candidate: {
+    release_id: string;
+    business_module?: string;
+    artifact_kind: string;
+    digest: string;
+  },
+  existing: SbomEvidence | undefined,
+): SbomEvidence {
+  if (existing && existing.format !== "stub") return existing;
+  return buildMinimalSbomEvidence(candidate);
+}
+
+/**
+ * M5 thin sign: digest-seal signature + real minimal SBOM slot (no HSM).
  * Real backends replace this stage without changing metadata shape.
  */
 export async function runSign(options: {
@@ -51,14 +109,15 @@ export async function runSign(options: {
   }
 
   const train = supplyChainTrainForKind(candidate.artifact_kind);
+  const baseSupply = candidate.supply_chain ?? { host: {}, js_update: {} };
+  const existing =
+    train === "host" ? baseSupply.host?.sbom : baseSupply.js_update?.sbom;
+  // T2: preserve a provided real SBOM; only fill an empty / stub slot with a
+  // generated minimal CycloneDX. Never clobber enterprise-supplied evidence.
   const supply = attachSbomSlot(
-    candidate.supply_chain ?? { host: {}, js_update: {} },
+    baseSupply,
     train,
-    {
-      artifact_kind: candidate.artifact_kind,
-      format: "stub",
-      digest: candidate.digest,
-    },
+    resolveSbomEvidence(candidate, existing),
   );
 
   const sealed = sealCandidateSignature({
