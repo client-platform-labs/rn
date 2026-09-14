@@ -17,7 +17,6 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -46,7 +45,15 @@ if (!existsSync(manifestPath)) {
   console.error(`restore: manifest.json missing in ${backupDir}`);
   process.exit(1);
 }
-const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+} catch (e) {
+  console.error(
+    `restore: manifest.json is not valid JSON: ${e instanceof Error ? e.message : String(e)}`,
+  );
+  process.exit(1);
+}
 
 function sha256File(p) {
   return createHash("sha256").update(readFileSync(p)).digest("hex");
@@ -77,6 +84,9 @@ const registryDir = path.join(projectRoot, ".rn/delivery");
 mkdirSync(registryDir, { recursive: true });
 
 // 2) registry
+// Fail closed: a backup that captured no registry (selected-backend mismatch in
+// backup.mjs, or a hand-built archive) must not restore "successfully" into an
+// empty registry — that is how a cold rebuild comes up empty.
 try {
   if (manifest.items["registry.sqlite"]) {
     copySafe(path.join(backupDir, "registry.sqlite"), path.join(registryDir, "registry.sqlite"));
@@ -85,6 +95,10 @@ try {
     db.close();
   } else if (manifest.items["registry.json"]) {
     copySafe(path.join(backupDir, "registry.json"), path.join(registryDir, "registry.json"));
+  } else {
+    errors.push(
+      "registry: manifest contains neither registry.sqlite nor registry.json — the backup captured no registry",
+    );
   }
 } catch (e) {
   errors.push(`registry: ${e instanceof Error ? e.message : String(e)}`);

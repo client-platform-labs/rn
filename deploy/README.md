@@ -56,7 +56,7 @@ the same signed updates as the local CP.
 | `CP_PORT` | `7430` | host port |
 | `RN_CP_TOKEN` | _(empty)_ | bearer token for CP write endpoints |
 | `RN_CP_TENANTS` | _(empty)_ | comma-separated tenants |
-| `RN_CP_REGISTRY` | `file` | CP storage backend: `file` or `sqlite` |
+| `RN_CP_REGISTRY` | `sqlite` | CP storage backend: `file` or `sqlite`（生产默认 sqlite，见 handbook；本地 `.env` 可用 `file`） |
 | `CP_PROXY` | _(empty)_ | proxy URL for the image build (China/corp egress) |
 
 ## ECS specifics

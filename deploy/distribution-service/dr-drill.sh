@@ -8,6 +8,11 @@ step() { printf '\n=== %s ===\n' "$*"; }
 ok()   { printf '  OK   %s\n' "$*"; }
 bad()  { printf '  FAIL %s\n' "$*"; FAILS=$((FAILS+1)); }
 FAILS=0
+# The registry backend the drill rehearses. The seed below writes registry.json
+# only, so the rehearsed default is file; a DRILL_REGISTRY=sqlite rehearsal needs
+# a sqlite-seeded project and is not wired yet (ADR-014 follow-up). backup.mjs and
+# restore.mjs fail closed when the selected backend does not match the project.
+REGISTRY="${DRILL_REGISTRY:-file}"
 # device-trustworthy CRL check — ESM verifier against the device-baked RCA pubkey
 crl_accepts() { # crl-json-file rca-hex -> true|false
   node --input-type=module -e '
@@ -39,8 +44,8 @@ ok "RCA that devices bake: ${RCA_HEX:0:16}..."
 
 step "1 BEFORE: container serves the seeded state with a device-trustworthy CRL"
 docker run -d --name cp-drill-t1 -p 17450:7430 -v "$ROOT/project:/cp/project" -v "$ROOT/keys:/keys:ro" \
-  -e RN_CP_PROJECT=/cp/project -e RN_CP_REGISTRY=file -e RN_DELIVERY_SIGN_KEY_FILE=/keys/dr3.rca.key "$IMG" >/dev/null
-for i in $(seq 1 25); do curl -sf --max-time 2 http://127.0.0.1:17450/health >/dev/null 2>&1 && break; sleep 1; done
+  -e RN_CP_PROJECT=/cp/project -e RN_CP_REGISTRY="$REGISTRY" -e RN_DELIVERY_SIGN_KEY_FILE=/keys/dr3.rca.key "$IMG" >/dev/null
+for _ in $(seq 1 25); do curl -sf --max-time 2 http://127.0.0.1:17450/health >/dev/null 2>&1 && break; sleep 1; done
 B_REG=$(curl -s http://127.0.0.1:17450/v1/registry | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).staging.length))')
 curl -s http://127.0.0.1:17450/v1/crl > "$ROOT/before-crl.json"
 B_TRUST=$(crl_accepts "$ROOT/before-crl.json" "$RCA_HEX")
@@ -49,7 +54,7 @@ ok "BEFORE: staging=$B_REG · device accepts CRL=$B_TRUST"
 step "2 BACKUP (as documented: RN_DELIVERY_SIGN_KEY_FILE = the release signing key)"
 age-keygen -o "$ROOT/offsite/age.key" >/dev/null 2>&1
 RECIP=$(grep -o 'age1[a-z0-9]*' "$ROOT/offsite/age.key" | head -1)
-( cd "$REPO" && RN_CP_REGISTRY=file RN_DELIVERY_SIGN_KEY_FILE="$ROOT/keys/dr3.key" \
+( cd "$REPO" && RN_CP_REGISTRY="$REGISTRY" RN_DELIVERY_SIGN_KEY_FILE="$ROOT/keys/dr3.key" \
   node deploy/distribution-service/backup.mjs "$ROOT/project" --backup-dir "$ROOT/backups" --age-recipient "$RECIP" >/dev/null 2>&1 )
 B=$(find "$ROOT/backups" -maxdepth 1 -type d -name "dist-*" | sort | tail -1)
 mkdir -p "$ROOT/peek" && age -d -i "$ROOT/offsite/age.key" -o "$ROOT/peek/s.tar" "$B/secrets.tar.age" 2>/dev/null
@@ -86,9 +91,9 @@ RECOVERED_RCA=$(find "$ROOT/restored/keys" -name "*.rca.key" 2>/dev/null | head 
 RECOVERED_KEYS="$ROOT/restored/keys"
 docker run -d --name cp-drill-t2 -p 17451:7430 -v "$ROOT/restored:/cp/project" \
   -v "$RECOVERED_KEYS:/keys:ro" \
-  -e RN_CP_PROJECT=/cp/project -e RN_CP_REGISTRY=file \
+  -e RN_CP_PROJECT=/cp/project -e RN_CP_REGISTRY="$REGISTRY" \
   ${RECOVERED_RCA:+-e RN_DELIVERY_SIGN_KEY_FILE=/keys/$(basename "$RECOVERED_RCA")} "$IMG" >/dev/null
-for i in $(seq 1 25); do curl -sf --max-time 2 http://127.0.0.1:17451/health >/dev/null 2>&1 && break; sleep 1; done
+for _ in $(seq 1 25); do curl -sf --max-time 2 http://127.0.0.1:17451/health >/dev/null 2>&1 && break; sleep 1; done
 A_REG=$(curl -s http://127.0.0.1:17451/v1/registry | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).staging.length))' 2>/dev/null)
 curl -s http://127.0.0.1:17451/v1/crl > "$ROOT/after-crl.json" 2>/dev/null
 ok "restored staging=$A_REG (before=$B_REG)"
