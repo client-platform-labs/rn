@@ -112,3 +112,16 @@ gh pr list --state open                          # 待你审的 PR
 - 一条设备 lane 曾把 DUT 生成进**主仓根目录**并改了 `package.json`，我已回滚、立了"只建 `/tmp` + 收尾自查"的规矩。
 - 一次 30 分钟超时让某 lane `changed tracked files: none`，此后"**小步提交**"成为所有设备 lane 的硬规则。
 - 我的主 checkout 一度停在旧分支上，导致工具反复报一个**已修复**的阻塞 —— 我发现并切回 `main`。
+
+---
+
+## 更新（P1/P2 已关闭）—— 你问的那两个缺口，现在有证据闭合了
+
+| 决策 | 状态 | 证据 |
+|---|---|---|
+| **P1 CRL 证书链** | ✅ 已实现并合并 | CRL 与 release **同一套信任模型**：CRL 由 leaf 签 + 附 `cert_chain`，设备验「leaf 在烘焙 RCA 之下」再验「seal 在 leaf 之下」；**旧的无链 CRL 仍兼容**。4 条探针全部负向对照（回退 → 19/21、20/21、9/21）。还顺手修了 `/v1/crl` 的运维文案——那正是角色混淆的源头。 |
+| **P2 DR 信任材料** | ✅ 已实现并合并 | `backup.mjs` 现在备份**整个 keys 目录**（RCA 钥/证书、leaf 钥/证书、CSR、serial），age 加密；DR 演练 **`device accepts CRL = true → true`**，rc=0；关掉 keys 捕获 → `FAIL TRUST NOT recovered`，rc=1。ADR-014 承诺文案已改为诚实版。 |
+
+**一句话**：P1 让"吊销生效"和"发布可装"不再二选一；P2 让"灾备恢复后还能发更新"成为现实。两件事都用演练/探针的**红→绿**收尾，不是嘴上修好。
+
+**唯一遗留（已记录，小）**：`scripts/e2e/verify-crl-failclosed-live.mjs` 仍模拟旧设备（烘焙 CP 的签名钥），要做"cert 模式完整 live 运行"需把它改为烘焙 RCA —— 已标为后续项，不影响上面的单元/演练级闭合。
