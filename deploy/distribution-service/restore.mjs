@@ -15,6 +15,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -100,7 +101,7 @@ try {
   errors.push(`artifacts: ${e instanceof Error ? e.message : String(e)}`);
 }
 
-// 4) secrets (age decrypt) → signing key + .env
+// 4) secrets (age decrypt) → trust-material keys dir + signing key + .env
 try {
   if (manifest.items["secrets.tar.age"]) {
     if (!ageIdentity) {
@@ -117,6 +118,21 @@ try {
         const src = path.join(dec, f);
         if (existsSync(src)) {
           copySafe(src, path.join(projectRoot, f));
+        }
+      }
+      // P2: restore the FULL trust-material directory (cert-mode RCA/leaf keys,
+      // certs, CSR, serial). A cold rebuild must be able to re-sign a
+      // device-trustworthy CRL and valid releases; without the RCA key the
+      // device's baked trust root is orphaned and fail-closed blocks updates.
+      // Copyed entry-by-entry: `cp -R src/. dest` on macOS copies the DIRECTORY
+      // itself (restored/keys/keys/...), which made the rebuilt CP serve an
+      // unsigned CRL because /keys/<key> never existed inside the container.
+      const keysSrc = path.join(dec, "keys");
+      if (existsSync(keysSrc)) {
+        const destDir = path.join(projectRoot, "keys");
+        mkdirSync(destDir, { recursive: true });
+        for (const entry of readdirSync(keysSrc)) {
+          copyFileSync(path.join(keysSrc, entry), path.join(destDir, entry));
         }
       }
       rmSync(dec, { recursive: true, force: true });

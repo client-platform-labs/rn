@@ -7,7 +7,7 @@
  *   registry.sqlite  — 一致性快照（node:sqlite `VACUUM INTO`，等价 `sqlite3 .backup`）
  *   registry.json    — 当 RN_CP_REGISTRY=file 时的注册库（二选一）
  *   artifacts.tar    — .rn/delivery/artifacts/ 制品目录
- *   secrets.tar.age  — age 公钥加密（签名私钥 + .env），解密私钥人异地保管
+ *   secrets.tar.age  — age 公钥加密（完整信任材料目录 keys/ 即 cert 模式 RCA/leaf 私钥与证书、CSR、serial + 签名私钥 + .env），解密私钥人异地保管
  *
  * 用法（在项目根 / ECS 数据卷所在目录执行）：
  *   node deploy/distribution-service/backup.mjs <PROJECT_ROOT> \
@@ -26,6 +26,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -123,7 +124,12 @@ try {
   failures.push(`artifacts: ${e instanceof Error ? e.message : String(e)}`);
 }
 
-// 3) sensitive: signing key (+ inline PEM fallback) + .env → tar → age encrypt
+// 3) sensitive: the FULL trust-material directory (cert-mode RCA/leaf keys,
+// certs, CSR, serial — the device-baked RCA is the trust root and is NOT
+// recreatable), plus the signing key + .env → tar → age encrypt.
+// P2 (closure night): a backup that captured only the single signing key made
+// DR restore service+data but NOT trust, so after a cold rebuild every device
+// rejected the CRL and fail-closed blocked updates — the moment DR exists for.
 try {
   const secrets = path.join(workDir, "secrets");
   mkdirSync(secrets, { recursive: true });
@@ -140,13 +146,45 @@ try {
     writeFileSync(path.join(secrets, "delivery-sign.pem"), signKeyPem, { mode: 0o600 });
     collected.push("delivery-sign.pem");
   }
+  // Capture the ENTIRE keys directory (not just one key): it holds the cert-mode
+  // trust set — `<label>.rca.key` / `.rca.crt` / `.key` / `.csr` / `.leaf.crt` /
+  // `.srl`. The RCA private key IS the trust root devices have baked; without it
+  // a cold rebuild can never again sign a CRL or a release those devices accept.
+  const keysDirEnv = process.env.RN_DELIVERY_KEYS_DIR?.trim();
+  const keysDir = keysDirEnv
+    ? path.resolve(keysDirEnv)
+    : signKeyFile
+      ? path.dirname(path.resolve(signKeyFile))
+      : null;
+  let keysCollected = [];
+  if (keysDir && existsSync(keysDir) && statSync(keysDir).isDirectory()) {
+    const dest = path.join(secrets, "keys");
+    mkdirSync(dest, { recursive: true });
+    for (const entry of readdirSync(keysDir)) {
+      const src = path.join(keysDir, entry);
+      if (!statSync(src).isFile()) continue;
+      copyFileSync(src, path.join(dest, entry));
+      keysCollected.push(`keys/${entry}`);
+    }
+  }
+  if (keysCollected.length > 0) {
+    collected.push(...keysCollected);
+    console.warn(
+      `backup: captured ${keysCollected.length} trust-material file(s) from ${keysDir}`,
+    );
+  } else {
+    console.warn(
+      "backup: no trust-material directory found (RN_DELIVERY_KEYS_DIR / dirname(RN_DELIVERY_SIGN_KEY_FILE)) — " +
+        "the RCA/leaf key set may not be backed up",
+    );
+  }
   const env = envPaths.find((p) => existsSync(p));
   if (env) {
     copyFileSync(env, path.join(secrets, ".env"));
     collected.push(".env");
   }
   if (collected.length === 0) {
-    console.warn("backup: no signing key / .env found — secrets archive skipped");
+    console.warn("backup: nothing to encrypt — secrets archive skipped");
   } else {
     const tar = path.join(workDir, "secrets.tar");
     sh(`tar -cf ${JSON.stringify(tar)} -C ${JSON.stringify(secrets)} ${collected.join(" ")}`);

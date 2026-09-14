@@ -3,9 +3,24 @@
 # offsite age identity (which ADR-014/A F05 says a second person holds).
 set -uo pipefail
 REPO="$1"; ROOT=${DRILL_ROOT:-/tmp/rn-dr-drill}; IMG="${CP_IMAGE:-client-platform/cp:drill}"
+export DRILL_REPO="$REPO"
 step() { printf '\n=== %s ===\n' "$*"; }
 ok()   { printf '  OK   %s\n' "$*"; }
-bad()  { printf '  FAIL %s\n' "$*"; }
+bad()  { printf '  FAIL %s\n' "$*"; FAILS=$((FAILS+1)); }
+FAILS=0
+# device-trustworthy CRL check — ESM verifier against the device-baked RCA pubkey
+crl_accepts() { # crl-json-file rca-hex -> true|false
+  node --input-type=module -e '
+    const { verifyRevocationSealAny } = await import(process.env.DRILL_REPO + "/packages/shell-core/dist/index.js");
+    const fs = await import("node:fs");
+    const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    if (typeof j.seal === "string" && typeof j.payload === "string") {
+      console.log(verifyRevocationSealAny(j.seal, j.payload, [process.argv[2]]));
+    } else {
+      console.log("false");
+    }
+  ' "$1" "$2"
+}
 rm -rf "$ROOT"; mkdir -p "$ROOT"/{project/.rn/delivery/artifacts,keys,offsite}
 docker rm -f cp-drill-t1 cp-drill-t2 >/dev/null 2>&1
 
@@ -28,7 +43,8 @@ docker run -d --name cp-drill-t1 -p 17450:7430 -v "$ROOT/project:/cp/project" -v
 for i in $(seq 1 25); do curl -sf --max-time 2 http://127.0.0.1:17450/health >/dev/null 2>&1 && break; sleep 1; done
 B_REG=$(curl -s http://127.0.0.1:17450/v1/registry | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).staging.length))')
 curl -s http://127.0.0.1:17450/v1/crl > "$ROOT/before-crl.json"
-ok "staging=$B_REG · CRL seal vs device-baked RCA: $(node -e 'const {verifyRevocationSealAny}=require("'"$REPO"'/packages/shell-core/dist/index.js");const j=require(process.argv[1]);console.log(verifyRevocationSealAny(j.seal,j.payload,[process.argv[2]]))' "$ROOT/before-crl.json" "$RCA_HEX" 2>/dev/null || echo "(verifier is ESM; checked in the final step)")"
+B_TRUST=$(crl_accepts "$ROOT/before-crl.json" "$RCA_HEX")
+ok "BEFORE: staging=$B_REG · device accepts CRL=$B_TRUST"
 
 step "2 BACKUP (as documented: RN_DELIVERY_SIGN_KEY_FILE = the release signing key)"
 age-keygen -o "$ROOT/offsite/age.key" >/dev/null 2>&1
@@ -40,6 +56,16 @@ mkdir -p "$ROOT/peek" && age -d -i "$ROOT/offsite/age.key" -o "$ROOT/peek/s.tar"
 echo "  archive items: $(node -e 'console.log(Object.keys(require(process.argv[1]+"/manifest.json").items).join(", "))' "$B")"
 echo "  secrets captured: $(tar -tf "$ROOT/peek/s.tar" 2>/dev/null | tr '\n' ' ')"
 echo "  keys that existed: $(find "$ROOT/keys" -maxdepth 1 -type f -exec basename {} \; | sort | tr '\n' ' ')"
+KEYS_MISSING=""
+for f in dr3.rca.key dr3.rca.crt dr3.key dr3.csr dr3.leaf.crt; do
+  tar -tf "$ROOT/peek/s.tar" 2>/dev/null | grep -q "^keys/$f$" || KEYS_MISSING="$KEYS_MISSING $f"
+done
+tar -tf "$ROOT/peek/s.tar" 2>/dev/null | grep -q '^keys/.*\.srl$' || KEYS_MISSING="$KEYS_MISSING *.srl"
+if [[ -z "$KEYS_MISSING" ]]; then
+  ok "archive contains the FULL cert-mode trust set (keys/: RCA key+cert, leaf key+cert, csr, serial) — P2"
+else
+  bad "archive is MISSING trust material:$KEYS_MISSING"
+fi
 
 step "3 DESTROY EVERYTHING (true machine loss: project + ALL platform key material)"
 docker rm -f cp-drill-t1 >/dev/null 2>&1
@@ -54,18 +80,28 @@ ok "restored: $(find "$ROOT/restored/.rn/delivery" -maxdepth 1 -exec basename {}
 echo "  signing key recovered: $(find "$ROOT/restored" -maxdepth 1 -name "*.pem" -exec basename {} \; | sort | tr '\n' ' ')"
 
 step "5 PROVE: can the rebuilt deployment still serve a device-trustworthy CRL?"
-# Use whatever signing key the restore actually recovered.
-RECOVERED=$(find "$ROOT/restored" -name "*.pem" | head -1)
+# P2: sign the CRL with the RECOVERED RCA key — the key the device baked — so
+# the rebuilt deployment serves a device-trustworthy CRL again.
+RECOVERED_RCA=$(find "$ROOT/restored/keys" -name "*.rca.key" 2>/dev/null | head -1)
+RECOVERED_KEYS="$ROOT/restored/keys"
 docker run -d --name cp-drill-t2 -p 17451:7430 -v "$ROOT/restored:/cp/project" \
+  -v "$RECOVERED_KEYS:/keys:ro" \
   -e RN_CP_PROJECT=/cp/project -e RN_CP_REGISTRY=file \
-  ${RECOVERED:+-e RN_DELIVERY_SIGN_KEY_PEM="$(cat "$RECOVERED")"} "$IMG" >/dev/null
+  ${RECOVERED_RCA:+-e RN_DELIVERY_SIGN_KEY_FILE=/keys/$(basename "$RECOVERED_RCA")} "$IMG" >/dev/null
 for i in $(seq 1 25); do curl -sf --max-time 2 http://127.0.0.1:17451/health >/dev/null 2>&1 && break; sleep 1; done
 A_REG=$(curl -s http://127.0.0.1:17451/v1/registry | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).staging.length))' 2>/dev/null)
 curl -s http://127.0.0.1:17451/v1/crl > "$ROOT/after-crl.json" 2>/dev/null
 ok "restored staging=$A_REG (before=$B_REG)"
 [ "$A_REG" = "$B_REG" ] && ok "DATA recovered ✅" || bad "data loss: $B_REG -> $A_REG"
-echo "  device-baked RCA on file (offsite copy): ${RCA_HEX:0:16}..."
-echo "  RCA PRIVATE key present after restore? $(find "$ROOT/restored" "$ROOT/offsite" -name '*rca*key*' 2>/dev/null | wc -l | tr -d ' ') file(s)"
-echo "  CRL after rebuild: $(node -e 'const j=require(process.argv[1]);console.log(j.seal?("signed by "+(j.seal||"").slice(0,14)+"..."):"UNSIGNED")' "$ROOT/after-crl.json" 2>/dev/null || echo "(no body)")"
+echo "  RCA PRIVATE key recovered? $(find "$ROOT/restored/keys" -name '*.rca.key' 2>/dev/null | wc -l | tr -d ' ') file(s)"
+A_TRUST=$(crl_accepts "$ROOT/after-crl.json" "$RCA_HEX" 2>/dev/null || echo "false")
+ok "AFTER: device accepts CRL=$A_TRUST (before=$B_TRUST)"
+if [[ "$A_TRUST" == "true" ]]; then
+  ok "TRUST recovered ✅ — a cold rebuild can serve a device-trustworthy CRL again"
+else
+  bad "TRUST NOT recovered ❌ — device rejects the rebuilt CRL (fail-closed blocks updates after DR)"
+fi
 docker rm -f cp-drill-t2 >/dev/null 2>&1
 echo "  archive kept: $B"
+echo
+[[ $FAILS -eq 0 ]] && ok "DRILL PASS" || { bad "DRILL FAIL ($FAILS failure(s))"; exit 1; }
