@@ -30,8 +30,8 @@ import type { CandidateMetadata } from "./types.js";
 import {
   loadRegistrySqlite,
   saveRegistrySqlite,
-  useSqliteRegistry,
 } from "./registry-sqlite.js";
+import { resolveRegistryBackend } from "./registry-backend.js";
 import { signCanonicalPayload } from "./signature.js";
 
 export const DELIVERY_STATE_DIR = ".rn/delivery";
@@ -220,10 +220,8 @@ function normalizeDevices(
   return out;
 }
 
-export function loadRegistry(projectRoot: string): DeliveryRegistry {
-  if (useSqliteRegistry()) {
-    return normalizeRegistry(loadRegistrySqlite(projectRoot));
-  }
+/** File registry adapter (atomic file — ADR-020 state seam). */
+export function loadFileRegistry(projectRoot: string): DeliveryRegistry {
   const file = path.join(deliveryDir(projectRoot), REGISTRY_FILE);
   if (!existsSync(file)) return emptyRegistry();
   try {
@@ -233,6 +231,19 @@ export function loadRegistry(projectRoot: string): DeliveryRegistry {
   } catch {
     return emptyRegistry();
   }
+}
+
+/** SQLite registry adapter (ADR-013 default). */
+export function loadSqliteRegistry(projectRoot: string): DeliveryRegistry {
+  return normalizeRegistry(loadRegistrySqlite(projectRoot));
+}
+
+/**
+ * The registry is read through the resolved backend (map-j/T3, #292) — the one
+ * place "which backend" is answered is `resolveRegistryBackend`.
+ */
+export function loadRegistry(projectRoot: string): DeliveryRegistry {
+  return resolveRegistryBackend(projectRoot).load();
 }
 
 const INSTALLABLE_KINDS = new Set(["app-host", "app-host-debug"]);
@@ -299,19 +310,30 @@ export function listJsUpdateCandidates(
   });
 }
 
-export function saveRegistry(
+export function saveFileRegistry(
   projectRoot: string,
   registry: DeliveryRegistry,
 ): void {
   ensureDeliveryDir(projectRoot);
-  if (useSqliteRegistry()) {
-    saveRegistrySqlite(projectRoot, registry);
-    return;
-  }
   writeFileAtomicSync(
     path.join(deliveryDir(projectRoot), REGISTRY_FILE),
     `${JSON.stringify(registry, null, 2)}\n`,
   );
+}
+
+export function saveSqliteRegistry(
+  projectRoot: string,
+  registry: DeliveryRegistry,
+): void {
+  saveRegistrySqlite(projectRoot, registry);
+}
+
+/** Saved through the resolved backend (map-j/T3, #292). */
+export function saveRegistry(
+  projectRoot: string,
+  registry: DeliveryRegistry,
+): void {
+  resolveRegistryBackend(projectRoot).save(registry);
 }
 
 export function promoteCandidateToStaging(
