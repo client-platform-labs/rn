@@ -653,17 +653,22 @@ export function listRevocations(projectRoot: string): string[] {
 /**
  * G3 (ADR-024): build the signed CRL document served at `/v1/crl`.
  *
- * `payload` is the canonical string the seal signs; a device verifies
- * `seal` against its baked public keys (root CA in cert mode) with
- * `verifyRevocationSealAny` before trusting `revoked`. When no signing key is
- * configured `seal` is null — serve callers must fail-closed (device rejects
- * an unsigned CRL), so this is never a silent plaintext trust root.
+ * `payload` is the canonical string the seal signs; a device verifies the seal
+ * before trusting `revoked`. In CERT MODE (ADR-024) the seal is made with the
+ * LEAF private key and the document carries the `cert_chain`, so the device
+ * verifies leaf-under-root-CA then the seal under the leaf — the same trust
+ * model as releases (#256/P1). In legacy mode there is no chain and the seal
+ * must verify against a key baked directly on the device
+ * (`verifyRevocationSealAny`). When no signing key is configured `seal` is
+ * null — serve callers must fail-closed (device rejects an unsigned CRL), so
+ * this is never a silent plaintext trust root.
  */
 export function buildCrlDoc(projectRoot: string): {
   schemaVersion: 1;
   revoked: string[];
   payload: string;
   seal: string | null;
+  cert_chain?: { leafCertPem: string; leafPubkeyHex: string };
 } {
   const revoked = [...listRevocations(projectRoot)].sort();
   const payload = `v1|schemaVersion=1|revoked=${JSON.stringify(revoked)}`;
@@ -673,5 +678,15 @@ export function buildCrlDoc(projectRoot: string): {
   } catch {
     seal = null; // no signing key configured — serve must decide fail-closed
   }
-  return { schemaVersion: 1, revoked, payload, seal };
+  // ADR-024 cert mode: the operator signs with the LEAF key and supplies its
+  // cert chain via the same env vars `sign` uses; attach the chain so the
+  // device can verify leaf-under-root-CA (one trust model, #256/P1). An
+  // unsigned CRL never carries a chain (an unsigned doc is rejected anyway).
+  const leafCert = process.env.RN_DELIVERY_LEAF_CERT;
+  const leafPubHex = process.env.RN_DELIVERY_LEAF_PUBKEY_HEX;
+  const cert_chain =
+    seal !== null && leafCert && leafPubHex
+      ? { leafCertPem: leafCert, leafPubkeyHex: leafPubHex }
+      : undefined;
+  return { schemaVersion: 1, revoked, payload, seal, ...(cert_chain ? { cert_chain } : {}) };
 }

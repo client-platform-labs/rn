@@ -621,9 +621,14 @@ export function createControlPlane(options: {
       },
     },
     // ADR-024 (D3/G3): CRL — revoked signing keys (hex); devices fetch before
-    // verify (F04). Signed doc: seal over canonical payload; device verifies
-    // with baked keys (verifyRevocationSealAny). An unsigned CRL (seal:null,
-    // no key configured) is served as-is; devices fail-closed and reject it.
+    // verify (F04). Signed doc: seal over canonical payload. In CERT MODE
+    // (#256/P1) the seal is made with the LEAF key and the body carries the
+    // cert_chain, so devices verify leaf-under-root-CA then seal-under-leaf —
+    // the same trust model as releases (configure RN_DELIVERY_SIGN_KEY_* to the
+    // leaf key plus RN_DELIVERY_LEAF_CERT + RN_DELIVERY_LEAF_PUBKEY_HEX). In
+    // legacy mode the seal must verify against a key baked directly on the
+    // device. An unsigned CRL (seal:null, no key configured) is served as-is;
+    // devices fail-closed and reject it.
     {
       method: "GET",
       path: "/v1/crl",
@@ -633,7 +638,7 @@ export function createControlPlane(options: {
         const crl = buildCrlDoc(projectRoot);
         if (crl.seal === null) {
           console.error(
-            "[cp] /v1/crl served UNSIGNED (no CRL signing key) — devices will reject it (fail-closed). Configure RN_DELIVERY_SIGN_KEY_PEM/FILE or RN_DELIVERY_HSM_SIGN_CMD. IMPORTANT (ADR-024 cert mode): the CRL must be signed with the RCA private key baked into the APK (--rca-pubkey-hex); signing with the leaf key instead makes devices reject every CRL.",
+            "[cp] /v1/crl served UNSIGNED (no CRL signing key) — devices will reject it (fail-closed). Configure RN_DELIVERY_SIGN_KEY_PEM/FILE or RN_DELIVERY_HSM_SIGN_CMD. ADR-024 cert mode (#256/P1): sign the CRL with the LEAF key and set RN_DELIVERY_LEAF_CERT + RN_DELIVERY_LEAF_PUBKEY_HEX so the body carries the cert_chain — devices verify leaf-under-root-CA then the seal under the leaf, the same model as releases.",
           );
         }
         sendJson(res, 200, crl);

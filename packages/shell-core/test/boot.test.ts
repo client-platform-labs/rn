@@ -8,7 +8,10 @@
  */
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign as nodeSign, type KeyObject } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   bootReleaseOta,
@@ -743,6 +746,130 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       assert.deepEqual(persisted, [""]);
       // #268 invariant kept: the counter is still cleared on the rollback path.
       assert.ok(calls.includes("resetStartupFailures"));
+    } finally {
+      plane.restore();
+    }
+  });
+});
+
+// ——— #256/P1: cert-mode CRL — the SAME trust model as releases ———
+// Reuses the committed cert fixtures (packages/core/test/fixtures/cert-chain):
+// the leaf certificate is signed by the RCA, and `leaf1-signature.txt` is the
+// committed LEAF-key signature over exactly `release-1:js-update:<64×a>` — so it
+// doubles as a cert-mode CRL seal (payload is opaque to the device; the seal
+// must merely verify over the exact payload string it was made for).
+const CERT_FIX = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../core/test/fixtures/cert-chain",
+);
+const readCertFix = (name: string): string =>
+  readFileSync(path.join(CERT_FIX, name), "utf8").trim();
+const FIX_RCA_PUB = readCertFix("rca-pubkey-hex.txt");
+const FIX_LEAF_PUB = readCertFix("leaf-pubkey-hex.txt");
+const FIX_LEAF_PEM = readCertFix("leaf.crt");
+const FIX_OTHER_RCA_PUB = readCertFix("other-rca-pubkey-hex.txt");
+const FIX_LEAF_PAYLOAD = `release-1:js-update:${"a".repeat(64)}`;
+const FIX_LEAF_SEAL = `pem:ed25519:${readCertFix("leaf1-signature.txt")}`;
+
+describe("P1/ADR-024: cert-mode CRL — leaf-signed with an attached cert_chain (#256)", () => {
+  function crlCertChain(revoked: string[], seal = FIX_LEAF_SEAL) {
+    return {
+      schemaVersion: 1,
+      revoked,
+      payload: FIX_LEAF_PAYLOAD,
+      seal,
+      cert_chain: { leafCertPem: FIX_LEAF_PEM, leafPubkeyHex: FIX_LEAF_PUB },
+    };
+  }
+
+  /** A control plane whose manifest route says "no update" (204), so a passing
+   * CRL is observable by the check request having happened AT ALL, while a
+   * failing CRL must never reach it. */
+  function crlPlane(crlBody: unknown) {
+    return installFetch((url) => {
+      if (url === `${BASE}/v1/crl`) return { status: 200, body: crlBody };
+      if (url.startsWith(`${BASE}/v1/js-updates/check`)) return { status: 204 };
+      return undefined;
+    });
+  }
+
+  it("probe 1 — a cert-mode CRL (leaf-signed + chain under the baked RCA) is ACCEPTED and the boot proceeds", async () => {
+    const { adapter } = fakeNative({ pubKeys: [FIX_RCA_PUB] });
+    const plane = crlPlane(crlCertChain([]));
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "no_update");
+      assert.ok(
+        plane.urls.some((u) => u.includes("/v1/js-updates/check")),
+        `expected a manifest request after a trusted CRL, got: ${plane.urls}`,
+      );
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("probe 2 — a cert-mode CRL whose leaf is NOT under the baked RCA is REJECTED (chain reason), before any manifest request", async () => {
+    // Bake the OTHER root: the leaf certificate is not signed by it.
+    const { adapter } = fakeNative({ pubKeys: [FIX_OTHER_RCA_PUB] });
+    const plane = crlPlane(crlCertChain([]));
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "failed");
+      assert.match(outcome.result?.reason ?? "", /CRL chain invalid/);
+      assert.ok(
+        !plane.urls.some((u) => u.includes("/v1/js-updates/check")),
+        "must NOT query the manifest after an untrusted CRL",
+      );
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("probe 3 — a valid chain but a WRONG seal is REJECTED (seal reason), before any manifest request", async () => {
+    const { adapter } = fakeNative({ pubKeys: [FIX_RCA_PUB] });
+    const badSeal = `pem:ed25519:${Buffer.alloc(64).toString("base64")}`;
+    const plane = crlPlane(crlCertChain([], badSeal));
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "failed");
+      assert.match(outcome.result?.reason ?? "", /CRL seal invalid/);
+      assert.ok(
+        !plane.urls.some((u) => u.includes("/v1/js-updates/check")),
+        "must NOT query the manifest after an unverifiable CRL",
+      );
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("probe 4 — a LEGACY CRL (no cert_chain, seal by a baked key) is still ACCEPTED", async () => {
+    // Legacy host: the baked key IS the signing key, and the body has no chain.
+    const { adapter } = fakeNative({ pubKeys: [FIX_LEAF_PUB] });
+    const plane = crlPlane({
+      schemaVersion: 1,
+      revoked: [],
+      payload: FIX_LEAF_PAYLOAD,
+      seal: FIX_LEAF_SEAL,
+    });
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.result?.status, "no_update");
+      assert.ok(
+        plane.urls.some((u) => u.includes("/v1/js-updates/check")),
+        `expected a manifest request after a trusted legacy CRL, got: ${plane.urls}`,
+      );
     } finally {
       plane.restore();
     }
