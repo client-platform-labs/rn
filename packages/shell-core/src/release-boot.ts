@@ -248,6 +248,16 @@ export async function bootReleaseOta(
     // ADR-014 / G1: consecutive failed boots roll back to the embedded baseline
     // BEFORE any pull — a boot that keeps dying must not keep retrying OTA.
     const failCount = (await native.recordStartupFailure?.(moduleId)) ?? 0;
+    // Crash-loop observability (#298): report the counter + guard decision on
+    // every boot so a device that fails to roll back is diagnosable instead of
+    // silent — a release build cannot be read via run-as, this is the sanctioned
+    // channel (the logJs bridge).
+    await diag(
+      native,
+      `[OTADIAG] crash-loop failCount=${failCount} guard=${shouldRollbackOnCrashLoop(
+        failCount,
+      )} recordStartupFailure=${typeof native.recordStartupFailure}`,
+    );
     if (shouldRollbackOnCrashLoop(failCount)) {
       // #268 (found only by running it on hardware): clearing the counter is part
       // of the RECOVERY, and it must happen BEFORE the rollback —
