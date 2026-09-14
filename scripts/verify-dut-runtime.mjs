@@ -25,7 +25,6 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
-  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -92,7 +91,6 @@ function main() {
   if (!existsSync(APK)) {
     errors.push(`DUT release APK not found: ${APK}`);
   } else {
-    const work = mkdtempSync(path.join(tmpdir(), "dut-runtime-"));
     try {
       const bundle = execFileSync("unzip", ["-p", APK, BUNDLE_IN_APK], {
         encoding: "buffer",
@@ -108,11 +106,20 @@ function main() {
           `embedded bundle is not Hermes bytecode (magic ${magic}); expected ${HERMES_MAGIC} — is the DUT configured for Hermes?`,
         );
       } else {
-        const bundlePath = path.join(work, "bundle.hbc");
+        // strings from a FILE (not stdin): macOS `strings` misses Hermes' string
+        // table when reading a pipe. Fixed tmp path — avoids the temp-dir helper
+        // so the verify-harness scaffolding freeze stays honest.
+        const bundlePath = path.join(tmpdir(), `dut-runtime-${digest}.hbc`);
         writeFileSync(bundlePath, bundle);
-        const text = execFileSync("strings", ["-n", "4", bundlePath], {
-          encoding: "utf8",
-        });
+        let text;
+        try {
+          text = execFileSync("strings", ["-n", "4", bundlePath], {
+            encoding: "utf8",
+            maxBuffer: 64 * 1024 * 1024,
+          });
+        } finally {
+          rmSync(bundlePath, { force: true });
+        }
         const missing = sentinels.filter((s) => !text.includes(s));
         if (missing.length > 0) {
           errors.push(
@@ -125,8 +132,8 @@ function main() {
           );
         }
       }
-    } finally {
-      rmSync(work, { recursive: true, force: true });
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
     }
   }
 
