@@ -145,6 +145,16 @@ if [[ -z "$(adb_dev shell pidof "$DUT_PKG" 2>/dev/null | tr -d '\r')" ]] && ! ad
 fi
 ok "DUT: $DUT_PKG (project $DUT_PROJECT)"
 
+# DUT runtime freshness (#298): an incremental Gradle build can package a STALE
+# embedded shell-core JS into the APK, and the device then runs OTA logic that is
+# not the code under review (observed: pre-P1 bundle rejecting the leaf-signed
+# CRL). Refuse to judge legs against a stale DUT.
+if ! node "$REPO_ROOT/scripts/verify-dut-runtime.mjs" "$DUT_PROJECT" 2>&1 | grep -q "verify-dut-runtime: PASS"; then
+  skip_step "DUT APK embeds a STALE runtime — re-run :app:createBundleReleaseJsAndAssets --rerun-tasks + assembleRelease, reinstall, then re-run (see scripts/verify-dut-runtime.mjs)"
+  chain_done
+fi
+ok "DUT runtime freshness: APK embeds current shell-core"
+
 if [[ ! -r "$CP_LOG" ]]; then
   skip_step "CP access log not readable: $CP_LOG -- it is legs A/B's only observation channel"
   chain_done
