@@ -31,6 +31,10 @@ jobs:
       - run: node scripts/verify-cp-stub-api.mjs
       - run: node scripts/verify-cp-enterprise.mjs
       - run: node scripts/verify-distribution-console.mjs
+      # ADR-014: the DR backup/restore must fail closed — a backup whose selected
+      # registry backend is absent, or a restore of an archive that captured no
+      # registry, must error instead of reporting success. Hermetic probe.
+      - run: node scripts/verify-dr-backup-fail-closed.mjs
       - run: node scripts/run-afk-hitl-loop.mjs --mode afk --plan
       - run: node scripts/run-afk-hitl-loop.mjs --mode afk
       - run: pnpm exec rn doctor

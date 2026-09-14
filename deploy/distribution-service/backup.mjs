@@ -92,6 +92,10 @@ function record(rel, absPath) {
 }
 
 // 1) registry: VACUUM INTO 一致性快照（等价 sqlite3 .backup），否则拷贝 registry.json
+// Fail closed: if the selected backend's registry file is missing under the
+// delivery dir, that is a backend-selection mismatch (RN_CP_REGISTRY=sqlite on
+// a file-only deployment, or a file deployment on a sqlite one) — record a
+// failure instead of silently producing an archive that captures no registry.
 try {
   if (useSqlite) {
     const dbFile = path.join(registryDir, "registry.sqlite");
@@ -101,12 +105,28 @@ try {
       db.exec(`VACUUM INTO '${out.replace(/'/g, "''")}'`);
       db.close();
       record("registry.sqlite", out);
+    } else {
+      const jsonPresent = existsSync(path.join(registryDir, "registry.json"));
+      failures.push(
+        `registry: registry.sqlite not found under ${registryDir}` +
+          (jsonPresent
+            ? " — registry.json IS present, so the deployment is RN_CP_REGISTRY=file; set it (or unset the var)"
+            : " — no registry file found; is the deployment initialized?"),
+      );
     }
   } else {
     const jsonFile = path.join(registryDir, "registry.json");
     if (existsSync(jsonFile)) {
       copyFileSync(jsonFile, path.join(backupDir, "registry.json"));
       record("registry.json", path.join(backupDir, "registry.json"));
+    } else {
+      const sqlPresent = existsSync(path.join(registryDir, "registry.sqlite"));
+      failures.push(
+        `registry: registry.json not found under ${registryDir}` +
+          (sqlPresent
+            ? " — registry.sqlite IS present, so the deployment is RN_CP_REGISTRY=sqlite; set it (or unset the var)"
+            : " — no registry file found; is the deployment initialized?"),
+      );
     }
   }
 } catch (e) {
