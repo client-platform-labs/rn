@@ -412,6 +412,177 @@ paths:
         "200":
           description: Resumed
 
+  /portal:
+    get:
+      tags: [console]
+      summary: Distribution console / portal (HTML)
+      responses:
+        "200":
+          description: Console HTML (or 404 when disabled via RN_CP_DISABLE_CONSOLE)
+  /ready:
+    get:
+      tags: [service]
+      summary: Readiness — delivery dir, registry file and writable probe
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  service: { type: string }
+                  checks:
+                    type: object
+                    properties:
+                      registry: { type: boolean }
+                      artifacts_dir: { type: boolean }
+                  writable: { type: boolean }
+        "503":
+          description: Not ready
+  /v1/ota/revocations:
+    get:
+      tags: [js-plane]
+      summary: ADR-018 signed revocation list (device trust)
+      responses:
+        "200":
+          description: Revocation list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: array
+                    items: { type: string }
+                  payload: { type: string }
+                  seal: { type: string, nullable: true }
+  /v1/crl:
+    get:
+      tags: [js-plane]
+      summary: Certificate revocation list (cert-chain mode, ADR-024)
+      responses:
+        "200":
+          description: Signed CRL (fail-closed on device when unsigned)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: array
+                    items: { type: string }
+                  payload: { type: string }
+                  seal: { type: string, nullable: true }
+                  cert_chain: { type: object, nullable: true }
+  /v1/metrics:
+    get:
+      tags: [service]
+      summary: Prometheus metrics (cp_http_*)
+      responses:
+        "200":
+          description: Prometheus text format
+          content:
+            text/plain:
+              schema: { type: string }
+  /v1/sli:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      summary: Report an SLI observation for a rollout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digest]
+              properties:
+                digest: { type: string }
+                reason: { type: string }
+      responses:
+        "200":
+          description: SLI recorded
+  /v1/js-updates/check:
+    get:
+      tags: [js-plane]
+      summary: Device check-for-update (lane + module)
+      parameters:
+        - name: lane
+          in: query
+          schema: { type: string, enum: [staging, production] }
+        - name: module
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current candidate sidecar (404 when sidecar missing)
+        "404":
+          description: No candidate / sidecar missing
+  /v1/devices:
+    get:
+      tags: [registry]
+      summary: Device lane map (gray slicing)
+      responses:
+        "200":
+          description: Devices by serial → lane
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices: { type: object }
+  /v1/kills:
+    get:
+      tags: [registry]
+      summary: Active kills, pauses and runtime-blocked update ids
+      responses:
+        "200":
+          description: Kill/pause state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kills: { type: array }
+                  pauses: { type: array }
+                  blocked_update_ids: { type: array, items: { type: string } }
+  /v1/rollout/slo-breach:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      summary: Pause a rollout on an SLI breach
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                digest: { type: string }
+                reason: { type: string }
+      responses:
+        "200":
+          description: Rollout paused
+  /v1/rollout/tick:
+    post:
+      tags: [rollout]
+      security:
+        - bearerAuth: []
+      summary: Advance a rollout by SLO/soak policy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                digest: { type: string }
+      responses:
+        "200":
+          description: Rollout advanced (or unchanged)
+
 components:
   securitySchemes:
     bearerAuth:
