@@ -265,6 +265,13 @@ stop_stub
 
 # ── A. crash loop → rollback, and no OTA pull ─────────────────────────────
 step "11.A 崩溃环 → 回滚基线且不再尝试拉包"
+# Judge window starts HERE (#298 fix): the rollback fires the moment the counter
+# crosses the threshold — which can be DURING the kill cycles, not only on the
+# final restart — and after it fires the counter resets (the reload boot pulls
+# again). Clearing the log only at the END made the judge timing-dependent and
+# falsely FAILed. So clear ONCE at the start; the OTADIAG verdict is read from
+# the whole leg-A window below.
+adb_dev logcat -c >/dev/null 2>&1 || true
 # The counter counts only launches that DIE mid-boot: after recordStartupFailure
 # (which precedes the pull) but before resetStartupFailures (which runs only on a
 # COMPLETED boot, including a "failed" pull). A fixed 0.6s timer is a race the
@@ -325,15 +332,14 @@ fi
 # The sanctioned channel is the adapter's logJs bridge: the runbook patches the DUT
 # to log the boot outcome, so the device states whether the guard fired. Without
 # that diagnostic the leg is undecidable and says so (SKIP) rather than guessing.
-adb_dev logcat -c >/dev/null 2>&1 || true
-MARK="$(cp_log_lines)"
-restart_app; sleep 16
-CHECK_HITS="$(cp_hits_since "$MARK" "/v1/js-updates/check")"
-DIAG="$(adb_dev logcat -d 2>/dev/null | grep -F "[OTADIAG] outcome" | tail -3)"
+# #298 fix: the log was cleared above (leg-A start), so the FULL leg-A window is
+# read here — the rollback may have fired mid-cycles, not only on the final
+# restart. No logcat -c between the cycles and this read.
+DIAG="$(adb_dev logcat -d 2>/dev/null | grep -F "[OTADIAG] outcome" | tail -6)"
 if grep -q "crash_loop_rollback" <<<"$DIAG"; then
   ok "回滚：设备自报 skippedReason=crash_loop_rollback（其后 reload 的那次启动允许正常拉包）"
 elif [[ -z "$DIAG" ]]; then
-  skip_step "DUT 未输出 [OTADIAG] 诊断 —— 无法直接判定回滚（按 runbook §0.4 重建 DUT；期间 check 命中 $CHECK_HITS 次未作判定依据）"
+  skip_step "DUT 未输出 [OTADIAG] 诊断 —— 无法直接判定回滚（按 runbook §0.4 重建 DUT）"
 else
   err "未回滚：设备自报 $(tr '\n' ' ' <<<"$DIAG" | tail -c 200)"
   FAILS=$((FAILS+1))
