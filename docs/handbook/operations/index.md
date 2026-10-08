@@ -43,7 +43,7 @@
 我要上线（业务 JS）       → multi-bundle-version.md §3（强升 vs 普通）+ §6（灰度）
 我要上线（新宿主 APK）    → roles-matrix.md §1（壳发布 → 装包台 → 交接平台运维）
 我要回滚                 → ota.md §5（包级+设备级回滚铁律）+ multi-bundle-version.md §5
-我是新手接业务（onboarding）→ 本总章 §5（Greenfield onboarding 7 天样本）
+我是新手接业务（onboarding）→ 先 [`../index.md`](../index.md)（推广门户）→ [`../get-started.md`](../get-started.md)（钢线短轨）→ [`sop-greenfield-steel-thread.md`](./sop-greenfield-steel-thread.md)（SOP-GF-STEEL-01）→ 再本总章 §5（7 天样本含灰度）
 我要监控 / 我是 oncall     → 本总章 §3（告警规则 + oncall 响应）+ backend-services.md §2.4
 我要备份 / DR / 换机       → backend-services.md §4/§5（SQLite 备份 + 冷重建恢复）
 我要吊销 / 轮换密钥        → ota.md §4（轮换操作）+ 本总章 §4（吊销状态机补缺）

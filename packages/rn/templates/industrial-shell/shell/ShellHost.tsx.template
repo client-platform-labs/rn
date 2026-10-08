@@ -63,6 +63,11 @@ export function ShellHost({
         {
           native: getNativeAdapter(),
           controlPlaneBaseUrl: cpBaseUrl(),
+          // Greenfield main is the process-entry module (handbook §5.2 /
+          // ReleaseOtaBoot). Without asRoot, setActiveBundlePath alone still
+          // loads the HBC for root=main, but skip/rollback semantics drift
+          // from the reference host.
+          asRoot: true,
         },
         moduleId,
       );
