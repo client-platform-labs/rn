@@ -71,7 +71,7 @@ function defaultModuleIdFromManifest(projectRoot: string): string {
  * sequence (now one shell-core module) and hostContext.ts re-exports the single
  * shell-core definition instead of copying it. Projects generated at v3 keep
  * both stale copies, so the drift check must fire for them (F25). */
-export const INDUSTRIAL_TEMPLATE_VERSION = "4";
+export const INDUSTRIAL_TEMPLATE_VERSION = "5";
 
 /** Write the applied template version marker (.rn/template-version.json). */
 export function writeTemplateVersion(projectRoot: string): void {
