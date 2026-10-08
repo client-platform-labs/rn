@@ -1,36 +1,45 @@
-# 加深轨
+# 进阶主题
 
-> 先完成 [Get Started](../get-started.md)。本目录**不迁**现有 ops 文件，只编排链接与诚实标签。  
-> 地图决策：[诚实边界 #309](https://github.com/client-platform-labs/rn/issues/309) · [覆盖表 #308](https://github.com/client-platform-labs/rn/issues/308)
+| 字段 | 内容 |
+|------|------|
+| **文档类型** | 主题索引 |
+| **前置条件** | 已完成 [实施引导](../get-started.md) 钢线闭环 |
+| **说明** | 本章不迁移动作手册正文，仅提供成熟度标注与导航 |
 
-## 三态（读任何加深页之前）
-
-| 标签 | 含义 | 读者动作 |
-|------|------|----------|
-| `可执行` | 今日命令/证据可复现 | 可照做 |
-| `应然 · TODO(实现)` | 设计/提案，代码未齐 | **勿当今日 runbook** |
-| `接缝 · TODO(接缝*)` | 已知产品边界 | 只读边界，不装作有完整步骤 |
-
-半可用能力（例如 `check` 取最旧 promote 候选）**禁止**写进主路径；若有已实证 workaround，仅在加深页标 `可执行`。
+进阶主题中的材料成熟度不一。执行前须确认状态标签，避免将设计稿当作现行操作规程。
 
 ---
 
-## 目录
+## 1. 材料成熟度
 
-| 主题 | 状态 | 链到 |
-|------|------|------|
-| L1 开发工业环（multi-Metro / dispose） | 加深 · 命令见角色矩阵 | [`roles-matrix.md`](../operations/roles-matrix.md) 壳侧开发段 · [架构 §3](../architecture/index.md) |
-| 灰度 1/10/50/100 · tick | 加深；含半可用坑说明 | [`multi-bundle-version.md` §6](../operations/multi-bundle-version.md) · [操作总章 §2](../operations/index.md) |
-| Quality gate / SLO / oncall | 加深 | [操作总章 §3](../operations/index.md) · `docs/runbooks/cp-oncall.md` |
-| DR 冷重建 | 加深 + 紧急指针 | [`backend-services.md` §4/§5](../operations/backend-services.md) |
-| 吊销 / K 轮换 | 加深 + 紧急指针 | [`ota.md` §4](../operations/ota.md) · [操作总章 §4](../operations/index.md) |
-| AB 实验 | **应然 · TODO(实现)** · 出范围可执行 | [`ab-test.md`](../operations/ab-test.md)（页首已声明） |
-| BF / iOS / Harmony | 另轨 · 尚未毕业 | — |
+| 标签 | 含义 | 使用要求 |
+|------|------|----------|
+| **可执行** | 现行命令与证据路径可复现 | 可按链接章节操作 |
+| **应然（待实现）** | 目标设计已描述，平台能力未齐 | 不得作为今日生产 runbook |
+| **接缝（已知边界）** | 产品或部署边界已标明 | 仅作边界说明，不虚构完整步骤 |
 
-应然蓝图默认放加深末；导航勿链进 [Get Started](../get-started.md) / [日常](../daily.md)。
+主路径（实施引导、日常运维）不得依赖「应然」或未闭合接缝能力。半可用行为若存在已验证的临时处置，仅可写在对应进阶章节并标注「可执行」。
 
-## 回到主路径
+---
 
-- 钢线 → [Get Started](../get-started.md)  
-- 再发 / 回滚 → [日常](../daily.md)  
-- 出事 → [紧急通道](../operations/index.md#0-紧急通道出事先看哪)
+## 2. 主题目录
+
+| 主题 | 成熟度 | 文档 |
+|------|--------|------|
+| 开发工业环（多 Metro、dispose 等） | 可执行（见角色矩阵） | [roles-matrix.md](../operations/roles-matrix.md) · [架构手册](../architecture/index.md) |
+| 灰度放量与 tick | 进阶；含实现限制说明 | [multi-bundle-version.md §6](../operations/multi-bundle-version.md) · [操作总章 §2](../operations/index.md) |
+| Quality gate / SLO / oncall | 进阶 | [操作总章 §3](../operations/index.md) · `docs/runbooks/cp-oncall.md` |
+| DR 冷重建 | 进阶；故障时亦可从紧急通道进入 | [backend-services.md §4/§5](../operations/backend-services.md) |
+| 密钥吊销与轮换 | 进阶；故障时亦可从紧急通道进入 | [ota.md §4](../operations/ota.md) · [操作总章 §4](../operations/index.md) |
+| AB 实验 | 应然（待实现） | [ab-test.md](../operations/ab-test.md) |
+| 棕地、iOS、HarmonyOS | 未纳入本版 | — |
+
+---
+
+## 3. 返回主路径
+
+| 需要 | 文档 |
+|------|------|
+| 首次闭环 | [实施引导](../get-started.md) |
+| 再发布 / 回滚 | [日常运维](../daily.md) |
+| 生产故障 | [操作手册 · 紧急通道](../operations/index.md#0-紧急通道出事先看哪) |

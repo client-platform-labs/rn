@@ -1,187 +1,225 @@
-# Get Started · 绿地钢线短轨（GF · Android）
+# 实施引导 · 绿地钢线（Android）
 
-> **状态**：`可执行` · 主路径零 TODO  
-> **规程全文**：[SOP-GF-STEEL-01](./operations/sop-greenfield-steel-thread.md)（RACI 总表 · 场地拓扑 · 步骤模板 · 证据 · 交接 · 附录）  
-> **钢线关闭后** → [日常再发 / 回滚](./daily.md)  
-> **BF**：同级另轨，本版不写。  
-> CLI 以 `ship --help` / `rn --help` 为准；字段与 HTTP 细节链 [参考手册](./reference/index.md)，本页不搬整表。
+| 字段 | 内容 |
+|------|------|
+| **文档类型** | 操作摘要（编排层） |
+| **完整规程** | [SOP-GF-STEEL-01](./operations/sop-greenfield-steel-thread.md) |
+| **后续文档** | 钢线关闭后 → [日常运维](./daily.md) |
+| **范围** | 绿地 · Android · 单模块 `main` · 口径 L4 |
+| **命令真源** | `ship --help` / `rn --help`；字段与 HTTP 见 [参考手册](./reference/index.md) |
 
-## 页首 · 谁做什么 / 在哪做
-
-| 阶段 | 平台运维 | 壳运维 | 离线包运维 |
-|------|:--------:|:------:|:----------:|
-| A 信任与工程 | **R** | C / **R**(A3–A5) | I |
-| B 控制面 | **R** | I | I |
-| C 宿主首发 | C | **R** | I |
-| D 业务首更 | I | C | **R** |
-| E 口径关闭 | I | I | **R**；架构师 **A** |
-
-**场地（POC 一行）**：工程机 ≈ 签名机 ≈ 控制面主机 ≈ 装包台（可同一 Mac）+ USB 真机；生产须拆分密钥机 / 签名机（SOP §5）。下文默认 `$STEEL_ROOT` 为练习根，`$APP` 为 `rn` 工程根，`$CP=http://127.0.0.1:4040`。
-
-**闭环闸门**：真机从 baseline 热更到**已改业务可见态**的 `main`，进程稳定；CP 访问序 **CRL → check → artifacts**；对外只宣称 **L4**。
+本页给出分阶段最小操作序列。场地拓扑、证据模板、中止回滚与附录以 SOP-GF-STEEL-01 为准；步骤编号与 SOP §9 对齐。
 
 ---
 
-## 阶段 A · 信任与工程落地
+## 0. 责任与环境
 
-**出口**：RCA 已交接壳运维；leaf 可签名；`rn doctor` 绿；`cpBaseUrl` 非空。
+### 0.1 阶段责任（RACI 摘要）
 
-### 平台运维
+| 阶段 | 平台运维 | 壳运维 | 离线包运维 |
+|------|:--------:|:------:|:----------:|
+| A 信任与工程落地 | **R** | C / **R**（A3–A5） | I |
+| B 控制面最小可用 | **R** | I | I |
+| C 宿主首发 | C | **R** | I |
+| D 业务首更 | I | C | **R** |
+| E 验收关闭 | I | I | **R**；架构师 **A** |
+
+完整 RACI 见 SOP §4。
+
+### 0.2 环境约定（POC）
+
+| 符号 | 含义 |
+|------|------|
+| `$STEEL_ROOT` | 练习 / 交付工作根目录 |
+| `$APP` | `rn` 工程根目录 |
+| `$CP` | 控制面 Base URL，POC 默认 `http://127.0.0.1:4040` |
+
+POC 可将工程机、签名机、控制面主机、装包台合并为同一工作站 + USB 真机。生产环境须按 SOP §5 拆分密钥机与签名机。
+
+### 0.3 闭环验收标准
+
+1. 真机由 baseline 热更新至含**业务可见变更**的 `main`，进程稳定  
+2. 控制面访问顺序为 **CRL → check → artifacts**  
+3. 完成 OTA / baseline **消歧**（证明非重打 APK）  
+4. 对外仅宣称 **L4**  
+
+---
+
+## 1. 阶段 A · 信任与工程落地
+
+**阶段出口**：RCA 公钥已交接壳运维；leaf 可用于签名；`rn doctor` 通过；`cpBaseUrl` 非空。
+
+### 1.1 平台运维
 
 <a id="平台运维"></a>
 
-**A1 · keygen**
+**A1 · 生成 RCA 与 leaf**
 
 ```bash
 mkdir -p "$STEEL_ROOT/keys" && cd "$STEEL_ROOT"
 ship keygen --dir ./keys --label steel
-# 只交接 root_ca_public_key_hex（64 hex）给壳运维；根私钥与 leaf 私钥不进 git / 不进 APK
 ```
 
-闸门：hex 长度 = 64；`keys/steel.key` 权限 ≤ 0600。详情 → SOP §9 A1。
+| 项 | 要求 |
+|----|------|
+| 交接物 | 仅 `root_ca_public_key_hex`（64 hex）交壳运维 |
+| 禁止 | 根私钥、leaf 私钥进入 git 或 APK |
+| 闸门 | hex 长度 = 64；`keys/steel.key` 权限 ≤ 0600 |
 
-**A2 · leaf-env**
+详见 SOP §9 A1。
 
-部署并 `source` SOP 附录 A 脚本；终端出现 `leaf-env OK … (64 hex)`。详情 → SOP §9 A2。
+**A2 · 配置 leaf 运行环境**
 
-### 壳运维
+部署并 `source` SOP 附录 A 脚本；终端输出 `leaf-env OK … (64 hex)`。详见 SOP §9 A2。
+
+### 1.2 壳运维
 
 <a id="壳运维"></a>
 
-**A3 · init + 烤 RCA**
+**A3 · 初始化工程并烘焙 RCA**
 
 ```bash
 cd "$APP"
 rn init --rca-pubkey-hex <RCA_HEX> .
-# 证据：init 日志含 bake root-CA；源码可 rg 到该 hex
 ```
 
-**A4 · 声明 CP Base URL**
+验收：初始化日志含 root-CA 烘焙记录；工程源码可检索到该公钥 hex。详见 SOP §9 A3。
 
-写 `.rn/runtime.jsonc` 中 `cpBaseUrl`（POC：`http://127.0.0.1:4040`）→ `rn shell refresh`（**禁止**手改 generated）。闸门：`grep cpBaseUrl shell/generated-runtime.ts` 非空。
+**A4 · 声明控制面地址**
 
-**A5 · doctor**
+在 `.rn/runtime.jsonc` 写入 `cpBaseUrl`（POC：`http://127.0.0.1:4040`），执行 `rn shell refresh`。**禁止**直接修改 generated 文件。
+
+闸门：`grep cpBaseUrl shell/generated-runtime.ts` 结果非空。详见 SOP §9 A4。
+
+**A5 · 工程体检**
 
 ```bash
-rn doctor   # 须 PASS；须有 native OTA adapter
+rn doctor
 ```
 
-详情 → SOP §9 A3–A5。
+须通过，且具备原生 OTA 适配。详见 SOP §9 A5。
 
 ---
 
-## 阶段 B · 控制面最小可用
+## 2. 阶段 B · 控制面最小可用
 
-**出口**：`/health` 为 control-plane；`/v1/crl` 含 `seal` + `cert_chain` 且可验签。
+**阶段出口**：`/health` 标识为 control-plane；`/v1/crl` 含 `seal` 与 `cert_chain` 且验签通过。
 
 ### 平台运维
 
-**B1 · 起 CP**（先 `source` leaf-env；配置 `RN_CP_TOKEN`、`RN_CP_PROJECT=$APP`）
+**B1 · 启动控制面**（先 `source` leaf-env；配置 `RN_CP_TOKEN`、`RN_CP_PROJECT=$APP`）
 
 ```bash
 ship cp-serve --port 4040 --host 127.0.0.1
-# 守护化见 SOP 附录 B
 ```
 
-**B2 · health**
+守护化部署见 SOP 附录 B。
+
+**B2 · 健康检查**
 
 ```bash
-curl -s "$CP/health"   # 身份须为 control-plane
+curl -s "$CP/health"
 ```
 
-**B3 · CRL 正向（强制）**
+响应身份须为 control-plane。
 
-`GET $CP/v1/crl` 必须含 `seal`、`cert_chain`；推荐 SOP 附录 C 验签。**缺 seal/chain 或验签失败 → STOP，禁止进入 C/D。**
+**B3 · CRL 正向验收（强制）**
 
-广播「CP 可用 + Base URL」后进入 C。详情 → SOP §9 B。
+`GET $CP/v1/crl` 必须包含 `seal`、`cert_chain`；建议按 SOP 附录 C 做密码学校验。
+
+**缺 seal / chain 或验签失败 → 中止，不得进入阶段 C / D。**
+
+控制面可用后，向壳运维与离线包运维广播 Base URL，进入阶段 C。详见 SOP §9 B。
 
 ---
 
-## 阶段 C · 宿主首发（低频列车）
+## 3. 阶段 C · 宿主首发
 
-**出口**：真机已装 release 宿主；可达 CP；冷启出现 CRL→check（无制品时 `no_update` 可接受）。
+**阶段出口**：真机已安装 release 宿主；可访问控制面；冷启动可见 CRL→check（尚无制品时 `no_update` 可接受）。
 
 ### 壳运维
 
-**C1 · release 构建**
+**C1 · 构建 release 宿主**
 
 ```bash
 cd "$APP"
 ship build --platform android --profile release
 ```
 
-**C2 · 装机**
+**C2 · 真机安装**
 
-`adb install`（或平台 safe_install；Vivo 弹窗见 SOP 附录 D）。闸门：`pm path <pkg>` 有路径。
+使用 `adb install` 或平台装包流程（部分机型弹窗见 SOP 附录 D）。闸门：`pm path <pkg>` 返回有效路径。
 
-**C3 · 连通与冷启冒烟**
+**C3 · 连通与冷启动冒烟**
 
 ```bash
 adb reverse tcp:4040 tcp:4040
 adb shell pm clear <pkg>
-# 启动 App → 查 pid；CP 日志应见 CRL 再 check
+# 启动应用，确认进程存活；控制面日志须先见 CRL，再见 check
 ```
 
-闸门：无 pid / 报 cpBaseUrl 未配置 / 无 CRL → STOP。交接 pkg、host digest、设备可达 CP → D。详情 → SOP §9 C。
+失败即中止（无进程、`cpBaseUrl` 未配置、无 CRL 请求）。向离线包运维交接：包名、host digest、设备可达控制面。详见 SOP §9 C。
 
 ---
 
-## 阶段 D · 业务首更（高频列车）
+## 4. 阶段 D · 业务首更
 
-**出口**：production 新 digest；真机顺序正确且稳定；**消歧证明 OTA 而非重打 APK**。
+**阶段出口**：production 存在新 digest；真机更新顺序正确且稳定；完成 OTA / baseline 消歧。
 
 ### 离线包运维
 
 <a id="离线包运维"></a>
 
-**D1 · 改可见态**  
-改 `modules/main` 运行时 UI 字符串（禁止仅注释）。完整 multi-Metro 工业环 → [加深轨](./deepen/index.md)。
+**D1 · 业务可见变更**
 
-**D2 · HBC 候选**
+修改 `modules/main` 中运行时可见的 UI 文案或等价可观测点（不得仅改注释）。多 Metro 开发工业环见 [进阶主题](./deepen/index.md)。
+
+**D2 · 编译并摄入 HBC**
 
 ```bash
 cd "$APP"
 ship update --module main
-# 用匹配的 hermesc 产出 HBC →
+# 使用与工程匹配的 hermesc 生成 HBC 后：
 ship ingest-pack --hbc <path-to.hbc>
 ```
 
-闸门：bundle/HBC 能扫到 D1 标记。
+闸门：制品中可扫描到 D1 标记。
 
-**D3 · 签名并晋升**（`source` leaf-env）
+**D3 · 签名、校验与晋升**（`source` leaf-env）
 
 ```bash
 ship sign
 ship validate
 ship release --kind js-update
-# signal clear（清质量挡板，按当前 CLI）
 ship promote --digest <digest>
 ```
 
-闸门：check 返回目标 digest；seal 为 `pem:ed25519:`。
+闸门：`check` 返回目标 digest；签名形态为 `pem:ed25519:`。质量信号清理按现行 CLI 执行。
 
-**D4 · 真机 OTA**  
-确认 reverse/网络 → `pm clear` → 启动 → CP 序为 **crl → check → artifacts**（约一次下载）；进程稳定。否则按 SOP §11 止血。
+**D4 · 真机热更新验收**
 
-**D5 · 消歧（强制）**  
-**不重建 APK**；仅新 HBC / 新标记再走 D2–D4。证明：APK baseline **无**新串，UI/HBC **有**。无法消歧 → 不得进 E。
+确认网络 / `adb reverse` → 必要时 `pm clear` → 冷启动 → 控制面顺序为 **crl → check → artifacts**；进程稳定。异常按 SOP §11 止血。
 
-详情 → SOP §9 D。
+**D5 · OTA / Baseline 消歧（强制）**
+
+**不得**通过重建 APK 证明成功。应在不更换宿主 APK 的前提下，仅更新 HBC / 可见标记并重复 D2–D4，证明：APK baseline 不含新标记，而 UI / HBC 含新标记。
+
+无法消歧 → 不得进入阶段 E。详见 SOP §9 D。
 
 ---
 
-## 阶段 E · 口径关闭
+## 5. 阶段 E · 验收关闭
 
 <a id="阶段-e--口径关闭"></a>
 
-1. 勾选 SOP §10 验收清单  
-2. 证据包最低集 → SOP §12（建议 `$STEEL_ROOT/records/YYYYMMDD-steel/`）  
-3. **可宣称**：可信宿主；可验签 JS OTA 真机生效；CRL/check/制品 fail-closed  
-4. **不可宣称**：多模块隔离、灰度、SLO、吊销、DR  
-5. 下一动作 → [日常运维](./daily.md)
+1. 完成 SOP §10 验收清单  
+2. 归档 SOP §12 规定的最低证据集（建议目录 `$STEEL_ROOT/records/YYYYMMDD-steel/`）  
+3. **可对外说明**：可信宿主；可验签的 JS 热更新已在真机生效；CRL / check / 制品路径 fail-closed  
+4. **不可对外说明**：多模块隔离、灰度档位、SLO、密钥吊销、DR  
+5. 钢线关闭后的变更操作 → [日常运维](./daily.md)
 
 ---
 
-## 本页不写
+## 6. 本引导不覆盖的内容
 
-灰度 / SLO / DR / 吊销 / AB / 商店 submit → [加深轨](./deepen/index.md) 或地图 Out of scope。
+灰度、SLO、DR、密钥吊销、AB 实验、商店提审等见 [进阶主题](./deepen/index.md) 或操作手册相应章节；未实现能力不得按可执行 runbook 执行。
