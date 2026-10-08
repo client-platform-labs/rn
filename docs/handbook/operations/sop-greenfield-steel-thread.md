@@ -1,28 +1,29 @@
-# SOP-GF-STEEL-01 · 绿地钢线 0→1（工业交付）
+# SOP-GF-STEEL-01 · 新建工程首次端到端接入（Android）
 
 | 字段 | 内容 |
 |------|------|
 | **文档编号** | SOP-GF-STEEL-01 |
-| **版本** | 2.0 |
+| **版本** | 2.1 |
 | **状态** | 生效（BD 对外交付以本版为准） |
 | **密级** | 内部 · 可交企业运维（不含私钥） |
-| **能力口径** | **L4**（单 module 可企业推广）· **不宣称 L5** |
+| **能力口径** | **单业务模块可企业推广**（推广门禁 L4）· 不含灰度/容灾等完整企业闭环（L5） |
 | **读者** | 企业：平台运维 / 壳运维 / 离线包运维 / 架构师；我方：平台 BD |
 | **执行原则** | 企业按 RACI 与场地自执行；BD 交付本 SOP 与答疑，**不代跑、不代装机、不代保管私钥** |
-| **关联** | `roles-matrix.md` · `enterprise-promotion-gates.md` L4 · ADR-008/017/024 · `ship`/`rn` CLI |
+| **关联** | `roles-matrix.md` · `enterprise-promotion-gates.md` · ADR-008/017/024 · `ship`/`rn` CLI |
+| **别名（内部）** | 旧称「绿地钢线」；对外请使用本文标题 |
 
 ---
 
 ## 1. 目的
 
-在**可控、可审计、可交接**的前提下，使企业完成绿地最小垂直切面（钢线）：
+在**可控、可审计、可交接**的前提下，使企业完成**新建工程的首次端到端接入**：从密钥与工程落地，到宿主安装、控制面验签，再到单业务模块签名热更新在真机稳定生效。
 
 1. 建立设备信任根（RCA）与签发叶密钥（leaf）  
-2. 落地可发布宿主（release APK，含 OTA 适配与 CP 地址）  
+2. 落地可发布宿主（release APK，含 OTA 适配与控制面地址）  
 3. 提供可验签的控制面（CRL / check / 制品）  
-4. 完成单 `business_module=main` 的签名 JS 更新并在真机稳定生效  
+4. 完成单业务模块 `main` 的签名 JS 更新并在真机稳定生效  
 
-**成功一句话**：真机从 baseline 热更到**已改业务可见状态**的 `main`，进程稳定；控制面访问顺序为 **CRL → check → artifacts**。
+**成功标准**：真机由内置基线热更新至含**业务可见变更**的 `main`，进程稳定；控制面访问顺序为 **CRL → check → artifacts**。
 
 ---
 
@@ -39,11 +40,11 @@
 | JS 列车 | `update` → HBC → `ingest-pack` → `sign` → `validate` → `release` → `promote` |
 | 验收 | 真机顺序 + 稳定 + **OTA/baseline 消歧** |
 
-### 2.2 明确不在范围（禁止在钢线未关闭时开做）
+### 2.2 明确不在范围（首次接入未验收关闭前禁止展开）
 
 多模块 kill 隔离 · 灰度 1/10/50/100 · SLO/`paused_slo` · 密钥吊销演练 · DR 冷重建 · 商店/`ship submit` · 业务功能验收。
 
-扩面入口：钢线关闭后见本总章 §5（七天样本）与交接包 `PHASE-F.md`；本 SOP 不展开。
+扩面入口：首次接入验收关闭后，见操作手册 §5（七天样本）与进阶主题；本 SOP 不展开。
 
 ---
 
@@ -55,7 +56,7 @@
 | leaf | 日常签发 JS/CRL 的叶证书与私钥；可轮换 |
 | CP | 控制面（本 SOP POC：`ship cp-serve`） |
 | HBC | Hermes 字节码；设备加载对象；由工程机 Hermes 工具链产出，`ship` 只消费 |
-| 钢线 | 单 module 端到端可信 OTA 闭环，对应推广口径 **L4** |
+| 首次端到端接入 | 单业务模块从密钥/宿主/控制面到签名热更新的最小闭环；对应推广口径「单 module 可企业推广」（L4）。内部旧称「钢线」 |
 | `ship` | 交付 CLI（文档旧名 `rn-delivery` 以 `ship --help` 为准） |
 
 ---
@@ -115,7 +116,7 @@ POC 允许一人兼多角：**必须按行切换帽子**，复盘以本表问责
                              └─────────┘
 ```
 
-### 5.3 生产参考拓扑（钢线不部署，交接必述）
+### 5.3 生产参考拓扑（本 SOP 不部署生产岸线，交接时须说明）
 
 ```text
 [密钥机]──RCA hex──►[工程机/CI]──APK──►[装包台/MDM]──►[设备]
@@ -154,7 +155,7 @@ $STEEL_ROOT/                 # 例：~/code/rn-steel-demo
 ├── keys/                    # 逻辑：密钥机
 ├── leaf-env.sh
 ├── app/                     # rn 工程根
-└── records/                 # 建议：本钢线证据与交接单
+└── records/                 # 建议：本次接入证据与交接单
 ```
 
 ---
@@ -165,7 +166,7 @@ $STEEL_ROOT/                 # 例：~/code/rn-steel-demo
 
 | 字段 | 含义 |
 |------|------|
-| **目标** | 本步在钢线中的工程目的 |
+| **目标** | 本步在首次端到端接入中的工程目的 |
 | **RACI** | R/A 为主；C/I 按需 |
 | **场地** | 逻辑场地；并注明 POC/生产落点差异 |
 | **前置** | 必须已关闭的步骤或条件 |
@@ -468,7 +469,7 @@ ship keygen --dir ./keys --label steel
 
 ---
 
-## 10. 钢线验收清单（Exit Criteria）
+## 10. 首次接入验收清单（Exit Criteria）
 
 关闭本 SOP 前全部勾选：
 
@@ -490,7 +491,7 @@ ship keygen --dir ./keys --label steel
 | 宿主错误 | 壳运维 | 停装机；修工程后重走 C；已装设备卸载或覆盖安装 |
 | 私钥疑似泄露 | 平台运维 | 立即停 promote；启动密钥制度（超出本 SOP，见 ota 吊销专章） |
 
-原则：**先止血、再诊断、钢线红灯时不扩面。**
+原则：**先止血、再诊断；首次接入未通过验收前，不开展灰度/多模块等扩面。**
 
 ---
 
@@ -509,7 +510,7 @@ ship keygen --dir ./keys --label steel
 | UI 截图/层级文本 + APK/HBC 消歧命令输出 | D4/D5 |
 | E 签字页 | E |
 
-保留周期按企业审计要求；POC 不少于钢线关闭后 90 天。
+保留周期按企业审计要求；POC 不少于首次接入验收关闭后 90 天。
 
 ---
 
@@ -532,7 +533,7 @@ ship keygen --dir ./keys --label steel
 | 情况 | 动作 |
 |------|------|
 | CLI/模板行为变更 | 升本 SOP 版本；注明破坏性变更 |
-| 需灰度/多模块/SLO | 钢线关闭后启用 Phase F / 操作手册 §3–§5 |
+| 需灰度/多模块/SLO | 首次接入验收关闭后启用进阶主题 / 操作手册 §3–§5 |
 | 宣称升至 L5 | 另走 `enterprise-promotion-gates` L5 证据，不在本 SOP 内口头升级 |
 
 ---
@@ -601,9 +602,9 @@ console.log("CRL seal under leaf: PASS");
 | 缺陷 | 标准处置 |
 |------|----------|
 | SharedPreferences `apply` + `exit` 竞态致假 crash-loop | OtaModule 跨 reload 字段使用 `commit`；工业模板 ≥ v5 |
-| 工业壳未 `asRoot: true` | ShellHost 与绿地 ReleaseOtaBoot 对齐 |
+| 工业壳未 `asRoot: true` | ShellHost 与新建工程 ReleaseOtaBoot 参考实现对齐 |
 | `ship block --platform android` 误伤宿主 | JS 停投递用 `POST /v1/block {digest}` |
 
 ---
 
-**文档结束 · SOP-GF-STEEL-01 v2.0**
+**文档结束 · SOP-GF-STEEL-01 v2.1**

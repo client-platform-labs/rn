@@ -1,11 +1,11 @@
-# 实施引导 · 绿地钢线（Android）
+# 实施引导 · 新建工程首次端到端接入（Android）
 
 | 字段 | 内容 |
 |------|------|
-| **文档类型** | 操作摘要（编排层） |
+| **文档类型** | 操作摘要 |
 | **完整规程** | [SOP-GF-STEEL-01](./operations/sop-greenfield-steel-thread.md) |
-| **后续文档** | 钢线关闭后 → [日常运维](./daily.md) |
-| **范围** | 绿地 · Android · 单模块 `main` · 口径 L4 |
+| **后续文档** | 首次接入验收关闭后 → [日常运维](./daily.md) |
+| **范围** | 新建工程 · Android · 单业务模块 `main` · 单模块可推广 |
 | **命令真源** | `ship --help` / `rn --help`；字段与 HTTP 见 [参考手册](./reference/index.md) |
 
 本页给出分阶段最小操作序列。场地拓扑、证据模板、中止回滚与附录以 SOP-GF-STEEL-01 为准；步骤编号与 SOP §9 对齐。
@@ -41,7 +41,7 @@ POC 可将工程机、签名机、控制面主机、装包台合并为同一工�
 1. 真机由 baseline 热更新至含**业务可见变更**的 `main`，进程稳定  
 2. 控制面访问顺序为 **CRL → check → artifacts**  
 3. 完成 OTA / baseline **消歧**（证明非重打 APK）  
-4. 对外仅宣称 **L4**  
+4. 对外仅宣称「单业务模块可企业推广」，不含灰度/容灾等完整闭环  
 
 ---
 
@@ -216,7 +216,7 @@ ship promote --digest <digest>
 2. 归档 SOP §12 规定的最低证据集（建议目录 `$STEEL_ROOT/records/YYYYMMDD-steel/`）  
 3. **可对外说明**：可信宿主；可验签的 JS 热更新已在真机生效；CRL / check / 制品路径 fail-closed  
 4. **不可对外说明**：多模块隔离、灰度档位、SLO、密钥吊销、DR  
-5. 钢线关闭后的变更操作 → [日常运维](./daily.md)
+5. 首次接入验收关闭后的变更操作 → [日常运维](./daily.md)
 
 ---
 
