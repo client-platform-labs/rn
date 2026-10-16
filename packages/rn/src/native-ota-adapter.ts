@@ -27,6 +27,7 @@ import { CliError, EXIT_FAIL } from "./errors.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // dist: packages/rn/dist/native-ota-adapter.js → templates at packages/rn/templates
 const TEMPLATE_ROOT = path.resolve(__dirname, "../templates/ota-android");
+const IOS_TEMPLATE_ROOT = path.resolve(__dirname, "../templates/ota-ios");
 // dist: packages/rn/dist → repo root (packages/rn/dist → packages/rn → packages → repo)
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 
@@ -46,6 +47,18 @@ export const OTA_ADAPTER_FILE_NAMES = [
   "OtaModule.kt",
   "OtaPackage.kt",
 ] as const;
+
+/** Copied into `ios/Ota/` when the project already has an `ios/` tree. */
+export const IOS_OTA_ADAPTER_TEMPLATES = [
+  "OtaModule.swift.template",
+  "OtaModule.m.template",
+  "OtaAdapter.podspec",
+  "README.md",
+] as const;
+
+const IOS_POD_LINE = `  pod 'OtaAdapter', :path => './Ota'`;
+const IOS_RELEASE_BUNDLE =
+  'Bundle.main.url(forResource: "main", withExtension: "jsbundle")';
 
 /** 64-hex Ed25519 public key (either the root CA or a legacy single key). */
 const HEX64_RE = /^[0-9a-fA-F]{64}$/;
@@ -283,14 +296,120 @@ function wireDeviceClientDependency(
   steps.push(`add deps: ${keepExisting ? "(already present)" : name}`);
 }
 
+function iosTreePresent(projectRoot: string): boolean {
+  return existsSync(path.join(projectRoot, "ios"));
+}
+
+/**
+ * Copy the iOS adapter next to the Android one. Same module name (`Ota`), same
+ * baked trust root. Absent `ios/` leaves the project untouched on this side.
+ */
+function installIosAdapter(
+  projectRoot: string,
+  bake: { key: string; isRca: boolean },
+  steps: string[],
+  written: string[],
+): void {
+  if (!existsSync(IOS_TEMPLATE_ROOT)) {
+    throw new CliError(
+      "native OTA adapter: iOS template missing at templates/ota-ios",
+      EXIT_FAIL,
+    );
+  }
+  const dest = path.join(projectRoot, "ios", "Ota");
+  mkdirSync(dest, { recursive: true });
+  for (const name of IOS_OTA_ADAPTER_TEMPLATES) {
+    const src = path.join(IOS_TEMPLATE_ROOT, name);
+    const outName = name.replace(/\.template$/, "");
+    let body = readFileSync(src, "utf8");
+    if (name === "OtaModule.swift.template") {
+      const baked = body.replace(/"([0-9a-fA-F]{64})"/, `"${bake.key}"`);
+      if (baked === body) {
+        throw new CliError(
+          "native OTA adapter: could not locate a 64-hex pubkey placeholder to bake " +
+            'in OtaModule.swift — template changed? (expected "<64hex>")',
+          EXIT_FAIL,
+        );
+      }
+      body = baked;
+      steps.push(
+        `bake ${bake.isRca ? "root-CA" : "pubkey"} → ios/Ota/OtaModule.swift (${bake.key.slice(0, 8)}…)`,
+      );
+    }
+    const out = path.join(dest, outName);
+    writeFileSync(out, body);
+    written.push(out);
+    steps.push(`copy ${name} → ios/Ota/${outName}`);
+  }
+  patchIosPodfile(projectRoot, steps, written);
+  patchIosAppDelegate(projectRoot, steps, written);
+}
+
+function patchIosPodfile(
+  projectRoot: string,
+  steps: string[],
+  written: string[],
+): void {
+  const podfile = path.join(projectRoot, "ios", "Podfile");
+  if (!existsSync(podfile)) {
+    steps.push("ios/Podfile not found; add pod 'OtaAdapter' by hand (see ios/Ota/README.md)");
+    return;
+  }
+  const text = readFileSync(podfile, "utf8");
+  if (text.includes("pod 'OtaAdapter'")) {
+    steps.push("patch ios/Podfile: pod OtaAdapter (already present)");
+    return;
+  }
+  const marker = "use_native_modules!";
+  const next = text.includes(marker)
+    ? text.replace(marker, `${marker}\n${IOS_POD_LINE}`)
+    : `${text.trimEnd()}\n${IOS_POD_LINE}\n`;
+  writeFileSync(podfile, next, "utf8");
+  written.push(podfile);
+  steps.push("patch ios/Podfile: pod OtaAdapter");
+}
+
+function patchIosAppDelegate(
+  projectRoot: string,
+  steps: string[],
+  written: string[],
+): void {
+  const delegate = path.join(projectRoot, "ios", "AppDelegate.swift");
+  if (!existsSync(delegate)) {
+    steps.push("ios/AppDelegate.swift not found; point bundle URL at OtaBundle.resolveURL (see ios/Ota/README.md)");
+    return;
+  }
+  let body = readFileSync(delegate, "utf8");
+  const patchedCall = `OtaBundle.resolveURL(debug: false) ?? ${IOS_RELEASE_BUNDLE}`;
+  if (body.includes("OtaBundle.resolveURL")) {
+    steps.push("patch ios/AppDelegate.swift: bundle URL (already present)");
+    return;
+  }
+  if (!body.includes(IOS_RELEASE_BUNDLE)) {
+    steps.push("ios/AppDelegate.swift has no main.jsbundle line; point bundle URL at OtaBundle.resolveURL (see ios/Ota/README.md)");
+    return;
+  }
+  body = body.replace(IOS_RELEASE_BUNDLE, patchedCall);
+  if (!body.includes("import OtaAdapter")) {
+    body = body.replace(/^(import .+\n)/m, `$1import OtaAdapter\n`);
+  }
+  writeFileSync(delegate, body, "utf8");
+  written.push(delegate);
+  steps.push("patch ios/AppDelegate.swift: bundle URL uses OtaBundle.resolveURL");
+}
+
 /** Write the wiring reference. Never overwrites the business App entry. */
 function writeWiringReference(
   projectRoot: string,
   appId: string,
   written: string[],
   steps: string[],
+  withIos: boolean,
 ): void {
   const wireRef = path.join(projectRoot, "ota-wiring.md");
+  const iosNote = withIos
+    ? `- iOS 适配器已拷入 \`ios/Ota/\`（与 Android 同名模块 \`Ota\`，同一把烘焙公钥）。\`pod install\` 之后，release 的 bundle URL 走 \`OtaBundle.resolveURL\`。这还不是真机上的三条记录。\n`
+    : "";
   writeFileSync(
     wireRef,
     `# OTA wiring reference (native OTA adapter)\n\n` +
@@ -298,7 +417,8 @@ function writeWiringReference(
       `- JS 侧用 \`@client-platform/shell-core\` 的 \`createOtaClient\` + \`pullOtaUpdate\`，参考\n` +
       `  \`packages/rn/templates/greenfield-ota/ReleaseOtaBoot.tsx\`（公钥缓存 → crash-loop → pull）。\n` +
       `- 烘焙公钥：在 \`OtaModule.getOtaPublicKeys()\` 返回（\`Arguments.createArray()\`，勿用 arrayOf）。\n` +
-      `- 信任边界（ADR-017）：验签在随 APK 的 embedded shell-core 包，绝不用 OTA 下来的 JS 验 OTA 包。\n`,
+      `- 信任边界（ADR-017）：验签在随 APK 的 embedded shell-core 包，绝不用 OTA 下来的 JS 验 OTA 包。\n` +
+      iosNote,
     "utf8",
   );
   written.push(wireRef);
@@ -337,6 +457,11 @@ export function installNativeOtaAdapter(
     steps.push("patch MainApplication.kt: register OtaPackage");
     steps.push("add deps: @client-platform/shell-core");
     steps.push("write ota-wiring.md reference");
+    if (iosTreePresent(projectRoot)) {
+      steps.push("copy OtaModule.swift → ios/Ota/OtaModule.swift");
+      steps.push("patch ios/Podfile: pod OtaAdapter");
+      steps.push("patch ios/AppDelegate.swift: bundle URL uses OtaBundle.resolveURL");
+    }
     return { appId, steps, written, bakedTrustRoot: false };
   }
 
@@ -379,7 +504,12 @@ export function installNativeOtaAdapter(
     wireDeviceClientDependency(projectRoot, steps, written);
   }
 
-  writeWiringReference(projectRoot, appId, written, steps);
+  const withIos = iosTreePresent(projectRoot);
+  if (!errors.length && withIos) {
+    installIosAdapter(projectRoot, bake, steps, written);
+  }
+
+  writeWiringReference(projectRoot, appId, written, steps, withIos && !errors.length);
 
   if (errors.length) {
     throw new CliError(
