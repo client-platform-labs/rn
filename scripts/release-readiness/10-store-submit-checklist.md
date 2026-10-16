@@ -208,6 +208,8 @@ bundle exec fastlane android release
 
 ## 七渠 · 中国 Android 一等七渠
 
+本图六家（华为、荣耀、小米、OPPO、vivo、应用宝）的手工步骤见 `docs/handbook/operations/android-store-submit.md`。360 / 百度 / 阿里不在该六家之内。
+
 | 商店 | 开发者后台 | 周期 | 备注 |
 |------|----------|------|------|
 | **华为** | https://developer.huawei.com/ | 1-3 周 | 需企业认证 |

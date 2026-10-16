@@ -43,6 +43,7 @@
 我要上线（业务 JS）       → multi-bundle-version.md §3（强升 vs 普通）+ §6（灰度）
 我要上线（新宿主 APK）    → roles-matrix.md §1（壳发布 → 装包台 → 交接平台运维）
 我要交 iOS 宿主            → [`sop-ios-host-train.md`](./sop-ios-host-train.md)（SOP-IOS-HOST-01：模拟器构建与 App Store 手工提审分开）
+我要交国内六家 Android 商店 → [`android-store-submit.md`](./android-store-submit.md)（同一份 APK，六家手工提审）
 我要回滚                 → ota.md §5（包级+设备级回滚铁律）+ multi-bundle-version.md §5
 我是新手接业务（onboarding）→ 先 [`../index.md`](../index.md)（实施手册总入口）→ [`../get-started.md`](../get-started.md)（首次端到端接入）→ [`sop-greenfield-steel-thread.md`](./sop-greenfield-steel-thread.md)（SOP-GF-STEEL-01，新建工程）或 [`sop-embed-existing-shell.md`](./sop-embed-existing-shell.md)（SOP-BF-EMBED-01，既有 Android 壳）→ 再本总章 §5（7 天样本含灰度）
 我要监控 / 我是 oncall     → 本总章 §3（告警规则 + oncall 响应）+ backend-services.md §2.4
