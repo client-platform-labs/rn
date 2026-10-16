@@ -185,6 +185,8 @@ module 异常？
 
 崩溃环在有上一生产包时回到该包（安装新包前记下当时的路径和 `update_id`）。没有记到上一包时仍回嵌入基线。真机验收仍是 **TODO(G7)**（`ota.md` §4.4）。
 
+崩溃环同时打一条 `quality-signal` 日志（崩溃的 `update_id`，不是恢复后的那一包）。`node scripts/verify-device-quality-promote.mjs <工程>` 从已连接设备的 logcat 取这条日志，记入质量信号，再跑一次真实 `promote`，非零且理由是质量门才算通过。`verify-quality-gate.mjs` 自己写入信号，不能充当这条真机记录。
+
 ## 6. 灰度 + 多包叠加（v2 放量时 v1 还服务谁）
 
 ### 6.1 两层机制叠加

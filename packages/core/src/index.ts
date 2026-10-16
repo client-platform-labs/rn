@@ -344,6 +344,7 @@ export type {
 export {
   createQualitySignal,
   formatQualitySignalLine,
+  parseQualitySignalLine,
 } from "./observability.js";
 export type {
   QualitySignalAttribution,

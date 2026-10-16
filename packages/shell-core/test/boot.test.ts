@@ -762,7 +762,7 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       } | null,
       rolledBack: null as string | null,
     };
-    const { adapter, calls, persisted } = fakeNative({
+    const { adapter, calls, persisted, logs } = fakeNative({
       failures: 3,
       pubKeys: [],
       installedId: "v2",
@@ -801,6 +801,12 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
       assert.equal(state.installed, "v1");
       assert.equal(state.previous, null);
       assert.equal(state.rolledBack, "v2");
+      const reported = logs.find((line) => line.includes("quality-signal"));
+      assert.ok(reported, `device must report a quality-signal, got ${JSON.stringify(logs)}`);
+      assert.match(reported, /kind=crash/);
+      assert.match(reported, /business_module=checkout/);
+      assert.match(reported, /update_id=v2/);
+      assert.equal(reported.includes("update_id=v1"), false);
       assert.equal(calls.includes("clearActiveBundlePathForModule"), false);
       assert.deepEqual(persisted, ["v1"]);
       assert.ok(
