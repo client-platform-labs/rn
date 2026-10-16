@@ -12,7 +12,7 @@
 |----|------|---------|
 | **平台合同 L0 达上市前** | `bash 01-platform-contract.sh` exit 0 | 01 |
 | **Runtime / Delivery / CP / Governance 达上市前** | `02–05.sh` exit 0 | 02–05 |
-| **业务 APK / IPA 候选包** | 走 `ship build --profile release` | 03 |
+| **业务包候选** | Android：`ship build --profile release` 产出 APK。iOS：`ship build --platform ios` 只产出模拟器 `.app`（无商店签名），不是可提审 IPA。商店包由企业按本文 iOS 节用自己的证书上传 | 03 |
 | **CP promote 一条 module** | 走 `ship promote` 或 CP Web | 04 |
 | **Release 洁净证据** | `verify-tiangong-release-hygiene.mjs` | 02 |
 | **多 Metro 端口表锁定** | 业务 `dev-session.jsonc` 提交到 CP | 02 |
