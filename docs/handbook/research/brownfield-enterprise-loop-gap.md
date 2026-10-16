@@ -17,9 +17,9 @@ GitHub: [#340](https://github.com/client-platform-labs/rn/issues/340)，父图 [
 | 客户规程（首次接入，不含闭环） | `SOP-GF-STEEL-01` 已生效。范围写明不含灰度、密钥吊销演练、容灾冷重建、商店。成功标准是单模块热更新在真机生效。 | `docs/handbook/operations/sop-greenfield-steel-thread.md` §2.2、§1 |
 | 质量信号挡住 promote | vivo `10CEC62C7R000E3` 的 release 包打出 `quality-signal kind=crash`，同一次 `ship promote` 退出码 1。宿主是验收工程，不是既有壳。该次没有上一生产包，回滚落到嵌入基线。 | `evidence/device-quality-promote/10CEC62C7R000E3-2026-10-16T14-33-46-777Z.json` |
 | 灰度分档 | `check` 已按设备稳定分档。证据是进程内测试，不是两台真机。 | `packages/ship/test/gray-check.test.ts`，[#332](https://github.com/client-platform-labs/rn/issues/332) |
-| 回到上一生产候选 | 崩溃环在有快照时恢复上一生产包。证据是 shell-core 测试，不是真机。 | [#329](https://github.com/client-platform-labs/rn/issues/329) |
+| 回到上一生产候选 | vivo `10CEC62C7R000E3` 在装稳 `main-631e0d976f50` 后再装 `main-a0d130f489bc`，崩溃环日志写明恢复的是上一包 `main-631e0d976f50`，不是嵌入基线。宿主是验收工程。模块入口挂了 `ShellHost`，否则安装后的包不再跑启动序列。 | `evidence/device-previous-production/10CEC62C7R000E3-2026-10-16T16-06-46-449Z.json` |
 
-新建工程自己也还缺：两台真机的灰度记录，以及一次真机回到上一生产候选的记录。客户规程停在首次接入，没有把这三条写成可执行步骤。
+新建工程还缺两台真机的灰度记录。真机回到上一生产候选已有上面这一次。客户规程停在首次接入，没有把这三条写成可执行步骤。
 
 ## 嵌入既有壳已经有的
 
@@ -36,10 +36,10 @@ GitHub: [#340](https://github.com/client-platform-labs/rn/issues/340)，父图 [
 
 ## 相对缺口
 
-只列出嵌入既有壳比新建工程少的部分。两边都缺的两台真机灰度、真机回到上一生产候选，不记成棕地专属。
+只列出嵌入既有壳比新建工程少的部分。两台真机灰度两边都缺，不记成棕地专属。真机回到上一生产候选，新建工程已有一次，嵌入既有壳还没有。
 
 1. **客户规程。** 没有一篇可交给壳运维的步骤，说明既有 Android 工程如何烤入信任根、接入 OTA、声明控制面地址，然后按 #323 做完三条记录。新建工程至少有首次接入规程。
 2. **真机质量记录。** 挡住 promote 的那次 logcat 来自验收工程 `com.rnotaacceptance`，不是既有壳。BF L5 是同一条 M9 脚本换了 host-profile。
 3. **宿主形态。** BF L4 的设备记录用的是本仓库脚手架（`apply-brownfield-host-stub` / `scaffold-bf-rct-host`），不是客户已经在维护的原生工程。
 
-下一次可执行的工作是写这篇规程（步骤，不新造命令）。规程写完之后，才在一台既有壳真机上补质量信号记录；两台设备的灰度记录和真机回到上一生产候选仍然是新建工程与嵌入既有壳共用的缺口。
+规程已经写成 SOP-BF-EMBED-01。嵌入既有壳还缺自己的真机质量记录，以及自己的一次回到上一生产候选。两台设备的灰度记录仍然是新建工程与嵌入既有壳共用的缺口。
