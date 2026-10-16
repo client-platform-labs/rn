@@ -18,7 +18,7 @@
  * are idempotent and re-runnable, and `rn init`/this module must not change the
  * on-disk result of an existing operator workflow.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -369,33 +369,57 @@ function patchIosPodfile(
   steps.push("patch ios/Podfile: pod OtaAdapter");
 }
 
+/**
+ * Current RN templates put AppDelegate at `ios/<target>/AppDelegate.swift`.
+ * Older fixtures still use `ios/AppDelegate.swift`. Prefer the root file when
+ * it exists so an already-wired project is not double-patched via a copy.
+ */
+function iosAppDelegateFiles(projectRoot: string): string[] {
+  const atRoot = path.join(projectRoot, "ios", "AppDelegate.swift");
+  if (existsSync(atRoot)) return [atRoot];
+  const iosDir = path.join(projectRoot, "ios");
+  if (!existsSync(iosDir)) return [];
+  const nested: string[] = [];
+  for (const name of readdirSync(iosDir, { withFileTypes: true })) {
+    if (!name.isDirectory() || name.name === "Pods" || name.name.startsWith(".")) {
+      continue;
+    }
+    const candidate = path.join(iosDir, name.name, "AppDelegate.swift");
+    if (existsSync(candidate)) nested.push(candidate);
+  }
+  return nested.sort();
+}
+
 function patchIosAppDelegate(
   projectRoot: string,
   steps: string[],
   written: string[],
 ): void {
-  const delegate = path.join(projectRoot, "ios", "AppDelegate.swift");
-  if (!existsSync(delegate)) {
+  const delegates = iosAppDelegateFiles(projectRoot);
+  if (delegates.length === 0) {
     steps.push("ios/AppDelegate.swift not found; point bundle URL at OtaBundle.resolveURL (see ios/Ota/README.md)");
     return;
   }
-  let body = readFileSync(delegate, "utf8");
   const patchedCall = `OtaBundle.resolveURL(debug: false) ?? ${IOS_RELEASE_BUNDLE}`;
-  if (body.includes("OtaBundle.resolveURL")) {
-    steps.push("patch ios/AppDelegate.swift: bundle URL (already present)");
-    return;
+  for (const delegate of delegates) {
+    const rel = path.relative(projectRoot, delegate);
+    let body = readFileSync(delegate, "utf8");
+    if (body.includes("OtaBundle.resolveURL")) {
+      steps.push(`patch ${rel}: bundle URL (already present)`);
+      continue;
+    }
+    if (!body.includes(IOS_RELEASE_BUNDLE)) {
+      steps.push(`${rel} has no main.jsbundle line; point bundle URL at OtaBundle.resolveURL (see ios/Ota/README.md)`);
+      continue;
+    }
+    body = body.replace(IOS_RELEASE_BUNDLE, patchedCall);
+    if (!body.includes("import OtaAdapter")) {
+      body = body.replace(/^(import .+\n)/m, `$1import OtaAdapter\n`);
+    }
+    writeFileSync(delegate, body, "utf8");
+    written.push(delegate);
+    steps.push(`patch ${rel}: bundle URL uses OtaBundle.resolveURL`);
   }
-  if (!body.includes(IOS_RELEASE_BUNDLE)) {
-    steps.push("ios/AppDelegate.swift has no main.jsbundle line; point bundle URL at OtaBundle.resolveURL (see ios/Ota/README.md)");
-    return;
-  }
-  body = body.replace(IOS_RELEASE_BUNDLE, patchedCall);
-  if (!body.includes("import OtaAdapter")) {
-    body = body.replace(/^(import .+\n)/m, `$1import OtaAdapter\n`);
-  }
-  writeFileSync(delegate, body, "utf8");
-  written.push(delegate);
-  steps.push("patch ios/AppDelegate.swift: bundle URL uses OtaBundle.resolveURL");
 }
 
 /** Write the wiring reference. Never overwrites the business App entry. */
@@ -460,7 +484,16 @@ export function installNativeOtaAdapter(
     if (iosTreePresent(projectRoot)) {
       steps.push("copy OtaModule.swift → ios/Ota/OtaModule.swift");
       steps.push("patch ios/Podfile: pod OtaAdapter");
-      steps.push("patch ios/AppDelegate.swift: bundle URL uses OtaBundle.resolveURL");
+      const delegates = iosAppDelegateFiles(projectRoot);
+      if (delegates.length === 0) {
+        steps.push("ios/AppDelegate.swift not found; point bundle URL at OtaBundle.resolveURL (see ios/Ota/README.md)");
+      } else {
+        for (const delegate of delegates) {
+          steps.push(
+            `patch ${path.relative(projectRoot, delegate)}: bundle URL uses OtaBundle.resolveURL`,
+          );
+        }
+      }
     }
     return { appId, steps, written, bakedTrustRoot: false };
   }
