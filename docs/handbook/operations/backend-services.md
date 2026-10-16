@@ -318,6 +318,14 @@ curl http://127.0.0.1:4040/v1/service   # 确认 storage=sqlite、无 postgres:t
 
 > 高可用（双实例 + 托管 RDS/OSS、秒级切换、KMS/HSM）明确排除在本图承诺之外（ADR-014），登记 G9。本地 Mac 只作冷备 / 预发，不对设备提供服务（ADR-014）。
 
+### 5.1 同地域主备
+
+丢整地域仍走上面的冷重建。同一地域的备机不打开主的 `registry.sqlite`。
+
+`node deploy/distribution-service/ha-failover.mjs snapshot --active <project> --snapshots <dir>` 用 `VACUUM INTO` 写一份带时间的注册库快照。`artifacts --active <project> --standby <project>` 只拷备机还没有的 digest。`failover --ready-url <主的 /ready> --snapshots <dir> --standby <project>` 在 `GET /ready` 连续失败 3 次、再探一次仍失败、且最新快照不超过 2 分钟时，把快照拷进备机的 `.rn/delivery/registry.sqlite` 并写下 `ha-bound.json`。更旧的快照不切换。不接 Postgres。`--start` 才在备机目录拉起 `ship cp-serve`。
+
+出处：[#350](https://github.com/client-platform-labs/rn/issues/350) · `docs/handbook/research/cp-ha-failover-plan.md`。
+
 ---
 ---
 
