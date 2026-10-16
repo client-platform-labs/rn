@@ -4,10 +4,6 @@
  * `OtaNativeAdapter`, and signature verification runs through rn-core's real
  * Ed25519 gate (ADR-017).
  */
-import {
-  createQualitySignal,
-  formatQualitySignalLine,
-} from "@client-platform/core";
 import { gateBundleLoad } from "@client-platform/core/ota";
 import type { JsUpdateCandidate } from "@client-platform/core/ota";
 
@@ -158,15 +154,12 @@ export function createOtaClient(
     const badId = (await native.getInstalledUpdateId?.(moduleId)) || null;
     const previous = (await native.getPreviousProduction?.(moduleId)) ?? null;
     if (badId) {
-      // The crashed id, not the bundle we restore. Logcat is the device report
-      // the promote gate harvests; a hand-typed signal is not this line.
-      const signal = createQualitySignal({
-        kind: "crash",
-        business_module: moduleId,
-        update_id: badId,
-        detail: "crash-loop",
-      });
-      await native.logJs?.(`quality-signal ${formatQualitySignalLine(signal)}`);
+      // The crashed id, not the bundle we restore. Kept as a literal line —
+      // importing @client-platform/core's barrel pulls node:fs into the device
+      // bundle. Same shape as formatQualitySignalLine.
+      await native.logJs?.(
+        `quality-signal kind=crash business_module=${moduleId} update_id=${badId} detail=${JSON.stringify("crash-loop")} ts=${Date.now()}`,
+      );
     }
     if (previous?.path && previous.updateId && native.setInstalledUpdateId) {
       if (badId) await native.setRolledBackUpdateId?.(moduleId, badId);
