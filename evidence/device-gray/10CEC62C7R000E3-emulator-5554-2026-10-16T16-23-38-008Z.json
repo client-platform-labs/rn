@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "package": "com.rnotaacceptance",
+  "percent": 28,
+  "newest": {
+    "updateId": "main-a0d130f489bc",
+    "digest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+  },
+  "previous": {
+    "updateId": "main-631e0d976f50",
+    "digest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+  },
+  "runtimes": [
+    {
+      "serial": "10CEC62C7R000E3",
+      "kind": "physical",
+      "model": "V2425A",
+      "device": "851dde1d-141e-4580-b8ac-b6d04df2cdfd",
+      "bucket": 25,
+      "cohort": "new",
+      "digest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+      "repeatDigest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+    },
+    {
+      "serial": "emulator-5554",
+      "kind": "emulator",
+      "model": "sdk_gphone64_arm64",
+      "device": "32b9ac5e-36d0-4019-b8f3-0339c44561f7",
+      "bucket": 30,
+      "cohort": "previous",
+      "digest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+      "repeatDigest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+    }
+  ],
+  "coldStartLines": [
+    "[cp] gray module=main device=851dde1d-141e-4580-b8ac-b6d04df2cdfd percent=28 bucket=25 cohort=new digest=a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+    "[cp] gray module=main device=851dde1d-141e-4580-b8ac-b6d04df2cdfd percent=28 bucket=25 cohort=new digest=a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+    "[cp] gray module=main device=32b9ac5e-36d0-4019-b8f3-0339c44561f7 percent=28 bucket=30 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+    "[cp] gray module=main device=32b9ac5e-36d0-4019-b8f3-0339c44561f7 percent=28 bucket=30 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+    "[cp] gray module=main device=32b9ac5e-36d0-4019-b8f3-0339c44561f7 percent=28 bucket=30 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+  ],
+  "note": "验收工程 release 包。最新生产候选 main-a0d130f489bc 的 rollout 停在 canary，当前步 percent 写成 28：默认 1% 与 10% 都落在两台 bucket（25 与 30）的同一侧，28 严格落在两者之间，check 读的就是这个字段。vivo V2425A 冷启两次都是 cohort=new、digest 为最新候选；模拟器 emulator-5554（sdk_gphone64_arm64）冷启两次以及随后一次请求都是 cohort=previous、digest 为上一生产候选 main-631e0d976f50。同一 device 的 digest 不变。第二台运行时是模拟器。vivo 因更早的回滚标记拒绝安装最新候选，本记录只认 check 的分档日志。不是嵌入既有壳，不是第二台物理手机，也不是「企业闭环完成」。",
+  "recordedAt": "2026-10-16T16:23:38.008Z"
+}
