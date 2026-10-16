@@ -10,7 +10,7 @@ pod 'OtaAdapter', :path => './Ota'
 
 然后在本机执行 `pod install`。
 
-Release 的 bundle URL 要先问已安装的热更新路径。`rn ota install` 会改写 `AppDelegate.swift` 里这一行（若原文件里有）：
+Release 的 bundle URL 要先问已安装的热更新路径。`rn ota install` 先找 `ios/AppDelegate.swift`；没有这个文件时，再找 `ios/<目录>/AppDelegate.swift`。改写其中这一行（若原文件里有）：
 
 ```swift
 Bundle.main.url(forResource: "main", withExtension: "jsbundle")

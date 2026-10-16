@@ -243,6 +243,57 @@ describe("rn ota install (#265) — installs into an EXISTING project", () => {
     }
   });
 
+  it("patches AppDelegate.swift nested under ios/<target>/", () => {
+    const { root, cleanup } = tmpProject();
+    try {
+      seedExistingProject(root);
+      mkdirSync(path.join(root, "ios/rnotaacceptance"), { recursive: true });
+      writeFileSync(
+        path.join(root, "ios/Podfile"),
+        "target 'rnotaacceptance' do\n  config = use_native_modules!\n  use_react_native!\nend\n",
+      );
+      writeFileSync(
+        path.join(root, "ios/rnotaacceptance/AppDelegate.swift"),
+        [
+          "import UIKit",
+          "import React",
+          "",
+          "class ReactNativeDelegate: NSObject {",
+          "  override func bundleURL() -> URL? {",
+          "#if DEBUG",
+          '    RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")',
+          "#else",
+          '    Bundle.main.url(forResource: "main", withExtension: "jsbundle")',
+          "#endif",
+          "  }",
+          "}",
+          "",
+        ].join("\n"),
+      );
+      const { logger } = recordingLogger();
+
+      runOtaInstall({ cwd: root, logger, rcaPubkeyHex: RCA_KEY });
+
+      const delegate = read(root, "ios/rnotaacceptance/AppDelegate.swift");
+      assert.match(delegate, /OtaBundle\.resolveURL\(debug: false\)/);
+      assert.match(delegate, /import OtaAdapter/);
+      assert.equal(existsSync(path.join(root, "ios/AppDelegate.swift")), false);
+      assert.equal(
+        (delegate.match(/import OtaAdapter/g) ?? []).length,
+        1,
+      );
+
+      runOtaInstall({ cwd: root, logger, rcaPubkeyHex: RCA_KEY });
+      assert.equal(
+        (read(root, "ios/rnotaacceptance/AppDelegate.swift").match(/import OtaAdapter/g) ?? [])
+          .length,
+        1,
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
   it("is idempotent: a second run changes nothing and still registers once", () => {
     const { root, cleanup } = tmpProject();
     try {

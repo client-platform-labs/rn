@@ -48,6 +48,6 @@ ship build --platform ios --profile release
 
 ## 3. 现在还取不到的记录
 
-`rn ota install` 在工程已有 `ios/` 时，把与 Android 同名的 `Ota` 模块拷到 `ios/Ota/`（Swift 模块、ObjC 导出、`OtaAdapter.podspec`），并烘焙同一把 64 位十六进制根公钥。`ios/Podfile` 里加上 `pod 'OtaAdapter'`。`AppDelegate.swift` 里若已有 `main.jsbundle` 那一行，会改成先问 `OtaBundle.resolveURL`。细节在拷入后的 `ios/Ota/README.md`。没有 `ios/` 的工程不会多出这套文件。命令仍然先写 Android 的 `MainApplication.kt`；没有该文件时整次安装失败，iOS 文件也不写。
+`rn ota install` 在工程已有 `ios/` 时，把与 Android 同名的 `Ota` 模块拷到 `ios/Ota/`（Swift 模块、ObjC 导出、`OtaAdapter.podspec`），并烘焙同一把 64 位十六进制根公钥。`ios/Podfile` 里加上 `pod 'OtaAdapter'`。安装器先找 `ios/AppDelegate.swift`；没有时再找 `ios/<目录>/AppDelegate.swift`。文件里若已有 `main.jsbundle` 那一行，会改成先问 `OtaBundle.resolveURL`。细节在拷入后的 `ios/Ota/README.md`。没有 `ios/` 的工程不会多出这套文件。命令仍然先写 Android 的 `MainApplication.kt`；没有该文件时整次安装失败，iOS 文件也不写。
 
 适配器进工程之后，[#323](https://github.com/client-platform-labs/rn/issues/323) 的三条记录（两台设备按百分比分档、回到上一生产候选、真机质量信号挡住 `promote`）仍然要在一台加载了这个模块的 iOS 设备上另记。拷贝模板、`pod install`、模拟器安装、`06-ios.sh` 的退出码都不是这三条。
