@@ -106,8 +106,12 @@ export function createControlPlaneFetch(
     opts.timeoutMs != null ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {};
 
   const fetchManifest: PullOtaFetchManifest = async (moduleId, lane) => {
+    const deviceId = (await opts.native.getStableDeviceId?.())?.trim() ?? "";
+    const deviceQuery = deviceId
+      ? `&device=${encodeURIComponent(deviceId)}`
+      : "";
     const res = await fetch(
-      `${base}/v1/js-updates/check?module=${encodeURIComponent(moduleId)}&lane=${encodeURIComponent(lane)}`,
+      `${base}/v1/js-updates/check?module=${encodeURIComponent(moduleId)}&lane=${encodeURIComponent(lane)}${deviceQuery}`,
       requestInit(),
     );
     if (res.status === 204) return null;

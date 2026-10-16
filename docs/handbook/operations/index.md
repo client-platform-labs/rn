@@ -82,7 +82,7 @@
 
 - **每步产物**：宿主 = APK + digest + `install-audit.jsonl`；JS = sidecar（`.rn/delivery/updates/<module>/<update_id>.json`，含 `pem:ed25519:` 签名）+ SBOM；CP = `registry.sqlite` + `artifacts/<digest>` + `cp-audit.log`。
 - **门禁顺序铁律**：quality / consistency / SBOM / governance / dependency 五道 promote 门全走（`promote.ts`），`e2e_fail`/`consistency_fail` 挡 promote 但不挡 compile（fail-closed 在 promote 而非 build）。debug-host 不可 promote。
-- **`check` 选择（multi-bundle-version §1.2）**：`/v1/js-updates/check` 返回该泳道、该 module **最新晋升**的候选（列表末项；`promote` 追加）。因此 `promote --digest <v2>` 之后，设备下次 `check` 会拿到 v2，不必先 block v1。灰度百分比和设备分档**仍不参与**选择（同一泳道上所有设备拿到同一个最新包）。灰度期若需保留上一包，靠尚未落地的稳定分档，而不是靠「check 取最旧」。
+- **`check` 选择（multi-bundle-version §1.2）**：没有部分放量时，`/v1/js-updates/check` 返回该泳道、该 module **最新晋升**的候选（列表末项；`promote` 追加）。因此 `promote --digest <v2>` 之后，设备下次 `check` 会拿到 v2，不必先 block v1。v2 的 rollout 未满 100% 时，带 `device` 的请求按稳定分档：该百分比拿 v2，其余拿上一生产候选。
 - 升级 CP：`git pull` → `pnpm install --frozen-lockfile && pnpm build` → `docker compose up -d --build` → `verify-cp-*.mjs` 全量回归（`backend-services.md` §2.6）。升级前先备份。
 
 ### 2.3 多环境晋升条件（什么时候能上一档）
@@ -223,7 +223,7 @@ active ──(启动轮换)→ rotating ──(吊销清单生效)→ retired �
 - **`pullOtaUpdate` 必须先持久化 update_id 再 reload**：reload 杀进程，先持久化防重启重拉同一包（`ota.md` §6 平台教训——reference host 曾每启动重复拉同一个更新）。
 - **崩溃环回滚依赖宿主实现原生计数**：`recordStartupFailure`/`resetStartupFailures` 是 optional 方法；宿主没实现则崩溃环不触发，人工回基线成为唯一手段（`ota.md` §5.2）。
 - **多 module 推广**：每 module 一个 `pullOtaUpdate` + 一个 update_id 维度；`main`（root module）先拉先装（`asRoot: true`），其它 module 异步拉取；每个 module 的 `installed_update_id` 独立持久化（`multi-bundle-version.md` §7.1）。宿主不实现 `getInstalledUpdateId`/`setInstalledUpdateId` → 每 module 每启动重拉。
-- **G7 遗留（诚实标注）**：崩溃环回滚真机验证、模板 `ota-android` README HITL 待办（K1 吊销真机验证未做）：**TODO(G7)**（`ota.md` §4.4/§6）；产品化需补 `check` 按「最新/灰度百分比」选候选（multi-bundle-version §7.2 K1）。
+- **G7 遗留（诚实标注）**：崩溃环回滚真机验证、模板 `ota-android` README HITL 待办（K1 吊销真机验证未做）：**TODO(G7)**（`ota.md` §4.4/§6）。`check` 的稳定分档已接上（multi-bundle-version §1.2）；两台真机按比例拿到不同包的记录仍未齐。
 
 ### 5.3 上线前检查单（7 天样本的验收门，谁做）
 

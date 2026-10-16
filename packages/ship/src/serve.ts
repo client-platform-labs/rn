@@ -46,6 +46,10 @@ import {
 } from "./dependency-store.js";
 import { runPromote } from "./promote.js";
 import { buildDeviceJsUpdateManifest } from "./device-manifest.js";
+import {
+  formatGrayCheckLog,
+  selectRolledOutCandidate,
+} from "./gray-bucket.js";
 import { pickCandidate } from "./release-shared.js";
 import { resolveRegistryBackend } from "./registry-backend.js";
 import { assertPortServesProject } from "./port-identity.js";
@@ -663,9 +667,28 @@ export function createControlPlane(options: {
         }
         const registry = ctx.registry();
         const candidates = listJsUpdateCandidates(registry, lane, moduleId);
-        // Newest production candidate wins (promote appends to the production
-        // window as a rollback history; the last entry is the current release).
-        const meta = candidates[candidates.length - 1];
+        // Newest production candidate is the current release (promote appends).
+        // A partial rollout of that digest covers a stable percent of devices;
+        // the rest keep the previous production candidate.
+        const newest = candidates[candidates.length - 1];
+        const deviceId = url.searchParams.get("device")?.trim() || null;
+        const rollout =
+          lane === "production" && newest
+            ? registry.rollouts.find(
+                (r) =>
+                  r.digest === newest.digest &&
+                  r.business_module === moduleId,
+              )
+            : undefined;
+        const selection = selectRolledOutCandidate(
+          candidates,
+          rollout,
+          deviceId,
+        );
+        const meta = selection?.candidate;
+        if (selection && selection.percent < 100) {
+          console.error(formatGrayCheckLog({ moduleId, selection }));
+        }
         if (!meta) {
           res.writeHead(204);
           res.end();
