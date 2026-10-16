@@ -140,6 +140,42 @@ export function createOtaClient(
     await native.reload();
   }
 
+  /**
+   * Leave a bad production bundle. Restore the previous production candidate
+   * snapshotted at install time when one exists; otherwise clear the active
+   * bundle and boot the embedded baseline. Either path reloads, so callers
+   * must finish bookkeeping before invoking this.
+   */
+  async function rollbackToPreviousProduction(
+    moduleId: string = defaultModuleId,
+  ): Promise<"previous" | "baseline"> {
+    requireAndroid();
+    assertModuleId(moduleId);
+    const badId = (await native.getInstalledUpdateId?.(moduleId)) || null;
+    const previous = (await native.getPreviousProduction?.(moduleId)) ?? null;
+    if (previous?.path && previous.updateId && native.setInstalledUpdateId) {
+      if (badId) await native.setRolledBackUpdateId?.(moduleId, badId);
+      await native.setInstalledUpdateId(moduleId, previous.updateId);
+      await native.clearPreviousProduction?.(moduleId);
+      await native.setActiveBundlePathForModule(moduleId, previous.path);
+      await native.setRootModuleId(moduleId);
+      await native.logJs?.(
+        `crash-loop rollback: restoring previous production update_id=${previous.updateId}`,
+      );
+      await native.reload();
+      return "previous";
+    }
+    if (badId) {
+      await native.setRolledBackUpdateId?.(moduleId, badId);
+      await native.setInstalledUpdateId?.(moduleId, "");
+    }
+    await native.logJs?.(
+      "crash-loop rollback: no previous production candidate — booting embedded baseline",
+    );
+    await rollbackToEmbeddedBaseline(moduleId);
+    return "baseline";
+  }
+
   async function getActiveBundlePath(moduleId?: string): Promise<string | null> {
     if (moduleId) {
       assertModuleId(moduleId);
@@ -154,6 +190,7 @@ export function createOtaClient(
     fetchUpdate,
     installAndReload,
     rollbackToEmbeddedBaseline,
+    rollbackToPreviousProduction,
     getActiveBundlePath,
   };
 }

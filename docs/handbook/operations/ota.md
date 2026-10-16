@@ -159,8 +159,8 @@ signature = "pem:ed25519:<base64>"   # over `${release_id}:${artifact_kind}:${di
 
 ### 设备级回滚（shell-core）
 
-- **崩溃环回滚**：`crash-loop.ts` —— `shouldRollbackOnCrashLoop(consecutiveFailures, max=3)`，连续失败 ≥ `DEFAULT_CRASH_LOOP_MAX` 时设备调 `rollbackToEmbeddedBaseline` 回基线（`ota-client.ts`）。原生侧持久化启动计数：每次启动 `recordStartupFailure()+1`，健康启动 `resetStartupFailures()`（`ota-native.ts` 契约；`ReleaseOtaBoot.tsx` 启动先查崩溃环再拉更新）。
-- **显式回基线**：`rollbackToEmbeddedBaseline(moduleId)` = `clearActiveBundlePathForModule` + `setRootModuleId` + `reload`（`ota-client.ts`，Android-only）。
+- **崩溃环回滚**：`crash-loop.ts` —— `shouldRollbackOnCrashLoop(consecutiveFailures, max=3)`，连续失败 ≥ `DEFAULT_CRASH_LOOP_MAX` 时设备调 `rollbackToPreviousProduction`。安装新生产包之前若已有在跑的生产包，先回到那个包；没有则 `rollbackToEmbeddedBaseline` 回嵌入基线（`ota-client.ts`）。原生侧持久化启动计数：每次启动 `recordStartupFailure()+1`，健康启动 `resetStartupFailures()`（`ota-native.ts` 契约；`ReleaseOtaBoot.tsx` 启动先查崩溃环再拉更新）。
+- **显式回基线**：`rollbackToEmbeddedBaseline(moduleId)` = `clearActiveBundlePathForModule` + `setRootModuleId` + `reload`（`ota-client.ts`，Android-only）。这是兜底，不是「回到上一生产候选」的证据。
 - **回滚后验证**：设备回到基线/上一良好包后，确认（1）启动正常、崩溃计数已 reset；（2）`GET /v1/js-updates/check` 返回的 digest 是上一良好 digest（若 block 未生效仍指向坏包，需先修 CP）；（3）验签仍过（坏包若只是行为问题、签名合法，block/kill 即可；若是签名问题，按 §8 走）。
 
 **回滚策略速查**：
@@ -168,7 +168,7 @@ signature = "pem:ed25519:<base64>"   # over `${release_id}:${artifact_kind}:${di
 | 层级 | 机制 | 粒度 | 谁执行 |
 |------|------|------|--------|
 | 包级 | `/v1/block` / `/v1/kill` / `/v1/pause` / re-promote | digest / update_id / module | 离线包运维（CP 写路由） |
-| 设备级 | 崩溃环（≥3 次失败）→ `rollbackToEmbeddedBaseline` | module / 设备 | 设备自动（shell-core + 原生） |
+| 设备级 | 崩溃环（≥3 次失败）→ 有上一生产包则回到该包，否则 `rollbackToEmbeddedBaseline` | module / 设备 | 设备自动（shell-core + 原生） |
 | 设备级 | 显式 `rollbackToEmbeddedBaseline` | module | 壳运维 / 平台运维（宿主侧） |
 
 **顺序铁律**：先包级（停投递、让 check 不再返回坏 digest），再设备级（已装设备自然回滚 / 人工回基线）；先消灭「新装坏包」的来源，再处理存量。崩溃环回滚是设备侧最后一道兜底——它依赖原生启动计数实现，若宿主没实现 `recordStartupFailure`/`resetStartupFailures`（optional），崩溃环回滚不会触发，此时人工回基线成为唯一手段。
@@ -245,8 +245,9 @@ signature = "pem:ed25519:<base64>"   # over `${release_id}:${artifact_kind}:${di
 | K1 / K2 | 烘焙进 APK 的两把 Ed25519 公钥：K1 当前签名 + K2 备用（ADR-018） | `rn-core/src/ed25519-verify.ts` · ADR-018 |
 | `verifySidecar` | 设备端一次验签：`gateBundleLoad` → `verifyEd25519Seal`，失败即拒载 | `shell-core/src/ota-client.ts` |
 | `pullOtaUpdate` | 启动编排：skip-if-installed → verify → fetch → 先持久化 update_id 再 reload | `shell-core/src/pull-ota.ts` |
-| `rollbackToEmbeddedBaseline` | 设备级回基线：清 active path + 设 root module + reload | `shell-core/src/ota-client.ts` |
-| 崩溃环预算 | 连续启动失败 ≥ `DEFAULT_CRASH_LOOP_MAX`(3) → 回基线 | `shell-core/src/crash-loop.ts` |
+| `rollbackToPreviousProduction` | 崩溃环：有上一生产包则恢复它并记下被拒的 update_id；否则回嵌入基线 | `shell-core/src/ota-client.ts` |
+| `rollbackToEmbeddedBaseline` | 设备级回嵌入基线：清 active path + 设 root module + reload | `shell-core/src/ota-client.ts` |
+| 崩溃环预算 | 连续启动失败 ≥ `DEFAULT_CRASH_LOOP_MAX`(3) → 上一生产包，否则嵌入基线 | `shell-core/src/crash-loop.ts` |
 
 来源索引：
 

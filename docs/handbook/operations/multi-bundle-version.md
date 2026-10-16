@@ -156,9 +156,9 @@ module 异常？
 │
 ├─ 设备端行为异常（已装坏包）
 │    ├─ 崩溃环（连续失败 ≥ DEFAULT_CRASH_LOOP_MAX=3）
-│    │    └─ 设备自动 rollbackToEmbeddedBaseline（shell-core crash-loop，兜底）
-│    ├─ 单设备/小范围 → 显式 rollbackToEmbeddedBaseline（壳运维/平台运维，Android-only）
-│    └─ 已装设备想回 N-1 → 设备端 selectFallbackSlot 自动走 previous 槽（CP 不干预）
+│    │    └─ 有上一生产包 → rollbackToPreviousProduction 回到该包
+│    │       没有上一生产包 → rollbackToEmbeddedBaseline（嵌入基线兜底）
+│    └─ 显式回嵌入基线仍是 rollbackToEmbeddedBaseline（Android-only）
 │
 └─ 验签失败风暴 / 信任根疑失陷
      └─ 平台运维走 ADR-018 轮换（K2 签「K1 吊销」），不是 JS 回滚（见 ota.md §4）
@@ -170,7 +170,8 @@ module 异常？
 |---------|------|------|--------|
 | 上一良好 digest（CP） | `block` + re-promote | digest / module | 离线包运维 |
 | N-1（previous 槽） | 设备端 `selectFallbackSlot` 自动选择 | module / 设备 | 设备自动 |
-| baseline（壳内嵌） | 崩溃环 / `rollbackToEmbeddedBaseline` | module | 设备自动 / 壳运维 |
+| 上一生产包（安装时记下的 N-1） | 崩溃环 → `rollbackToPreviousProduction` | module / 设备 | 设备自动 |
+| baseline（壳内嵌） | 没有上一生产包时的崩溃环，或显式 `rollbackToEmbeddedBaseline` | module | 设备自动 / 壳运维 |
 | 新宿主（指纹窗外，无兼容槽） | `FORWARD_FIX`：**不可回滚**，只能向前发新壳 | 全量 | 壳运维 + 产品负责人 |
 
 `planJsRollback`（`js-rollback-plan.ts`）的裁决即此表：目标兼容 → `apply_target`；不兼容 → 走槽位 `fallback_slot`；全不兼容 → `FORWARD_FIX`（发新宿主）；涉及 native → `needs_native`。
@@ -182,7 +183,7 @@ module 异常？
 - 设备端 `setInstalledUpdateId` 持久化的是「已装 update_id」——回滚后设备重启 skip-if-installed 判断会跳过该 id；**回滚成功后需确认 `getInstalledUpdateId` 落的是回滚目标 id**（或已清除），否则设备可能重拉旧包（`ota.md` §6 重拉循环教训）。
 - 回滚顺序铁律（`ota.md` §5）：**先包级（停投递）再设备级（存量自然回滚/人工回基线）**。
 
-**未落地**：`rollbackToEmbeddedBaseline` 在模板 `ota-android` 中标注 Android-only 且崩溃环真机验证为 **TODO(G7)**（`ota.md` §4.4）；设备级「回滚到 previous」的宿主接线（宿主决定把 active 降级到 previous 而非 baseline）未实现：**TODO(实现)**。
+崩溃环在有上一生产包时回到该包（安装新包前记下当时的路径和 `update_id`）。没有记到上一包时仍回嵌入基线。真机验收仍是 **TODO(G7)**（`ota.md` §4.4）。
 
 ## 6. 灰度 + 多包叠加（v2 放量时 v1 还服务谁）
 
@@ -235,7 +236,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 | K2 | `shell-change-matrix.ts` 未被 promote 门禁调用 | 纯函数/常量 | **TODO(实现)**：接 `rn-delivery promote` 门禁链 |
 | K3 | 「强升 = 一批 module 原子 promote」无原语 | 人工逐个 promote | **TODO(实现)** |
 | K4 | N-1 窗口时长未定标 | `validateSupportWindow` 只校验结构 | **TODO(定义阈值)** |
-| K5 | 设备级「回滚到 previous」宿主接线未实现 | 仅崩溃环回 baseline + 显式回 baseline | **TODO(实现)** |
+| K5 | 崩溃环真机记录仍缺 | 有上一生产包时回到该包，否则回嵌入基线（shell-core 测试） | 真机见 K7 |
 | K6 | 灰度自动化 kill / v1 下架规则未落地 | tick 有 SLI pause | **TODO(定义阈值)** |
 | K7 | 崩溃环回滚真机验证（G7 遗留） | 模板已含预算逻辑 | **TODO(G7)**（`ota.md` §4.4） |
 
@@ -254,7 +255,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 - ADR-005 `wayfinding-impl-2/docs/adr/005-multi-bundle-shell.md`（一壳多 Bundle；runtime 单 Runtime · 多 Bundle；仓拓扑 B；每 module 槽位）。
 - `architecture/index.md` §2（壳共命运）、§6（多 bundle 架构 / GF vs BF / 双列车）、§7（设备端信任模型）。
 - `packages/rn-core/src/`：`shell-change-matrix.ts`（壳变更矩阵，骨架）、`bundle-load-gate.ts`（加载门 + composition 依赖门）、`channel-profile.ts`（渠道画像）、`selector.ts`（`gateJsCandidate` / `selectFallbackSlot` / `FALLBACK_SLOT_ORDER`）、`js-rollback-plan.ts`（`planJsRollback`）、`module-slots-store.ts`（按 module 持久化）、`release-rollout.ts`（灰度状态机 + 默认阶梯）。`release-rollback.ts` 不存在——回滚契约在 `js-rollback-plan.ts` + `selector.ts`；`slot-paths.ts` 在 `packages/shell-core/src/`（槽位路径）。
-- `packages/shell-core/src/`：`pull-ota.ts`（skip-if-installed + update_id 持久化）、`crash-loop.ts`（`DEFAULT_CRASH_LOOP_MAX=3`）、`ota-client.ts`（`rollbackToEmbeddedBaseline`，Android-only）、`ota-native.ts`（适配器契约）。
+- `packages/shell-core/src/`：`pull-ota.ts`（skip-if-installed + 安装前记下上一生产包）、`crash-loop.ts`（`DEFAULT_CRASH_LOOP_MAX=3`）、`ota-client.ts`（`rollbackToPreviousProduction` / `rollbackToEmbeddedBaseline`，Android-only）、`ota-native.ts`（适配器契约）。
 - `packages/ship/src/`：`serve.ts`（`/v1/js-updates/check` 取候选列表末项，即最新晋升）、`candidate-store.ts`（`listJsUpdateCandidates` / promote 追加语义 / `blockedUpdateIdsForRuntime`）、`promote.ts`（promote 门禁链）、`device-manifest.ts`（设备 manifest）。
 - G7 产物：`scripts/apply-ota-to-project.mjs`、`packages/rn/templates/greenfield-ota/ReleaseOtaBoot.tsx`、`ota-android/` README。
 - 运维角色：`roles-matrix.md` · `ota.md`（回滚/验签/重拉循环）· `backend-services.md`（cp-serve / rollout 端点）· `research/operations.md`（行业对照）。

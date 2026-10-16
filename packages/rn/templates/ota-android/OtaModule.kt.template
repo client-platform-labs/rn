@@ -22,7 +22,9 @@ import java.io.File
  * - active_js_bundle_path: legacy single path (DEFAULT_MODULE)
  * - root_module_id: process entry module (default "main")
  * - installed_update_id_<module>: last activated update (skip re-pull, ADR-014)
- * - startup_failures_<module>: crash-loop counter (roll back to baseline)
+ * - previous_paths_json / previous_update_id_<module>: production bundle this
+ *   device was running before the current install (rollback target)
+ * - startup_failures_<module>: crash-loop counter (roll back to previous, else baseline)
  */
 class OtaModule(private val ctx: ReactApplicationContext) :
   ReactContextBaseJavaModule(ctx) {
@@ -194,6 +196,53 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   }
 
   @ReactMethod
+  fun getPreviousProduction(moduleId: String, promise: Promise) {
+    try {
+      requireValidModuleId(moduleId)
+      val path = previousPathMap()[moduleId]
+      val updateId = prefs().getString(previousUpdateKey(moduleId), null)
+      if (path.isNullOrEmpty() || updateId.isNullOrEmpty()) {
+        promise.resolve(null)
+        return
+      }
+      val map = Arguments.createMap()
+      map.putString("path", path)
+      map.putString("updateId", updateId)
+      promise.resolve(map)
+    } catch (e: Exception) {
+      promise.reject("ota", e)
+    }
+  }
+
+  @ReactMethod
+  fun setPreviousProduction(moduleId: String, path: String, updateId: String, promise: Promise) {
+    try {
+      requireValidModuleId(moduleId)
+      val map = previousPathMap().toMutableMap()
+      map[moduleId] = path
+      persistPreviousPathMap(map)
+      prefs().edit().putString(previousUpdateKey(moduleId), updateId).commit()
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("ota", e)
+    }
+  }
+
+  @ReactMethod
+  fun clearPreviousProduction(moduleId: String, promise: Promise) {
+    try {
+      requireValidModuleId(moduleId)
+      val map = previousPathMap().toMutableMap()
+      map.remove(moduleId)
+      persistPreviousPathMap(map)
+      prefs().edit().remove(previousUpdateKey(moduleId)).commit()
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("ota", e)
+    }
+  }
+
+  @ReactMethod
   fun clearActiveBundlePathForModule(moduleId: String, promise: Promise) {
     try {
       requireValidModuleId(moduleId)
@@ -215,7 +264,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
     try {
       requireValidModuleId(moduleId)
       val root = File(ctx.filesDir, "ota/$moduleId")
-      listOf("staged", "active", "baseline").forEach { name -> File(root, name).mkdirs() }
+      listOf("staged", "active", "previous", "baseline").forEach { name -> File(root, name).mkdirs() }
       promise.resolve(root.absolutePath)
     } catch (e: Exception) {
       promise.reject("ota", e)
@@ -313,6 +362,28 @@ class OtaModule(private val ctx: ReactApplicationContext) :
     prefs().edit().putString(KEY_MAP, obj.toString()).commit()
   }
 
+  private fun previousPathMap(): Map<String, String> {
+    val raw = prefs().getString(KEY_PREVIOUS_MAP, null) ?: return emptyMap()
+    return try {
+      val obj = JSONObject(raw)
+      val out = mutableMapOf<String, String>()
+      val keys = obj.keys()
+      while (keys.hasNext()) {
+        val k = keys.next()
+        out[k] = obj.getString(k)
+      }
+      out
+    } catch (_: Exception) {
+      emptyMap()
+    }
+  }
+
+  private fun persistPreviousPathMap(map: Map<String, String>) {
+    val obj = JSONObject()
+    for ((k, v) in map) obj.put(k, v)
+    prefs().edit().putString(KEY_PREVIOUS_MAP, obj.toString()).commit()
+  }
+
   private fun resolveUnderFiles(relativePath: String): File {
     require(!relativePath.contains("..")) { "path must not contain .." }
     return File(ctx.filesDir, relativePath)
@@ -325,6 +396,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
   private fun prefs() = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
   private fun installedKey(moduleId: String) = "installed_update_id_$moduleId"
+  private fun previousUpdateKey(moduleId: String) = "previous_update_id_$moduleId"
   private fun rolledBackKey(moduleId: String) = "rolled_back_update_id_$moduleId"
 
   companion object {
@@ -332,6 +404,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
     const val KEY_PATH = "active_js_bundle_path"
     const val KEY_ROOT = "root_module_id"
     const val KEY_MAP = "active_paths_json"
+    const val KEY_PREVIOUS_MAP = "previous_paths_json"
     const val DEFAULT_MODULE = "main"
     /** Standard greenfield baseline: the embedded app bundle (not a per-module hbc). */
     const val ASSET_BASELINE = "assets://index.android.bundle"
