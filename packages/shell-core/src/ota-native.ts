@@ -56,11 +56,10 @@ export interface OtaNativeAdapter {
   /**
    * The update_id that was ROLLED BACK after repeated failed boots (#269 residual).
    *
-   * Rolling back clears the active bundle, so the device runs the embedded
-   * baseline — but without this marker the only surviving fact is
-   * `installed_update_id`, which then names an update the device is NOT running.
-   * The boot uses this to refuse re-applying a known-bad id, and a DIFFERENT
-   * (newer) candidate clears it, so a fix can always land.
+   * Rollback leaves that id behind: the device runs the previous production
+   * bundle when one was snapshotted at install, otherwise the embedded baseline.
+   * Without this marker the boot would re-apply the bad id. A DIFFERENT (newer)
+   * candidate clears it, so a fix can always land.
    *
    * Optional by design: a host without it degrades to the old behaviour rather
    * than failing a boot over bookkeeping.
@@ -73,6 +72,21 @@ export interface OtaNativeAdapter {
   writeFileUtf8(relPath: string, utf8: string): Promise<string>;
   setActiveBundlePathForModule(moduleId: string, filePath: string): Promise<void>;
   clearActiveBundlePathForModule(moduleId: string): Promise<void>;
+  /**
+   * The production bundle this device was running before the current install.
+   * Written when a newer production update replaces an already-installed one.
+   * Absent on a host that has not been refreshed, and null when the device
+   * stepped onto the current bundle straight from the embedded baseline.
+   */
+  getPreviousProduction?(
+    moduleId: string,
+  ): Promise<{ path: string; updateId: string } | null>;
+  setPreviousProduction?(
+    moduleId: string,
+    path: string,
+    updateId: string,
+  ): Promise<void>;
+  clearPreviousProduction?(moduleId: string): Promise<void>;
   setRootModuleId(moduleId: string): Promise<void>;
   getActiveBundlePathForModule?(moduleId: string): Promise<string | null>;
   getActiveBundlePath?(): Promise<string | null>;

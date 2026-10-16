@@ -37,7 +37,8 @@ BF 宿主按 `templates/brownfield-android/ota/OtaWiringNotes.md.template` 接�
    否则每次启动重复拉同一包（真机实证过的循环 bug）。
 3. **崩溃环计数持久化在 native**：每次启动 `recordStartupFailure()`+1，健康启动
    `resetStartupFailures()`；达到 `DEFAULT_CRASH_LOOP_MAX` 时 JS 调
-   `rollbackToEmbeddedBaseline`（除非自然回退到基线，ADR-014）。
+   `rollbackToPreviousProduction`：安装时记下的上一生产包优先，没有则
+   `rollbackToEmbeddedBaseline`（ADR-014）。
 4. **验签信任边界**：公钥烘焙在 native，`@noble` 验签在随 APK 的 shell-core 包（`rn-core/ota`）；
    绝不用 OTA 下来的 JS 验 OTA 包。
 5. **loopback cleartext（e2e/开发用）**：Android 9+ release 默认禁 cleartext HTTP。本地 CP

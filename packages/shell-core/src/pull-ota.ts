@@ -106,6 +106,17 @@ export async function pullOtaUpdate(
 
     const updateId = verify.updateId ?? candidateUpdateId ?? "";
     if (updateId) {
+      // The bundle about to be replaced is the previous production candidate.
+      // Captured BEFORE the installed id is overwritten, and only when this
+      // device was already running a production bundle (a first install from
+      // the embedded baseline has nothing to return to).
+      if (native.setPreviousProduction && native.getActiveBundlePathForModule) {
+        const currentPath = await native.getActiveBundlePathForModule(moduleId);
+        const currentId = await native.getInstalledUpdateId?.(moduleId);
+        if (currentPath && currentId && currentId !== updateId) {
+          await native.setPreviousProduction(moduleId, currentPath, currentId);
+        }
+      }
       // Persist BEFORE reload — reload restarts the process (ADR-014).
       await native.setInstalledUpdateId?.(moduleId, updateId);
     }

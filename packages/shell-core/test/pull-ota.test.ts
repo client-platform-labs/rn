@@ -81,6 +81,64 @@ describe("pullOtaUpdate orchestration (ADR-014)", () => {
     assert.deepEqual(order, ["persist", "reload"]); // persist BEFORE reload
   });
 
+  it("snapshots the running production bundle before a newer one replaces it", async () => {
+    const order: string[] = [];
+    let previous: { path: string; updateId: string } | null = null;
+    const client: PullOtaClient = {
+      verifySidecar: () => ({ ok: true, updateId: "v2" }),
+      async fetchUpdate() {
+        return { hbcPath: "/ota/v2.hbc", sidecarPath: "/ota/v2.json", sidecar: manifest("v2") };
+      },
+      async installAndReload() {
+        order.push("reload");
+      },
+    };
+    const r = await pullOtaUpdate(
+      client,
+      native({
+        getActiveBundlePathForModule: async () => "/ota/v1.hbc",
+        getInstalledUpdateId: async () => "v1",
+        setPreviousProduction: async (_m, path, updateId) => {
+          previous = { path, updateId };
+          order.push("snapshot");
+        },
+        setInstalledUpdateId: async () => {
+          order.push("persist");
+        },
+      }),
+      "desk",
+      { fetchManifest: async () => manifest("v2") },
+    );
+    assert.equal(r.status, "installed");
+    assert.deepEqual(previous, { path: "/ota/v1.hbc", updateId: "v1" });
+    assert.deepEqual(order, ["snapshot", "persist", "reload"]);
+  });
+
+  it("does not invent a previous candidate when installing from the embedded baseline", async () => {
+    let snapshotted = false;
+    const client: PullOtaClient = {
+      verifySidecar: () => ({ ok: true, updateId: "v1" }),
+      async fetchUpdate() {
+        return { hbcPath: "/ota/v1.hbc", sidecarPath: "/ota/v1.json", sidecar: manifest("v1") };
+      },
+      async installAndReload() {},
+    };
+    await pullOtaUpdate(
+      client,
+      native({
+        getActiveBundlePathForModule: async () => null,
+        getInstalledUpdateId: async () => null,
+        setPreviousProduction: async () => {
+          snapshotted = true;
+        },
+        setInstalledUpdateId: async () => {},
+      }),
+      "desk",
+      { fetchManifest: async () => manifest("v1") },
+    );
+    assert.equal(snapshotted, false);
+  });
+
   it("fails closed on verify failure and never fetches", async () => {
     let fetchCalls = 0;
     const client: PullOtaClient = {

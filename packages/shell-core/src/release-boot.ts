@@ -261,7 +261,7 @@ export async function bootReleaseOta(
     if (shouldRollbackOnCrashLoop(failCount)) {
       // #268 (found only by running it on hardware): clearing the counter is part
       // of the RECOVERY, and it must happen BEFORE the rollback —
-      // `rollbackToEmbeddedBaseline` ends in `native.reload()`, which restarts the
+      // `rollbackToPreviousProduction` ends in `native.reload()`, which restarts the
       // JS process, so anything after it may never run. Leaving the counter set
       // made this a ONE-WAY TRAP: once the budget was reached, every later launch
       // rolled back again and the device could never take another update, not even
@@ -272,32 +272,26 @@ export async function bootReleaseOta(
       // Expo Updates, and Android's own RescueParty, all clear the
       // consecutive-failure counter once the rolled-back bundle is up.
       await native.resetStartupFailures?.(moduleId);
-      // #269 residual: record WHICH update was rolled back, and stop calling it
-      // installed. Rolling back clears the active bundle, so the device runs the
-      // embedded baseline — yet `installed_update_id` would still name an update
-      // the device is NOT running, and a candidate carrying no resolvable id was
-      // re-applied on every launch (crash → rollback → re-pull → crash).
-      // Recorded BEFORE the rollback because that call ends in `reload()` and
-      // nothing after it is guaranteed to run (#268's lesson).
-      const runningId = (await native.getInstalledUpdateId?.(moduleId)) ?? null;
-      if (runningId) {
-        await native.setRolledBackUpdateId?.(moduleId, runningId);
-        // "" is the interface's cleared form (`updateId: string`); the boot's
-        // skip-if-installed guard treats it as falsy, i.e. nothing installed.
-        await native.setInstalledUpdateId?.(moduleId, "");
-        await diag(
-          native,
-          `rollback: rejected update_id=${runningId} (recorded; it will not be re-applied)`,
-        );
-      }
+      // Bookkeeping (rejected id, installed id, previous slot) lives inside
+      // rollbackToPreviousProduction and must stay before its reload() —
+      // nothing after reload is guaranteed to run (#268).
+      const previous = (await native.getPreviousProduction?.(moduleId)) ?? null;
+      const restoring = Boolean(previous?.path && previous?.updateId);
       await diag(
         native,
-        `crash-loop rollback: failCount=${failCount} threshold=${DEFAULT_CRASH_LOOP_MAX} — clearing budget, booting embedded baseline`,
+        restoring
+          ? `crash-loop rollback: failCount=${failCount} threshold=${DEFAULT_CRASH_LOOP_MAX} — clearing budget, restoring previous production update_id=${previous?.updateId}`
+          : `crash-loop rollback: failCount=${failCount} threshold=${DEFAULT_CRASH_LOOP_MAX} — clearing budget, booting embedded baseline`,
       );
       try {
-        await client.rollbackToEmbeddedBaseline(moduleId);
+        const restored = await client.rollbackToPreviousProduction(moduleId);
+        if (restored === "previous") {
+          // Reload is in flight onto the previous bundle. Keep the host in its
+          // loading state; painting the embedded baseline here would be a lie.
+          return { phase: "installed", skippedReason: "crash_loop_rollback" };
+        }
       } catch {
-        /* the baseline fallback is best-effort — never block the boot on it */
+        /* the fallback is best-effort — never block the boot on it */
       }
       return { phase: "baseline", skippedReason: "crash_loop_rollback" };
     }

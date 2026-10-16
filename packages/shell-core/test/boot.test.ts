@@ -742,10 +742,75 @@ describe("bootReleaseOta — shared release boot sequence (Map I / #257)", () =>
         recorded < calls.indexOf("reload"),
         "the marker must be written BEFORE the reload that ends the rollback",
       );
-      // The stale "installed" fact is cleared: the device runs the baseline now.
+      // No previous production bundle was snapshotted, so the stale installed
+      // fact is cleared: the device runs the embedded baseline.
       assert.deepEqual(persisted, [""]);
       // #268 invariant kept: the counter is still cleared on the rollback path.
       assert.ok(calls.includes("resetStartupFailures"));
+    } finally {
+      plane.restore();
+    }
+  });
+
+  it("a crash-loop with a snapshotted production bundle restores that bundle, not the embedded baseline", async () => {
+    const state = {
+      active: "/ota/v2.hbc",
+      installed: "v2",
+      previous: { path: "/ota/v1.hbc", updateId: "v1" } as {
+        path: string;
+        updateId: string;
+      } | null,
+      rolledBack: null as string | null,
+    };
+    const { adapter, calls, persisted } = fakeNative({
+      failures: 3,
+      pubKeys: [],
+      installedId: "v2",
+    });
+    adapter.getInstalledUpdateId = async () => state.installed;
+    adapter.getPreviousProduction = async () => state.previous;
+    adapter.setPreviousProduction = async () => {
+      calls.push("setPreviousProduction");
+    };
+    adapter.clearPreviousProduction = async () => {
+      state.previous = null;
+      calls.push("clearPreviousProduction");
+    };
+    adapter.setActiveBundlePathForModule = async (_moduleId, filePath) => {
+      state.active = filePath;
+      calls.push("setActiveBundlePathForModule");
+    };
+    adapter.setInstalledUpdateId = async (_moduleId, updateId) => {
+      state.installed = updateId;
+      persisted.push(updateId);
+      calls.push("setInstalledUpdateId");
+    };
+    adapter.setRolledBackUpdateId = async (_moduleId, id) => {
+      state.rolledBack = id;
+      calls.push(`setRolledBackUpdateId:${String(id)}`);
+    };
+    const plane = installFetch(() => undefined);
+    try {
+      const outcome = await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.equal(outcome.skippedReason, "crash_loop_rollback");
+      assert.equal(outcome.phase, "installed");
+      assert.equal(state.active, "/ota/v1.hbc");
+      assert.equal(state.installed, "v1");
+      assert.equal(state.previous, null);
+      assert.equal(state.rolledBack, "v2");
+      assert.equal(calls.includes("clearActiveBundlePathForModule"), false);
+      assert.deepEqual(persisted, ["v1"]);
+      assert.ok(
+        calls.indexOf("setRolledBackUpdateId:v2") < calls.indexOf("reload"),
+      );
+      assert.ok(calls.indexOf("setInstalledUpdateId") < calls.indexOf("reload"));
+      assert.ok(
+        calls.indexOf("resetStartupFailures") < calls.indexOf("reload"),
+      );
+      assert.deepEqual(plane.urls, []);
     } finally {
       plane.restore();
     }

@@ -316,7 +316,7 @@ Schema：`packages/rn-core/src/schema.ts`（`projectManifestSchema`），类型�
 
 设备侧运行时契约在 `packages/shell-core`（GF/BF 共享，宿主注入 `OtaNativeAdapter`，不 import react-native）：
 
-- `createOtaClient(native, {platform?, defaultModuleId?})` → `{verifySidecar, checkForUpdate, fetchUpdate, installAndReload, rollbackToEmbeddedBaseline, getActiveBundlePath}`（`ota-client.ts`）。Android-only（ADR-012）。
+- `createOtaClient(native, {platform?, defaultModuleId?})` → `{verifySidecar, checkForUpdate, fetchUpdate, installAndReload, rollbackToPreviousProduction, rollbackToEmbeddedBaseline, getActiveBundlePath}`（`ota-client.ts`）。崩溃环优先回到安装时记下的上一生产包，没有则回嵌入基线。Android-only（ADR-012）。
 - `checkForUpdate(moduleId, channel, {manifestUrl})`：拉取 CP 的 `/v1/js-updates/check` 返回的 manifest，校验 `business_module` / `channel` 匹配。
 - `fetchUpdate`：从 `candidate.url`（`/v1/artifacts/:digest`）下载 HBC，写入 staged slot（`index.hbc` + `sidecar.json`）。
 - `verifySidecar`：走 rn-core `gateBundleLoad` 真 Ed25519 验签（ADR-017），失败即拒载（fail-closed）。
