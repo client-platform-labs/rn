@@ -364,6 +364,7 @@ export type {
 
 export {
   DEFAULT_SHELL_CHANGE_MATRIX,
+  classifyShellChange,
   resolveShellChangeAction,
   shouldBlockPromotion,
 } from "./shell-change-matrix.js";
