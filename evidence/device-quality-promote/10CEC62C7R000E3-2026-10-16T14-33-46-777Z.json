@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "serial": "10CEC62C7R000E3",
+  "signal": {
+    "kind": "crash",
+    "business_module": "main",
+    "update_id": "main-d53c5023ea7b"
+  },
+  "digest": "d53c5023ea7b0b88243f1ecdd16852e43d99d9faf8aea555068a484568dbdd0b",
+  "promoteExit": 1,
+  "promoteOutput": "quality gate: crash for business_module=main update_id=main-d53c5023ea7b — clear signal or fix artifact before promote",
+  "recordedAt": "2026-10-16T14:33:46.777Z"
+}
