@@ -1,0 +1,579 @@
+// On-device OTA native adapter — iOS counterpart of OtaModule.kt.
+// Same module name ("Ota") and the same prefs keys, so shell-core's one client
+// talks to either host. `rn ota install` replaces the 64-hex placeholder below.
+import Foundation
+import React
+
+private enum OtaKeys {
+  static let prefs = "greenfield_ota"
+  static let path = "active_js_bundle_path"
+  static let root = "root_module_id"
+  static let map = "active_paths_json"
+  static let previousMap = "previous_paths_json"
+  static let device = "stable_device_id"
+  static let defaultModule = "main"
+  // Placeholder — replaced by `rn ota install`. An unbaked all-zero key fails
+  // verification (fail-closed).
+  static let bakedPubkeyHex = "0000000000000000000000000000000000000000000000000000000000000000"
+  static let moduleId = try! NSRegularExpression(pattern: "^[a-z][a-z0-9_-]{1,63}$")
+}
+
+private struct OtaCallError: LocalizedError {
+  let message: String
+  var errorDescription: String? { message }
+}
+
+private enum OtaStore {
+  private static var defaults: UserDefaults {
+    UserDefaults(suiteName: OtaKeys.prefs) ?? .standard
+  }
+
+  static func log(_ message: String) {
+    NSLog("OTA: JS: %@", message)
+  }
+
+  static func publicKeys() -> [String] {
+    [OtaKeys.bakedPubkeyHex]
+  }
+
+  static func getInstalledUpdateId(_ moduleId: String) throws -> String? {
+    try requireModule(moduleId)
+    return defaults.string(forKey: installedKey(moduleId))
+  }
+
+  static func setInstalledUpdateId(_ moduleId: String, _ updateId: String) throws {
+    try requireModule(moduleId)
+    defaults.set(updateId, forKey: installedKey(moduleId))
+    defaults.synchronize()
+  }
+
+  static func getRolledBackUpdateId(_ moduleId: String) throws -> String? {
+    try requireModule(moduleId)
+    return defaults.string(forKey: rolledBackKey(moduleId))
+  }
+
+  static func setRolledBackUpdateId(_ moduleId: String, _ updateId: String?) throws {
+    try requireModule(moduleId)
+    let key = rolledBackKey(moduleId)
+    if updateId == nil || updateId?.isEmpty == true {
+      defaults.removeObject(forKey: key)
+    } else {
+      defaults.set(updateId, forKey: key)
+    }
+    defaults.synchronize()
+  }
+
+  static func stableDeviceId() -> String {
+    if let existing = defaults.string(forKey: OtaKeys.device), !existing.isEmpty {
+      return existing
+    }
+    let id = UUID().uuidString.lowercased()
+    defaults.set(id, forKey: OtaKeys.device)
+    defaults.synchronize()
+    return id
+  }
+
+  static func recordStartupFailure(_ moduleId: String) throws -> Int {
+    try requireModule(moduleId)
+    let key = "startup_failures_\(moduleId)"
+    let next = defaults.integer(forKey: key) + 1
+    defaults.set(next, forKey: key)
+    defaults.synchronize()
+    return next
+  }
+
+  static func resetStartupFailures(_ moduleId: String) throws {
+    try requireModule(moduleId)
+    defaults.removeObject(forKey: "startup_failures_\(moduleId)")
+    defaults.synchronize()
+  }
+
+  static func activeBundlePath() -> String? {
+    resolveRootPath()
+  }
+
+  static func setActiveBundlePath(_ path: String) throws {
+    try setActiveBundlePath(OtaKeys.defaultModule, path)
+  }
+
+  static func clearActiveBundlePath() throws {
+    try clearActiveBundlePath(OtaKeys.defaultModule)
+  }
+
+  static func rootModuleId() -> String {
+    defaults.string(forKey: OtaKeys.root) ?? OtaKeys.defaultModule
+  }
+
+  static func setRootModuleId(_ moduleId: String) throws {
+    try requireModule(moduleId)
+    defaults.set(moduleId, forKey: OtaKeys.root)
+    defaults.synchronize()
+  }
+
+  static func activeBundlePath(for moduleId: String) throws -> String? {
+    try requireModule(moduleId)
+    return pathMap()[moduleId]
+  }
+
+  static func setActiveBundlePath(_ moduleId: String, _ path: String) throws {
+    try requireModule(moduleId)
+    var map = pathMap()
+    map[moduleId] = path
+    try persistMap(OtaKeys.map, map)
+    if moduleId == OtaKeys.defaultModule {
+      defaults.set(path, forKey: OtaKeys.path)
+      defaults.synchronize()
+    }
+  }
+
+  static func previousProduction(_ moduleId: String) throws -> [String: String]? {
+    try requireModule(moduleId)
+    guard let path = previousPathMap()[moduleId], !path.isEmpty,
+          let updateId = defaults.string(forKey: previousUpdateKey(moduleId)), !updateId.isEmpty
+    else { return nil }
+    return ["path": path, "updateId": updateId]
+  }
+
+  static func setPreviousProduction(_ moduleId: String, _ path: String, _ updateId: String) throws {
+    try requireModule(moduleId)
+    var map = previousPathMap()
+    map[moduleId] = path
+    try persistMap(OtaKeys.previousMap, map)
+    defaults.set(updateId, forKey: previousUpdateKey(moduleId))
+    defaults.synchronize()
+  }
+
+  static func clearPreviousProduction(_ moduleId: String) throws {
+    try requireModule(moduleId)
+    var map = previousPathMap()
+    map.removeValue(forKey: moduleId)
+    try persistMap(OtaKeys.previousMap, map)
+    defaults.removeObject(forKey: previousUpdateKey(moduleId))
+    defaults.synchronize()
+  }
+
+  static func clearActiveBundlePath(_ moduleId: String) throws {
+    try requireModule(moduleId)
+    var map = pathMap()
+    map.removeValue(forKey: moduleId)
+    try persistMap(OtaKeys.map, map)
+    if moduleId == OtaKeys.defaultModule {
+      defaults.removeObject(forKey: OtaKeys.path)
+      defaults.synchronize()
+    }
+  }
+
+  static func ensureModuleSlots(_ moduleId: String) throws -> String {
+    try requireModule(moduleId)
+    var root = try filesRoot()
+    root.appendPathComponent("ota", isDirectory: true)
+    root.appendPathComponent(moduleId, isDirectory: true)
+    for name in ["staged", "active", "previous", "baseline"] {
+      let slot = root.appendingPathComponent(name, isDirectory: true)
+      try FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
+    }
+    return root.path
+  }
+
+  static func writeFileBase64(_ relativePath: String, _ base64: String) throws -> String {
+    let file = try resolveUnderFiles(relativePath)
+    guard let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters) else {
+      throw OtaCallError(message: "invalid base64")
+    }
+    try FileManager.default.createDirectory(
+      at: file.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try data.write(to: file)
+    return file.path
+  }
+
+  static func writeFileUtf8(_ relativePath: String, _ contents: String) throws -> String {
+    let file = try resolveUnderFiles(relativePath)
+    try FileManager.default.createDirectory(
+      at: file.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try contents.write(to: file, atomically: true, encoding: .utf8)
+    return file.path
+  }
+
+  static func readFileUtf8(_ relativePath: String) throws -> String? {
+    let file = try resolveUnderFiles(relativePath)
+    guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+    return try String(contentsOf: file, encoding: .utf8)
+  }
+
+  /// Installed OTA path wins. Debug with no install returns nil (Metro).
+  /// Release with no install returns the embedded main.jsbundle.
+  static func resolveBundleURL(debug: Bool) -> URL? {
+    if let path = resolveRootPath(), !path.isEmpty {
+      return URL(fileURLWithPath: path)
+    }
+    if debug { return nil }
+    return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+  }
+
+  private static func resolveRootPath() -> String? {
+    let root = rootModuleId()
+    if let path = pathMap()[root] { return path }
+    if root == OtaKeys.defaultModule { return defaults.string(forKey: OtaKeys.path) }
+    return nil
+  }
+
+  private static func pathMap() -> [String: String] {
+    guard let raw = defaults.string(forKey: OtaKeys.map) else { return legacyMap() }
+    guard let parsed = parseMap(raw), !parsed.isEmpty else { return legacyMap() }
+    return parsed
+  }
+
+  private static func legacyMap() -> [String: String] {
+    guard let path = defaults.string(forKey: OtaKeys.path) else { return [:] }
+    return [OtaKeys.defaultModule: path]
+  }
+
+  private static func previousPathMap() -> [String: String] {
+    guard let raw = defaults.string(forKey: OtaKeys.previousMap) else { return [:] }
+    return parseMap(raw) ?? [:]
+  }
+
+  private static func parseMap(_ raw: String) -> [String: String]? {
+    guard let data = raw.data(using: .utf8),
+          let obj = try? JSONSerialization.jsonObject(with: data) as? [String: String]
+    else { return nil }
+    return obj
+  }
+
+  private static func persistMap(_ key: String, _ map: [String: String]) throws {
+    let data = try JSONSerialization.data(withJSONObject: map)
+    guard let raw = String(data: data, encoding: .utf8) else {
+      throw OtaCallError(message: "path map encode failed")
+    }
+    defaults.set(raw, forKey: key)
+    defaults.synchronize()
+  }
+
+  private static func resolveUnderFiles(_ relativePath: String) throws -> URL {
+    if relativePath.contains("..") {
+      throw OtaCallError(message: "path must not contain ..")
+    }
+    var url = try filesRoot()
+    for part in relativePath.split(separator: "/", omittingEmptySubsequences: true) {
+      url.appendPathComponent(String(part))
+    }
+    return url
+  }
+
+  private static func filesRoot() throws -> URL {
+    try FileManager.default.url(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask,
+      appropriateFor: nil,
+      create: true
+    )
+  }
+
+  private static func requireModule(_ moduleId: String) throws {
+    let range = NSRange(location: 0, length: (moduleId as NSString).length)
+    if OtaKeys.moduleId.firstMatch(in: moduleId, range: range) == nil {
+      throw OtaCallError(message: "invalid moduleId: \(moduleId)")
+    }
+  }
+
+  private static func installedKey(_ moduleId: String) -> String {
+    "installed_update_id_\(moduleId)"
+  }
+
+  private static func previousUpdateKey(_ moduleId: String) -> String {
+    "previous_update_id_\(moduleId)"
+  }
+
+  private static func rolledBackKey(_ moduleId: String) -> String {
+    "rolled_back_update_id_\(moduleId)"
+  }
+}
+
+/// Called from the host AppDelegate's bundle URL. See ios/Ota/README.md.
+@objc(OtaBundle)
+public class OtaBundle: NSObject {
+  @objc public static func resolveURL(debug: Bool) -> URL? {
+    OtaStore.resolveBundleURL(debug: debug)
+  }
+}
+
+@objc(Ota)
+class Ota: NSObject {
+  @objc static func requiresMainQueueSetup() -> Bool { false }
+
+  @objc(logJs:resolver:rejecter:)
+  func logJs(
+    _ message: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    OtaStore.log(message)
+    resolve(nil)
+  }
+
+  @objc(getOtaPublicKeys:rejecter:)
+  func getOtaPublicKeys(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    resolve(OtaStore.publicKeys())
+  }
+
+  @objc(getInstalledUpdateId:resolver:rejecter:)
+  func getInstalledUpdateId(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.getInstalledUpdateId(moduleId) }
+  }
+
+  @objc(setInstalledUpdateId:updateId:resolver:rejecter:)
+  func setInstalledUpdateId(
+    _ moduleId: String,
+    updateId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.setInstalledUpdateId(moduleId, updateId)
+      return true
+    }
+  }
+
+  @objc(getRolledBackUpdateId:resolver:rejecter:)
+  func getRolledBackUpdateId(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.getRolledBackUpdateId(moduleId) }
+  }
+
+  @objc(setRolledBackUpdateId:updateId:resolver:rejecter:)
+  func setRolledBackUpdateId(
+    _ moduleId: String,
+    updateId: String?,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.setRolledBackUpdateId(moduleId, updateId)
+      return true
+    }
+  }
+
+  @objc(getStableDeviceId:rejecter:)
+  func getStableDeviceId(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    resolve(OtaStore.stableDeviceId())
+  }
+
+  @objc(recordStartupFailure:resolver:rejecter:)
+  func recordStartupFailure(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.recordStartupFailure(moduleId) }
+  }
+
+  @objc(resetStartupFailures:resolver:rejecter:)
+  func resetStartupFailures(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.resetStartupFailures(moduleId)
+      return true
+    }
+  }
+
+  @objc(getActiveBundlePath:rejecter:)
+  func getActiveBundlePath(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    resolve(OtaStore.activeBundlePath())
+  }
+
+  @objc(setActiveBundlePath:resolver:rejecter:)
+  func setActiveBundlePath(
+    _ path: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.setActiveBundlePath(path)
+      return true
+    }
+  }
+
+  @objc(clearActiveBundlePath:rejecter:)
+  func clearActiveBundlePath(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.clearActiveBundlePath()
+      return true
+    }
+  }
+
+  @objc(getRootModuleId:rejecter:)
+  func getRootModuleId(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    resolve(OtaStore.rootModuleId())
+  }
+
+  @objc(setRootModuleId:resolver:rejecter:)
+  func setRootModuleId(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.setRootModuleId(moduleId)
+      return true
+    }
+  }
+
+  @objc(getActiveBundlePathForModule:resolver:rejecter:)
+  func getActiveBundlePathForModule(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.activeBundlePath(for: moduleId) }
+  }
+
+  @objc(setActiveBundlePathForModule:path:resolver:rejecter:)
+  func setActiveBundlePathForModule(
+    _ moduleId: String,
+    path: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.setActiveBundlePath(moduleId, path)
+      return true
+    }
+  }
+
+  @objc(getPreviousProduction:resolver:rejecter:)
+  func getPreviousProduction(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.previousProduction(moduleId) }
+  }
+
+  @objc(setPreviousProduction:path:updateId:resolver:rejecter:)
+  func setPreviousProduction(
+    _ moduleId: String,
+    path: String,
+    updateId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.setPreviousProduction(moduleId, path, updateId)
+      return true
+    }
+  }
+
+  @objc(clearPreviousProduction:resolver:rejecter:)
+  func clearPreviousProduction(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.clearPreviousProduction(moduleId)
+      return true
+    }
+  }
+
+  @objc(clearActiveBundlePathForModule:resolver:rejecter:)
+  func clearActiveBundlePathForModule(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) {
+      try OtaStore.clearActiveBundlePath(moduleId)
+      return true
+    }
+  }
+
+  @objc(ensureModuleSlots:resolver:rejecter:)
+  func ensureModuleSlots(
+    _ moduleId: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.ensureModuleSlots(moduleId) }
+  }
+
+  @objc(writeFileBase64:base64:resolver:rejecter:)
+  func writeFileBase64(
+    _ relativePath: String,
+    base64: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.writeFileBase64(relativePath, base64) }
+  }
+
+  @objc(writeFileUtf8:contents:resolver:rejecter:)
+  func writeFileUtf8(
+    _ relativePath: String,
+    contents: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.writeFileUtf8(relativePath, contents) }
+  }
+
+  @objc(readFileUtf8:resolver:rejecter:)
+  func readFileUtf8(
+    _ relativePath: String,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    call(resolve, reject) { try OtaStore.readFileUtf8(relativePath) }
+  }
+
+  /// Cold start so the next launch reads the installed bundle path.
+  /// Same outcome as the Android template's process exit.
+  @objc(reload:rejecter:)
+  func reload(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    resolve(true)
+    exit(0)
+  }
+
+  private func call(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    _ reject: @escaping RCTPromiseRejectBlock,
+    _ body: () throws -> Any?
+  ) {
+    do {
+      resolve(try body())
+    } catch {
+      reject("ota", error.localizedDescription, error)
+    }
+  }
+}

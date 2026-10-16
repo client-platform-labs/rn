@@ -151,6 +151,11 @@ describe("rn ota install (#265) — installs into an EXISTING project", () => {
       );
       assert.equal(read(root, MAIN_APP).includes("OtaPackage"), true);
       assert.ok(lines.length > 0, "human output must not be empty");
+      assert.equal(
+        existsSync(path.join(root, "ios/Ota/OtaModule.swift")),
+        false,
+        "an Android-only project must not gain an iOS adapter",
+      );
     } finally {
       cleanup();
     }
@@ -173,6 +178,65 @@ describe("rn ota install (#265) — installs into an EXISTING project", () => {
         kotlin,
         /0000000000000000000000000000000000000000000000000000000000000000/,
         "the placeholder must be gone",
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("bakes the same trust root into the iOS adapter when ios/ exists", () => {
+    const { root, cleanup } = tmpProject();
+    try {
+      seedExistingProject(root);
+      mkdirSync(path.join(root, "ios"), { recursive: true });
+      writeFileSync(
+        path.join(root, "ios/Podfile"),
+        "target 'App' do\n  config = use_native_modules!\n  use_react_native!\nend\n",
+      );
+      writeFileSync(
+        path.join(root, "ios/AppDelegate.swift"),
+        [
+          "import UIKit",
+          "",
+          "class AppDelegate: NSObject {",
+          "  func bundleURL() -> URL? {",
+          '    Bundle.main.url(forResource: "main", withExtension: "jsbundle")',
+          "  }",
+          "}",
+          "",
+        ].join("\n"),
+      );
+      const { logger } = recordingLogger();
+
+      runOtaInstall({ cwd: root, logger, rcaPubkeyHex: RCA_KEY });
+
+      const swift = read(root, "ios/Ota/OtaModule.swift");
+      assert.ok(swift.includes(RCA_KEY), "the baked key must equal the supplied key");
+      assert.doesNotMatch(
+        swift,
+        /0000000000000000000000000000000000000000000000000000000000000000/,
+      );
+      assert.match(read(root, "ios/Ota/OtaModule.m"), /RCT_EXTERN_MODULE\(Ota,/);
+      assert.equal(existsSync(path.join(root, "ios/Ota/OtaAdapter.podspec")), true);
+      assert.equal(
+        (read(root, "ios/Podfile").match(/pod 'OtaAdapter'/g) ?? []).length,
+        1,
+      );
+      const delegate = read(root, "ios/AppDelegate.swift");
+      assert.match(delegate, /OtaBundle\.resolveURL\(debug: false\)/);
+      assert.match(delegate, /import OtaAdapter/);
+      assert.match(read(root, "ota-wiring.md"), /ios\/Ota/);
+
+      runOtaInstall({ cwd: root, logger, rcaPubkeyHex: RCA_KEY });
+
+      assert.equal(
+        (read(root, "ios/Podfile").match(/pod 'OtaAdapter'/g) ?? []).length,
+        1,
+        "a second run must not duplicate the pod line",
+      );
+      assert.equal(
+        (read(root, "ios/AppDelegate.swift").match(/import OtaAdapter/g) ?? []).length,
+        1,
       );
     } finally {
       cleanup();
