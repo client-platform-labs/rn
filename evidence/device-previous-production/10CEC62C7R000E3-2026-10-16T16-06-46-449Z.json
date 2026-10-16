@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "serial": "10CEC62C7R000E3",
+  "package": "com.rnotaacceptance",
+  "previousUpdateId": "main-631e0d976f50",
+  "crashedUpdateId": "main-a0d130f489bc",
+  "lines": [
+    "crash-loop rollback: failCount=3 threshold=3 — clearing budget, restoring previous production update_id=main-631e0d976f50",
+    "quality-signal kind=crash business_module=main update_id=main-a0d130f489bc detail=\"crash-loop\" ts=1792166806449",
+    "crash-loop rollback: restoring previous production update_id=main-631e0d976f50"
+  ],
+  "note": "验收工程 release 包。先装稳 main-631e0d976f50，再装 main-a0d130f489bc，崩溃环恢复的是上一生产包。模块入口挂了 ShellHost，安装后的包仍跑启动序列。不是嵌入既有壳，不是两台设备灰度。",
+  "recordedAt": "2026-10-16T16:06:46.449Z"
+}

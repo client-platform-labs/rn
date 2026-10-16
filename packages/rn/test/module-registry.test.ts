@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { renderModuleRegistry } from "../dist/module-workspace.js";
+import { renderModuleIndex, renderModuleRegistry } from "../dist/module-workspace.js";
 
 describe("renderModuleRegistry (ADR-021/D2 生成式注册表)", () => {
   it("generates imports from DECLARED package names (any scope)", () => {
@@ -26,5 +26,15 @@ describe("renderModuleRegistry (ADR-021/D2 生成式注册表)", () => {
     const out = renderModuleRegistry([]);
     assert.match(out, /ensureGeneratedRegistrations/);
     assert.doesNotMatch(out, /registerModule\(/);
+  });
+});
+
+describe("renderModuleIndex", () => {
+  it("keeps the shell boot on the installed module entry", () => {
+    const out = renderModuleIndex("main", "rnotaacceptance");
+    assert.match(out, /ShellHost/);
+    assert.match(out, /moduleId: "main"/);
+    assert.match(out, /registerComponent\("rnotaacceptance", \(\) => ReleaseEntry\)/);
+    assert.doesNotMatch(out, /registerComponent\("rnotaacceptance", \(\) => ModuleApp\)/);
   });
 });

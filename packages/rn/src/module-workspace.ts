@@ -47,12 +47,17 @@ export function renderModulePackageJson(moduleId: string): string {
 export function renderModuleIndex(moduleId: string, hostAppKey?: string): string {
   const processEntry = hostAppKey
     ? `
-// Process-entry contract (release OTA): after installAndReload this module
-// bundle is loaded as the process JS bundle — MainActivity mounts the host's
-// main component (${hostAppKey}), so register it at module top level. In
-// baseline (shell-imported) mode the shell's own App entry overwrites this
-// registration — harmless.
-AppRegistry.registerComponent(${JSON.stringify(hostAppKey)}, () => ModuleApp);
+// The installed bundle replaces the process JS entry. It still mounts the
+// shell boot: a module-only entry never pulls again, never snapshots the
+// previous production candidate, and never runs the crash-loop.
+import React from "react";
+import { ShellHost } from "../../shell/ShellHost";
+
+function ReleaseEntry() {
+  return React.createElement(ShellHost, { moduleId: ${JSON.stringify(moduleId)} });
+}
+
+AppRegistry.registerComponent(${JSON.stringify(hostAppKey)}, () => ReleaseEntry);
 `
     : "\n";
   return `/**
