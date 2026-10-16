@@ -71,3 +71,49 @@ export function formatQualitySignalLine(
   parts.push(`ts=${signal.ts}`);
   return parts.join(" ");
 }
+
+const QUALITY_SIGNAL_PREFIX = "quality-signal ";
+
+/**
+ * Inverse of `formatQualitySignalLine`, including a logcat line that contains
+ * the `quality-signal` prefix. Returns null when the line has no attributable
+ * crash identity — callers must not invent a signal.
+ */
+export function parseQualitySignalLine(
+  raw: string,
+): QualitySignalAttribution | null {
+  const at = raw.indexOf(QUALITY_SIGNAL_PREFIX);
+  const body = at >= 0 ? raw.slice(at + QUALITY_SIGNAL_PREFIX.length) : raw;
+  const kind = body.match(/(?:^|\s)kind=(\S+)/)?.[1];
+  const businessModule = body.match(/(?:^|\s)business_module=(\S+)/)?.[1];
+  const updateId = body.match(/(?:^|\s)update_id=(\S+)/)?.[1];
+  if (!kind || !businessModule || !updateId) return null;
+  const known: readonly string[] = [
+    "crash",
+    "js_error",
+    "anr",
+    "perf",
+    "custom",
+    "e2e_fail",
+    "consistency_fail",
+  ];
+  if (!known.includes(kind)) return null;
+  const tsRaw = body.match(/(?:^|\s)ts=(\d+)/)?.[1];
+  const detailRaw = body.match(/(?:^|\s)detail=("[^"]*")/)?.[1];
+  let detail: string | undefined;
+  if (detailRaw) {
+    try {
+      const parsed = JSON.parse(detailRaw) as unknown;
+      if (typeof parsed === "string") detail = parsed;
+    } catch {
+      detail = undefined;
+    }
+  }
+  return createQualitySignal({
+    kind: kind as QualitySignalKind,
+    business_module: businessModule,
+    update_id: updateId,
+    detail,
+    ts: tsRaw ? Number(tsRaw) : undefined,
+  });
+}

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createQualitySignal } from "../dist/index.js";
+import {
+  createQualitySignal,
+  formatQualitySignalLine,
+  parseQualitySignalLine,
+} from "../dist/index.js";
 import {
   evaluateQualityPromoteGate,
   isPromoteBlockingSignalKind,
@@ -58,6 +62,26 @@ describe("quality promote gate", () => {
   it("classifies blocking kinds", () => {
     assert.equal(isPromoteBlockingSignalKind("crash"), true);
     assert.equal(isPromoteBlockingSignalKind("custom"), false);
+  });
+
+  it("parses a device logcat quality-signal back into the crashed update", () => {
+    const signal = createQualitySignal({
+      kind: "crash",
+      business_module: "checkout",
+      update_id: "upd-9",
+      detail: "crash-loop",
+      ts: 1700000000000,
+    });
+    const logcat =
+      `E OTA: JS: quality-signal ${formatQualitySignalLine(signal)}`;
+    const parsed = parseQualitySignalLine(logcat);
+    assert.ok(parsed);
+    assert.equal(parsed.kind, "crash");
+    assert.equal(parsed.business_module, "checkout");
+    assert.equal(parsed.update_id, "upd-9");
+    assert.equal(parsed.detail, "crash-loop");
+    assert.equal(parsed.ts, 1700000000000);
+    assert.equal(parseQualitySignalLine("E OTA: JS: booting baseline"), null);
   });
 
   it("matches app-host via synthetic module key", () => {
