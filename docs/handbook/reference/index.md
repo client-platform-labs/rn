@@ -156,7 +156,7 @@ Schema：`packages/rn-core/src/schema.ts`（`projectManifestSchema`），类型�
 | GET | `/v1/service` | 无 | 服务自描述：mode、storage(file/sqlite)、`default_min_soak_ms`、auth 配置摘要 |
 | GET | `/v1/candidates?lane=` | 无 | 可安装 app-host 候选（platform=android，kind app-host/-debug，带 path）；响应带 `download_url` |
 | GET | `/v1/js-updates?lane=&module=` | 无 | js-update 候选列表（带 download_url） |
-| GET | `/v1/js-updates/check?lane=staging\|production&module=` | 无 | 设备 checkUpdate：返回该泳道该 module **最新晋升**候选的 DeviceJsUpdateManifest（列表末项；含 sidecar + `url`）。灰度百分比与设备分档不参与选择。无候选 204；sidecar 缺失 404 `sidecar_missing` |
+| GET | `/v1/js-updates/check?lane=staging\|production&module=&device=` | 无 | 设备 checkUpdate。无部分放量时返回该泳道该 module **最新晋升**候选。production 上该 digest 的 rollout 未满 100% 时，按 `device` 稳定分档：百分比内返回新候选，其余返回上一生产候选；日志 `[cp] gray` 写明 `percent` 与 digest。无候选 204；sidecar 缺失 404 `sidecar_missing` |
 | GET | `/v1/artifacts/:digest` | 无 | 流式下载制品；content-type 依 kind（APK=`application/vnd.android.package-archive`，rn-module=AAR octet-stream，js-update=hbc octet-stream，`serve.ts:177-199`）；不存在 404 |
 | GET | `/v1/registry` | 无 | 完整 registry JSON |
 | GET | `/v1/registry/staging` `/v1/registry/production` | 无 | 对应 lane 数组 |

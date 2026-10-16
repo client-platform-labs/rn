@@ -945,4 +945,32 @@ describe("P1/ADR-024: cert-mode CRL — leaf-signed with an attached cert_chain 
       plane.restore();
     }
   });
+
+  it("sends the stable device id on check", async () => {
+    const signer = keypair();
+    const { adapter } = fakeNative({
+      failures: 0,
+      pubKeys: [signer.pubHex],
+      overrides: { getStableDeviceId: async () => "device-a" },
+    });
+    const plane = installFetch((url) => {
+      if (url.startsWith(`${BASE}/v1/js-updates/check`)) return { status: 204 };
+      if (url === `${BASE}/v1/crl`) {
+        return { status: 200, body: crlDoc(signer.privateKey, []) };
+      }
+      return undefined;
+    });
+    try {
+      await bootReleaseOta(
+        { native: adapter, controlPlaneBaseUrl: BASE },
+        MODULE,
+      );
+      assert.ok(
+        plane.urls.some((u) => u.includes("device=device-a")),
+        `expected device id on check, got: ${plane.urls.join(" ")}`,
+      );
+    } finally {
+      plane.restore();
+    }
+  });
 });

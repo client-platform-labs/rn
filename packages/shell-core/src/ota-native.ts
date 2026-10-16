@@ -94,6 +94,11 @@ export interface OtaNativeAdapter {
   /** Crash-loop boot telemetry (startup counter lives in native). */
   recordStartupFailure?(moduleId: string): Promise<number>;
   resetStartupFailures?(moduleId: string): Promise<void>;
+  /**
+   * Install-stable id used as the gray bucket key. The same value on every
+   * boot; missing means check cannot place the device in a percent cohort.
+   */
+  getStableDeviceId?(): Promise<string | null>;
 }
 
 /**

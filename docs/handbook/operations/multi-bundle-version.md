@@ -39,7 +39,7 @@ product_app (壳)
 
 `packages/ship/src/serve.ts`：`GET /v1/js-updates/check?module=<id>&lane=production` 取 `listJsUpdateCandidates` 的**末项**构建 manifest。`promote` 把候选追加到泳道数组末尾，因此末项是当前发布，不是最旧的一条。
 
-**运维含义**：`promote --digest <v2>` 之后，该泳道上的设备下次 `check` 会拿到 v2。设备要真正跑上 v2，仍须拉取并装入 `active` 槽，旧包退居 `previous`。「已晋升」不等于「设备已安装」。灰度百分比、设备泳道和稳定分档**不参与**这次选择：同一泳道的所有设备拿到同一个最新包。按比例分档是未落地的企业闭环缺口（见 §7 K1）。
+**运维含义**：没有进行中的部分放量时，`promote --digest <v2>` 之后该泳道设备下次 `check` 拿到 v2。设备要真正跑上 v2，仍须拉取并装入 `active` 槽。「已晋升」不等于「设备已安装」。若 v2 有未满 100% 的 rollout，`check` 用设备 id 的稳定分档：该百分比的设备拿 v2，其余拿上一生产候选；日志写明 `percent` 和返回的 digest。没有设备 id 的请求留在上一生产候选。手动设备泳道不参与这次选择。
 
 ## 2. 决策一：何时升级 shell（壳变更矩阵）
 
@@ -234,7 +234,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 
 | # | 问题 | 现状 | 待办 |
 |---|------|------|------|
-| K1 | `check` 不按灰度百分比分档，同一泳道所有设备拿到最新晋升包 | 最新候选已实现（§1.2）；分档未做 | **TODO(实现)**：同一设备稳定分档，按百分比在新候选与上一生产候选之间选择 |
+| K1 | 部分放量时 `check` 按设备稳定分档 | 已实现（§1.2）：同一设备同一档；百分比拿新候选，其余拿上一生产候选；日志带 `percent` | 两台真机按比例拿到不同包的记录仍未齐 |
 | K2 | 壳变更矩阵的动作仍是硬编码，未按客户壳单独配阈值 | `promote` 已按默认矩阵阻断 | **TODO(定义阈值)**：阈值仍是 `DEFAULT_SHELL_CHANGE_MATRIX` |
 | K3 | 「强升 = 一批 module 原子 promote」无原语 | 人工逐个 promote | **TODO(实现)** |
 | K4 | N-1 窗口时长未定标 | `validateSupportWindow` 只校验结构 | **TODO(定义阈值)** |

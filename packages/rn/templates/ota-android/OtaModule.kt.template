@@ -25,6 +25,7 @@ import java.io.File
  * - previous_paths_json / previous_update_id_<module>: production bundle this
  *   device was running before the current install (rollback target)
  * - startup_failures_<module>: crash-loop counter (roll back to previous, else baseline)
+ * - stable_device_id: install-stable gray bucket key
  */
 class OtaModule(private val ctx: ReactApplicationContext) :
   ReactContextBaseJavaModule(ctx) {
@@ -99,6 +100,23 @@ class OtaModule(private val ctx: ReactApplicationContext) :
       else edit.putString(rolledBackKey(moduleId), updateId)
       edit.commit()
       promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("ota", e)
+    }
+  }
+
+  // ── gray bucket identity ───────────────────────────────────────────────
+  @ReactMethod
+  fun getStableDeviceId(promise: Promise) {
+    try {
+      val existing = prefs().getString(KEY_DEVICE, null)
+      if (!existing.isNullOrEmpty()) {
+        promise.resolve(existing)
+        return
+      }
+      val id = java.util.UUID.randomUUID().toString()
+      prefs().edit().putString(KEY_DEVICE, id).commit()
+      promise.resolve(id)
     } catch (e: Exception) {
       promise.reject("ota", e)
     }
@@ -405,6 +423,7 @@ class OtaModule(private val ctx: ReactApplicationContext) :
     const val KEY_ROOT = "root_module_id"
     const val KEY_MAP = "active_paths_json"
     const val KEY_PREVIOUS_MAP = "previous_paths_json"
+    const val KEY_DEVICE = "stable_device_id"
     const val DEFAULT_MODULE = "main"
     /** Standard greenfield baseline: the embedded app bundle (not a per-module hbc). */
     const val ASSET_BASELINE = "assets://index.android.bundle"
