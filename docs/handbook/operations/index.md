@@ -82,7 +82,7 @@
 
 - **每步产物**：宿主 = APK + digest + `install-audit.jsonl`；JS = sidecar（`.rn/delivery/updates/<module>/<update_id>.json`，含 `pem:ed25519:` 签名）+ SBOM；CP = `registry.sqlite` + `artifacts/<digest>` + `cp-audit.log`。
 - **门禁顺序铁律**：quality / consistency / SBOM / governance / dependency 五道 promote 门全走（`promote.ts`），`e2e_fail`/`consistency_fail` 挡 promote 但不挡 compile（fail-closed 在 promote 而非 build）。debug-host 不可 promote。
-- **灰度放量的坑（multi-bundle-version §1.2 已实证）**：`/v1/js-updates/check` 取 `candidates[0]`（**最旧** promote 候选）——单靠 `promote --digest <v2>` 不会让设备拿到 v2，需先 block v1 或产品化修 `check` 选择逻辑（**TODO(实现)**）。灰度期 v1 必须保留在 production lane 直到全量稳定。
+- **`check` 选择（multi-bundle-version §1.2）**：`/v1/js-updates/check` 返回该泳道、该 module **最新晋升**的候选（列表末项；`promote` 追加）。因此 `promote --digest <v2>` 之后，设备下次 `check` 会拿到 v2，不必先 block v1。灰度百分比和设备分档**仍不参与**选择（同一泳道上所有设备拿到同一个最新包）。灰度期若需保留上一包，靠尚未落地的稳定分档，而不是靠「check 取最旧」。
 - 升级 CP：`git pull` → `pnpm install --frozen-lockfile && pnpm build` → `docker compose up -d --build` → `verify-cp-*.mjs` 全量回归（`backend-services.md` §2.6）。升级前先备份。
 
 ### 2.3 多环境晋升条件（什么时候能上一档）

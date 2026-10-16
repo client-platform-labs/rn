@@ -35,11 +35,11 @@ product_app (壳)
 - **槽位（slot）**：每 module 独立 `active`（N）/ `previous`（N-1）/ `baseline`（壳内嵌）三个槽位（`types.ts` `UpdateSlotKind`；`selector.ts` `FALLBACK_SLOT_ORDER = ["active","previous","baseline"]`）。**「v1 vs v2 vs N-1」在设备端就是槽位之间的选择**，不是 CP 里的多个候选并行。
 - 仓拓扑 **B**（工业默认）：壳 + 外置 module workspaces，module 不是第二 app-host（ADR-005）。
 
-### 1.2 关键事实：`/v1/js-updates/check` 是「每 module 单活」语义
+### 1.2 关键事实：`/v1/js-updates/check` 取该泳道最新晋升候选
 
-`serve.ts:527-575`：`GET /v1/js-updates/check?module=<id>&lane=production` 取 `listJsUpdateCandidates(registry, lane, moduleId)` 的 **`candidates[0]`** 构建 manifest。`promoteStagingToProduction`（`candidate-store.ts:346-363`）把 promoted 候选**追加**到 `registry.production` 数组末尾——**数组顺序即 promote 顺序，`candidates[0]` 是「该 module 最旧的生产候选」**。
+`packages/ship/src/serve.ts`：`GET /v1/js-updates/check?module=<id>&lane=production` 取 `listJsUpdateCandidates` 的**末项**构建 manifest。`promote` 把候选追加到泳道数组末尾，因此末项是当前发布，不是最旧的一条。
 
-**运维含义（诚实标注）**：单独 `rn-delivery promote --digest <v2>` **不会**改变 `check` 返回的 digest——它仍返回 v1，直到 v1 被 `block`/从 production 移除。**设备端真正拿到 v2 的路径**是：`check` 返回 v2 后，`pullOtaUpdate` 把 v2 装入 `active` 槽、旧包自动退居 `previous`（N-1）。「v2 已 promote」≠「设备已装 v2」；多包版本管理的主战场是**设备端槽位**，CP 只是投递口。这是当前实现与「灰度放量 v2」理想语义的差距，产品化需补（见 §7 已知问题）。
+**运维含义**：`promote --digest <v2>` 之后，该泳道上的设备下次 `check` 会拿到 v2。设备要真正跑上 v2，仍须拉取并装入 `active` 槽，旧包退居 `previous`。「已晋升」不等于「设备已安装」。灰度百分比、设备泳道和稳定分档**不参与**这次选择：同一泳道的所有设备拿到同一个最新包。按比例分档是未落地的企业闭环缺口（见 §7 K1）。
 
 ## 2. 决策一：何时升级 shell（壳变更矩阵）
 
@@ -231,7 +231,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 
 | # | 问题 | 现状 | 待办 |
 |---|------|------|------|
-| K1 | `check` 返回 `candidates[0]`（最旧 promote），promote v2 不改设备拉取 | 实现如此（§1.2） | **TODO(实现)**：check 需按「最新/灰度百分比」选候选；产品化定标 |
+| K1 | `check` 不按灰度百分比分档，同一泳道所有设备拿到最新晋升包 | 最新候选已实现（§1.2）；分档未做 | **TODO(实现)**：同一设备稳定分档，按百分比在新候选与上一生产候选之间选择 |
 | K2 | `shell-change-matrix.ts` 未被 promote 门禁调用 | 纯函数/常量 | **TODO(实现)**：接 `rn-delivery promote` 门禁链 |
 | K3 | 「强升 = 一批 module 原子 promote」无原语 | 人工逐个 promote | **TODO(实现)** |
 | K4 | N-1 窗口时长未定标 | `validateSupportWindow` 只校验结构 | **TODO(定义阈值)** |
@@ -255,7 +255,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 - `architecture/index.md` §2（壳共命运）、§6（多 bundle 架构 / GF vs BF / 双列车）、§7（设备端信任模型）。
 - `packages/rn-core/src/`：`shell-change-matrix.ts`（壳变更矩阵，骨架）、`bundle-load-gate.ts`（加载门 + composition 依赖门）、`channel-profile.ts`（渠道画像）、`selector.ts`（`gateJsCandidate` / `selectFallbackSlot` / `FALLBACK_SLOT_ORDER`）、`js-rollback-plan.ts`（`planJsRollback`）、`module-slots-store.ts`（按 module 持久化）、`release-rollout.ts`（灰度状态机 + 默认阶梯）。`release-rollback.ts` 不存在——回滚契约在 `js-rollback-plan.ts` + `selector.ts`；`slot-paths.ts` 在 `packages/shell-core/src/`（槽位路径）。
 - `packages/shell-core/src/`：`pull-ota.ts`（skip-if-installed + update_id 持久化）、`crash-loop.ts`（`DEFAULT_CRASH_LOOP_MAX=3`）、`ota-client.ts`（`rollbackToEmbeddedBaseline`，Android-only）、`ota-native.ts`（适配器契约）。
-- `packages/rn-delivery/src/`：`serve.ts`（`/v1/js-updates/check` 取 `candidates[0]`）、`candidate-store.ts`（`listJsUpdateCandidates` / `promoteStagingToProduction` 追加语义 / `blockedUpdateIdsForRuntime`）、`promote.ts`（promote 门禁链）、`device-manifest.ts`（设备 manifest）。
+- `packages/ship/src/`：`serve.ts`（`/v1/js-updates/check` 取候选列表末项，即最新晋升）、`candidate-store.ts`（`listJsUpdateCandidates` / promote 追加语义 / `blockedUpdateIdsForRuntime`）、`promote.ts`（promote 门禁链）、`device-manifest.ts`（设备 manifest）。
 - G7 产物：`scripts/apply-ota-to-project.mjs`、`packages/rn/templates/greenfield-ota/ReleaseOtaBoot.tsx`、`ota-android/` README。
 - 运维角色：`roles-matrix.md` · `ota.md`（回滚/验签/重拉循环）· `backend-services.md`（cp-serve / rollout 端点）· `research/operations.md`（行业对照）。
 - 真机证据：`docs/hitl/map-g-device-ota-e2e-2026-09-07.md`（G0 设备 e2e）。
