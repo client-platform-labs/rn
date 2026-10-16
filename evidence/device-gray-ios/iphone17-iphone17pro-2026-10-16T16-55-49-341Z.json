@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "package": "org.reactjs.native.example.rnotaacceptance",
+  "percent": 50,
+  "newest": {
+    "updateId": "main-a0d130f489bc",
+    "digest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+  },
+  "previous": {
+    "updateId": "main-631e0d976f50",
+    "digest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+  },
+  "runtimes": [
+    {
+      "udid": "0922E297-17D1-4666-B519-A88A80321DD4",
+      "kind": "simulator",
+      "model": "iPhone 17",
+      "device": "205a4326-4d44-449e-b967-8faac3c6463d",
+      "bucket": 36,
+      "cohort": "new",
+      "digest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+      "repeatDigest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+    },
+    {
+      "udid": "00BB0E79-DBF3-4948-A5D2-3A692C9461B8",
+      "kind": "simulator",
+      "model": "iPhone 17 Pro",
+      "device": "55b38f24-4428-4cd3-b8d9-a5d423166bb2",
+      "bucket": 92,
+      "cohort": "previous",
+      "digest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+      "repeatDigest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+    }
+  ],
+  "coldStartLines": [
+    "[cp] gray module=main device=205a4326-4d44-449e-b967-8faac3c6463d percent=50 bucket=36 cohort=new digest=a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+    "[cp] gray module=main device=205a4326-4d44-449e-b967-8faac3c6463d percent=50 bucket=36 cohort=new digest=a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+    "[cp] gray module=main device=55b38f24-4428-4cd3-b8d9-a5d423166bb2 percent=50 bucket=92 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+    "[cp] gray module=main device=55b38f24-4428-4cd3-b8d9-a5d423166bb2 percent=50 bucket=92 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+  ],
+  "note": "验收工程的 iOS release 模拟器包。percent=50 落在 bucket 36 与 92 之间。iPhone 17 两次冷启都是 cohort=new、digest 为最新候选；iPhone 17 Pro 两次冷启都是 cohort=previous、digest 为上一生产候选。同一 device 的 digest 不变。两台都是模拟器。装上的包是给 Android 打的 JS，在这台 iOS release 上再次启动时 fetch 报 Networking.sendRequest 参数个数不对，所以重复冷启前清掉已装路径并留下 device id，由嵌入的 iOS bundle 再问 check。不是 iPhone 真机，不是回到上一生产候选，不是质量信号挡住 promote，也不是「企业闭环完成」。",
+  "recordedAt": "2026-10-16T16:55:49.341Z"
+}
