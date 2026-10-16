@@ -6,7 +6,7 @@
 > 第一事实来源：[ADR-005 `005-multi-bundle-shell.md`](../../../wayfinding-impl-2/docs/adr/005-multi-bundle-shell.md)（一壳多 Bundle 核心决策）；相邻章节：`ota.md`（设备端验签/回滚）· `roles-matrix.md`（三角色矩阵）· `backend-services.md`（cp-serve 运维）。
 > 本手册回答四个运维决策：**何时升级 shell / 何时强升 module / 何时允许 N-1 旧包 / 何时回滚**，外加 v1/v2 槽位机制、设备端加载顺序、灰度+多包叠加、与 G7 样本衔接。
 >
-> **诚实声明**：`shell-change-matrix.ts` 是**骨架/常量定义**（机读规则 + `resolveShellChangeAction` 纯函数 + fail-closed 兜底），`DEFAULT_SHELL_CHANGE_MATRIX` 的阈值（rn_exact_tuple/native_abi/hbc_bytecode 等动作）是**硬编码示例**，尚未有 CI 或 CP 在 promote 时真正调用它阻断晋级。凡标注 `TODO(定义阈值)` 处均未定标，不得读成已生效门禁。
+> **诚实声明**：`DEFAULT_SHELL_CHANGE_MATRIX` 的动作仍是硬编码规则。`promote` 与 `POST /v1/promote` 会拿业务包指纹对照当前壳指纹，矩阵判定阻断时拒绝晋升。凡标注 `TODO(定义阈值)` 处均未定标。
 
 ## 0. 三角色速览（本手册「谁拍板」）
 
@@ -73,7 +73,7 @@ node scripts/verify-release-hygiene.mjs       # 壳 release 卫生（壳运维�
 node scripts/verify-l4-steel-thread.mjs .     # module 钢线（离线包运维，L4）
 ```
 
-**未落地（诚实标注）**：`shouldBlockPromotion(action)` 已实现纯函数，但**没有**任何 CI / CP promote 门禁真正调用 `shell-change-matrix.ts` 去阻断晋级。要让它生效需在 promote 侧接线：**TODO(实现)**（建议挂在 `rn-delivery promote` 的 `assert*AllowsPromote` 链上，见 `promote.ts`）。
+`ship promote` 与 `POST /v1/promote` 在写入生产泳道之前调用 `assertShellChangeAllowsPromote`。当前壳指纹来自工程清单 `runtime_fingerprint`，业务包指纹来自 sidecar。`shouldBlockPromotion` 为真时命令非零退出，响应写明 `change → action` 与规则摘要，候选留在暂存、不会成为 `check` 返回的包。`capability_set` 只要求重验指纹，不阻断。没有清单指纹时这道门不判断。
 
 ## 3. 决策二：何时强升 module（强制升级 vs 普通升级）
 
@@ -235,7 +235,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 | # | 问题 | 现状 | 待办 |
 |---|------|------|------|
 | K1 | `check` 不按灰度百分比分档，同一泳道所有设备拿到最新晋升包 | 最新候选已实现（§1.2）；分档未做 | **TODO(实现)**：同一设备稳定分档，按百分比在新候选与上一生产候选之间选择 |
-| K2 | `shell-change-matrix.ts` 未被 promote 门禁调用 | 纯函数/常量 | **TODO(实现)**：接 `rn-delivery promote` 门禁链 |
+| K2 | 壳变更矩阵的动作仍是硬编码，未按客户壳单独配阈值 | `promote` 已按默认矩阵阻断 | **TODO(定义阈值)**：阈值仍是 `DEFAULT_SHELL_CHANGE_MATRIX` |
 | K3 | 「强升 = 一批 module 原子 promote」无原语 | 人工逐个 promote | **TODO(实现)** |
 | K4 | N-1 窗口时长未定标 | `validateSupportWindow` 只校验结构 | **TODO(定义阈值)** |
 | K5 | 崩溃环真机记录仍缺 | 有上一生产包时回到该包，否则回嵌入基线（shell-core 测试） | 真机见 K7 |
@@ -256,7 +256,7 @@ const result = await pullOtaUpdate(client, native, moduleId, {
 
 - ADR-005 `wayfinding-impl-2/docs/adr/005-multi-bundle-shell.md`（一壳多 Bundle；runtime 单 Runtime · 多 Bundle；仓拓扑 B；每 module 槽位）。
 - `architecture/index.md` §2（壳共命运）、§6（多 bundle 架构 / GF vs BF / 双列车）、§7（设备端信任模型）。
-- `packages/rn-core/src/`：`shell-change-matrix.ts`（壳变更矩阵，骨架）、`bundle-load-gate.ts`（加载门 + composition 依赖门）、`channel-profile.ts`（渠道画像）、`selector.ts`（`gateJsCandidate` / `selectFallbackSlot` / `FALLBACK_SLOT_ORDER`）、`js-rollback-plan.ts`（`planJsRollback`）、`module-slots-store.ts`（按 module 持久化）、`release-rollout.ts`（灰度状态机 + 默认阶梯）。`release-rollback.ts` 不存在——回滚契约在 `js-rollback-plan.ts` + `selector.ts`；`slot-paths.ts` 在 `packages/shell-core/src/`（槽位路径）。
+- `packages/core/src/`：`shell-change-matrix.ts`（壳变更矩阵；`promote` 在阻断时调用）、`bundle-load-gate.ts`（加载门 + composition 依赖门）、`channel-profile.ts`（渠道画像）、`selector.ts`（`gateJsCandidate` / `selectFallbackSlot` / `FALLBACK_SLOT_ORDER`）、`js-rollback-plan.ts`（`planJsRollback`）、`module-slots-store.ts`（按 module 持久化）、`release-rollout.ts`（灰度状态机 + 默认阶梯）。`release-rollback.ts` 不存在——回滚契约在 `js-rollback-plan.ts` + `selector.ts`；`slot-paths.ts` 在 `packages/shell-core/src/`（槽位路径）。
 - `packages/shell-core/src/`：`pull-ota.ts`（skip-if-installed + 安装前记下上一生产包）、`crash-loop.ts`（`DEFAULT_CRASH_LOOP_MAX=3`）、`ota-client.ts`（`rollbackToPreviousProduction` / `rollbackToEmbeddedBaseline`，Android-only）、`ota-native.ts`（适配器契约）。
 - `packages/ship/src/`：`serve.ts`（`/v1/js-updates/check` 取候选列表末项，即最新晋升）、`candidate-store.ts`（`listJsUpdateCandidates` / promote 追加语义 / `blockedUpdateIdsForRuntime`）、`promote.ts`（promote 门禁链）、`device-manifest.ts`（设备 manifest）。
 - G7 产物：`scripts/apply-ota-to-project.mjs`、`packages/rn/templates/greenfield-ota/ReleaseOtaBoot.tsx`、`ota-android/` README。
