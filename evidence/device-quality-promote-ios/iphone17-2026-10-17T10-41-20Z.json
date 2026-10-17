@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "package": "org.reactjs.native.example.rnotaacceptance",
+  "runtime": {
+    "udid": "0922E297-17D1-4666-B519-A88A80321DD4",
+    "kind": "simulator",
+    "model": "iPhone 17",
+    "device": "fdaf9171-fb84-4328-8b52-c1e63ca9b8e6"
+  },
+  "signal": {
+    "kind": "crash",
+    "business_module": "main",
+    "update_id": "main-f775f3305a9e",
+    "line": "quality-signal kind=crash business_module=main update_id=main-f775f3305a9e detail=\"crash-loop\" ts=1792233680454"
+  },
+  "digest": "f775f3305a9e4d2b31c3307f763a4f0ea6bd3fbb5f28f336a82764ee1ed837b4",
+  "promoteExit": 1,
+  "promoteOutput": "quality gate: crash for business_module=main update_id=main-f775f3305a9e — clear signal or fix artifact before promote",
+  "remainedInStaging": true,
+  "note": "验收工程 iOS release 模拟器。候选先 release 到暂存。模拟器只问 production，所以装包那一小段把它同时放进 production，装上 main-f775f3305a9e 之后从 production 拿掉，再让崩溃环打出 quality-signal。随后 ship promote 被质量门拒绝，候选仍在暂存。这是模拟器，不是 iPhone 真机，也不是「企业闭环完成」。",
+  "recordedAt": "2026-10-17T10:41:20Z"
+}
