@@ -50,4 +50,4 @@ ship build --platform ios --profile release
 
 `rn ota install` 在工程已有 `ios/` 时，把与 Android 同名的 `Ota` 模块拷到 `ios/Ota/`（Swift 模块、ObjC 导出、`OtaAdapter.podspec`），并烘焙同一把 64 位十六进制根公钥。`ios/Podfile` 里加上 `pod 'OtaAdapter'`。安装器先找 `ios/AppDelegate.swift`；没有时再找 `ios/<目录>/AppDelegate.swift`。文件里若已有 `main.jsbundle` 那一行，会改成先问 `OtaBundle.resolveURL`。细节在拷入后的 `ios/Ota/README.md`。没有 `ios/` 的工程不会多出这套文件。命令仍然先写 Android 的 `MainApplication.kt`；没有该文件时整次安装失败，iOS 文件也不写。
 
-适配器进工程之后，[#323](https://github.com/client-platform-labs/rn/issues/323) 的三条记录（两台设备按百分比分档、回到上一生产候选、真机质量信号挡住 `promote`）仍然要在一台加载了这个模块的 iOS 设备上另记。拷贝模板、`pod install`、模拟器安装、`06-ios.sh` 的退出码都不是这三条。iOS 要装的业务包用 `ship update --platform ios`（产物 `ios-release.bundle`）。`check` 带 `platform=ios` 时只返回这种包；没有时 204，不把 Android 包交给 iOS。不带 `platform` 时仍只返回 Android 包。
+适配器进工程之后，[#323](https://github.com/client-platform-labs/rn/issues/323) 的三条记录（两台设备按百分比分档、回到上一生产候选、真机质量信号挡住 `promote`）仍然要在一台加载了这个模块的 iOS 设备上另记。拷贝模板、`pod install`、模拟器安装、`06-ios.sh` 的退出码都不是这三条。iOS 要装的业务包用 `ship update --platform ios`（产物 `ios-release.bundle`）。`check` 带 `platform=ios` 时只返回这种包；没有时 204，不把 Android 包交给 iOS。不带 `platform` 时仍只返回 Android 包。新包写在 `staged/<update id>/`，不覆盖已经在跑的那一份文件。

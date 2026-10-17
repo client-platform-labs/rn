@@ -17,6 +17,14 @@ export type OtaVerifyResult =
 
 export type CheckForUpdateOpts = { manifestUrl?: string; channel?: string };
 
+function stagedUpdateDir(updateId: string): string {
+  const safe = updateId.trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/.test(safe)) {
+    throw new Error(`invalid update id for bundle path: ${updateId}`);
+  }
+  return safe;
+}
+
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -101,7 +109,11 @@ export function createOtaClient(
       throw new Error("fetchUpdate requires http(s) candidate.url");
     }
     await native.ensureModuleSlots(moduleId);
-    const destRelDir = moduleSlotRel(moduleId, "staged");
+    const updateId = candidate.update_id ?? candidate.candidate?.update_id ?? "";
+    // A new file must not replace the bundle already on disk. Rollback reads
+    // that path later; sharing `staged/index.hbc` made the previous candidate
+    // the bytes of the update that just arrived.
+    const destRelDir = `${moduleSlotRel(moduleId, "staged")}/${stagedUpdateDir(updateId)}`;
     const res = await fetch(candidate.url);
     if (!res.ok) throw new Error(`hbc HTTP ${res.status}`);
     const b64 = arrayBufferToBase64(await res.arrayBuffer());
