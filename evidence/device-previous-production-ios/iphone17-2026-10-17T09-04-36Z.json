@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "package": "org.reactjs.native.example.rnotaacceptance",
+  "runtime": {
+    "udid": "0922E297-17D1-4666-B519-A88A80321DD4",
+    "kind": "simulator",
+    "model": "iPhone 17",
+    "device": "fdaf9171-fb84-4328-8b52-c1e63ca9b8e6"
+  },
+  "previousUpdateId": "main-c8c72d293cfc",
+  "crashedUpdateId": "main-19fad83520e4",
+  "restoredFileSha256": "c8c72d293cfc635c333bdd6b42c1aef349a33876b81f55143b28f24a0e7a5f0f",
+  "lines": [
+    "crash-loop rollback: failCount=3 threshold=3 — clearing budget, restoring previous production update_id=main-c8c72d293cfc",
+    "quality-signal kind=crash business_module=main update_id=main-19fad83520e4 detail=\"crash-loop\" ts=1792227876191",
+    "crash-loop rollback: restoring previous production update_id=main-c8c72d293cfc"
+  ],
+  "note": "验收工程 iOS release 模拟器。先装上 main-c8c72d293cfc，再装 main-19fad83520e4。新包写在 staged/main-19fad83520e4/，上一份文件仍在 staged/index.hbc。崩溃环把已装 id 设回 main-c8c72d293cfc，活动路径回到那份文件，文件 sha256 与该候选 digest 相同。这是模拟器，不是 iPhone 真机，不是质量信号挡住 promote，也不是「企业闭环完成」。",
+  "recordedAt": "2026-10-17T09:04:36Z"
+}

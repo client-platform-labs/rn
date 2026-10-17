@@ -108,4 +108,36 @@ describe("shell-core ota client", () => {
     const stub = sidecarWith(digest, digest, releaseId, kind);
     assert.equal(client.verifySidecar(stub).ok, false);
   });
+
+  it("writes a new bundle under its update id so the previous file stays", async () => {
+    const written: string[] = [];
+    const native = {
+      ensureModuleSlots: async () => {},
+      writeFileBase64: async (p: string) => {
+        written.push(p);
+        return `/abs/${p}`;
+      },
+      writeFileUtf8: async (p: string) => {
+        written.push(p);
+        return `/abs/${p}`;
+      },
+    } as OtaNativeAdapter;
+    const client = createOtaClient(native);
+    const orig = globalThis.fetch;
+    globalThis.fetch = async () => new Response(new Uint8Array([1, 2, 3]));
+    try {
+      const saved = await client.fetchUpdate(
+        {
+          url: "http://127.0.0.1/artifact",
+          business_module: "main",
+          update_id: "main-abc123",
+        } as OtaSidecar,
+        "main",
+      );
+      assert.equal(written[0], "ota/main/staged/main-abc123/index.hbc");
+      assert.equal(saved.hbcPath, "/abs/ota/main/staged/main-abc123/index.hbc");
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
 });
