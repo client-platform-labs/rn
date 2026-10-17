@@ -24,7 +24,7 @@ Stage contract (fixed):
 Commands:
   build [--platform android|ios|all] [--profile debug-host|release]
     App-host compile (Gradle/xcodebuild). Writes .rn/delivery/last-candidate.json.
-  update --module <id> [--profile release]
+  update --module <id> [--platform android|ios] [--profile release]
     Per-module js-update bundle (compile). Not Metro dev output.
   ingest-pack --module <id> [--hbc <path>]
     Ingest a Hermes bytecode bundle (HBC) as a js-update candidate. The HBC is
@@ -105,6 +105,16 @@ function parsePlatform(
   }
   throw new DeliveryError(
     "ship: --platform must be android|ios|all",
+    EXIT_USAGE,
+  );
+}
+
+function parseBundlePlatform(args: string[]): "android" | "ios" {
+  const value = flagValue(args, "--platform");
+  if (value === undefined || value === "android") return "android";
+  if (value === "ios") return "ios";
+  throw new DeliveryError(
+    "ship update: --platform must be android|ios",
     EXIT_USAGE,
   );
 }
@@ -209,6 +219,7 @@ export async function run(
         cwd: process.cwd(),
         module: requireModule(rest),
         profile: parseProfile(rest) ?? "release",
+        bundlePlatform: parseBundlePlatform(rest),
       });
       return EXIT_OK;
     }

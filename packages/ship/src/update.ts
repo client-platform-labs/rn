@@ -180,6 +180,12 @@ export async function runUpdate(options: {
   cwd: string;
   module: string;
   profile?: DeliveryProfile;
+  /**
+   * Metro platform. Default `android` keeps the historical bundle name.
+   * `ios` writes `ios-release.bundle`, which check returns only when the
+   * client asks `platform=ios`.
+   */
+  bundlePlatform?: "android" | "ios";
 }): Promise<void> {
   const projectRoot = resolveProjectRoot(options.cwd);
   const moduleId = options.module;
@@ -197,7 +203,8 @@ export async function runUpdate(options: {
     moduleId,
   );
   mkdirSync(outDir, { recursive: true });
-  const bundleOut = path.join(outDir, "android-release.bundle");
+  const bundlePlatform = options.bundlePlatform ?? "android";
+  const bundleOut = path.join(outDir, `${bundlePlatform}-release.bundle`);
   const assetsDest = path.join(outDir, "assets");
 
   const cli = path.join(
@@ -222,7 +229,7 @@ export async function runUpdate(options: {
       cli,
       "bundle",
       "--platform",
-      "android",
+      bundlePlatform,
       "--dev",
       "false",
       "--entry-file",
