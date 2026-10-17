@@ -38,7 +38,7 @@ GitHub: [#344](https://github.com/client-platform-labs/rn/issues/344)，父图 [
 
 `rn ota install` 在工程已有 `ios/` 时，把 iOS 适配器拷到 `ios/Ota/`（`packages/rn/templates/ota-ios/`），模块名仍是 `Ota`，根公钥与 Android 同一把。`examples/brownfield-host/ios/RnModuleStub` 仍只是 podspec 合同（`scripts/verify-bf-ios-stub.mjs`），不是这套设备适配器。壳工程还要 `pod install`，并且 release 的 bundle URL 走 `OtaBundle.resolveURL`。
 
-iPhone 17 与 iPhone 17 Pro 两台模拟器在 percent=50 下冷启，cohort 一新一旧，同一 device 再请求 digest 不变。记录在 `evidence/device-gray-ios/`。两台都是模拟器。装上的包是给 Android 打的 JS，在这台 iOS release 上再次启动时 fetch 报 `Networking.sendRequest` 参数个数不对。iOS 的三条真机记录仍然没有。模板进工程、模拟器分档都不能假装记录已经齐。
+iPhone 17 与 iPhone 17 Pro 两台模拟器在 percent=50 下冷启，cohort 一新一旧，同一 device 再请求 digest 不变。记录在 `evidence/device-gray-ios/`。两台都是模拟器。那次装上的是给 Android 打的 JS，再次启动时 fetch 报 `Networking.sendRequest` 参数个数不对。之后 `ship update --platform ios` 打出 `ios-release.bundle`，iPhone 17 模拟器的嵌入包带 `platform=ios` 装上它，再次冷启同一 device 再次打到 check，结果 `already_installed`。记录在 `evidence/device-ios-bundle-platform/`。iOS 的三条真机记录仍然没有。模板进工程、模拟器分档、模拟器装上 iOS 包都不能假装记录已经齐。
 
 ## 可执行切分
 

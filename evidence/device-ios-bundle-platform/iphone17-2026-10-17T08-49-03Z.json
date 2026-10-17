@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "package": "org.reactjs.native.example.rnotaacceptance",
+  "runtime": {
+    "udid": "0922E297-17D1-4666-B519-A88A80321DD4",
+    "kind": "simulator",
+    "model": "iPhone 17",
+    "device": "fdaf9171-fb84-4328-8b52-c1e63ca9b8e6"
+  },
+  "iosUpdate": {
+    "updateId": "main-65c703e942be",
+    "digest": "65c703e942beae84b8543a34906a1b8d9e9e83ec3161514f8b66770209e07bad",
+    "path": "ios-release.bundle"
+  },
+  "firstBoot": {
+    "check": "GET /v1/js-updates/check?module=main&lane=production&device=fdaf9171-fb84-4328-8b52-c1e63ca9b8e6&platform=ios",
+    "artifact": "GET /v1/artifacts/65c703e942beae84b8543a34906a1b8d9e9e83ec3161514f8b66770209e07bad"
+  },
+  "secondBoot": {
+    "check": "GET /v1/js-updates/check?module=main&lane=production&device=fdaf9171-fb84-4328-8b52-c1e63ca9b8e6&platform=ios",
+    "log": "OTA: JS: pull outcome: status=already_installed"
+  },
+  "androidCheckWithoutPlatform": {
+    "updateId": "main-631e0d976f50",
+    "reason": "不带 platform 时不返回 ios-release.bundle；当前 Android 灰度 percent=50 且请求没有 device，所以返回上一生产候选"
+  },
+  "note": "验收工程 iOS release 模拟器。嵌入包带 platform=ios，check 返回 ship update --platform ios 打出的 ios-release.bundle。装上之后再次冷启，同一 device 再次请求 check，结果是 already_installed，没有 Networking.sendRequest 参数个数错误。这是模拟器，不是 iPhone 真机，不是两台设备按百分比分档，不是回到上一生产候选，不是质量信号挡住 promote，也不是「企业闭环完成」。",
+  "recordedAt": "2026-10-17T08:49:03Z"
+}
