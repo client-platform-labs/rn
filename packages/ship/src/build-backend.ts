@@ -26,6 +26,7 @@ export interface BundleOptions {
   cwd: string;
   module: string;
   profile?: DeliveryProfile;
+  bundlePlatform?: "android" | "ios";
 }
 
 export interface IngestOptions {
@@ -56,7 +57,13 @@ export interface BuildBackend {
 export function createRnBuildBackend(buildEnv: BuildEnv = {}): BuildBackend {
   return {
     build: (options) => runBuild(options, buildEnv),
-    bundle: (options) => runUpdate(options),
+    bundle: (options) =>
+      runUpdate({
+        cwd: options.cwd,
+        module: options.module,
+        profile: options.profile,
+        bundlePlatform: options.bundlePlatform,
+      }),
     ingest: (options) => runIngestPack(options),
   };
 }

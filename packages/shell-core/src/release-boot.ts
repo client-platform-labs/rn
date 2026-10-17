@@ -65,6 +65,11 @@ export type ReleaseOtaBootHost = {
   asRoot?: boolean;
   /** Control-plane request timeout (ms). Omitted → no timeout. */
   timeoutMs?: number;
+  /**
+   * Which Metro bundle this host can run. `ios` asks check for
+   * `ios-release.bundle` only. Omitted keeps the historical Android bundle.
+   */
+  bundlePlatform?: "android" | "ios";
   /** Fail-loud sink. Defaults to `console.warn`. */
   warn?: (message: string) => void;
 };
@@ -99,7 +104,11 @@ export type ControlPlaneFetch = {
  */
 export function createControlPlaneFetch(
   baseUrl: string,
-  opts: { native: OtaNativeAdapter; timeoutMs?: number },
+  opts: {
+    native: OtaNativeAdapter;
+    timeoutMs?: number;
+    bundlePlatform?: "android" | "ios";
+  },
 ): ControlPlaneFetch {
   const base = baseUrl.replace(/\/+$/, "");
   const requestInit = () =>
@@ -110,8 +119,11 @@ export function createControlPlaneFetch(
     const deviceQuery = deviceId
       ? `&device=${encodeURIComponent(deviceId)}`
       : "";
+    const platformQuery = opts.bundlePlatform
+      ? `&platform=${encodeURIComponent(opts.bundlePlatform)}`
+      : "";
     const res = await fetch(
-      `${base}/v1/js-updates/check?module=${encodeURIComponent(moduleId)}&lane=${encodeURIComponent(lane)}${deviceQuery}`,
+      `${base}/v1/js-updates/check?module=${encodeURIComponent(moduleId)}&lane=${encodeURIComponent(lane)}${deviceQuery}${platformQuery}`,
       requestInit(),
     );
     if (res.status === 204) return null;
@@ -305,7 +317,11 @@ export async function bootReleaseOta(
     // the old behaviour rather than failing the boot.
     const rolledBackId =
       (await native.getRolledBackUpdateId?.(moduleId)) ?? null;
-    const cp = createControlPlaneFetch(base, { native, timeoutMs: host.timeoutMs });
+    const cp = createControlPlaneFetch(base, {
+      native,
+      timeoutMs: host.timeoutMs,
+      bundlePlatform: host.bundlePlatform,
+    });
     const fetchManifest = async (
       mid: string,
       lane: "production" | "staging",

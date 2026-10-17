@@ -167,4 +167,46 @@ describe("device gray bucket", () => {
       await handle?.close();
     }
   });
+
+  it("check keeps an ios bundle off the android lane", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "rn-gray-platform-"));
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "demo" }));
+    const androidSidecar = path.join(root, "android.json");
+    const iosSidecar = path.join(root, "ios.json");
+    const androidDigest = OLD;
+    const iosDigest = NEW;
+    writeSidecar(androidSidecar, androidDigest, "main-android");
+    writeSidecar(iosSidecar, iosDigest, "main-ios");
+    const android = candidate(androidDigest, "main-android", androidSidecar);
+    android.path = path.join(root, "android-release.bundle");
+    const ios = candidate(iosDigest, "main-ios", iosSidecar);
+    ios.path = path.join(root, "ios-release.bundle");
+    const registry = emptyRegistry();
+    registry.production = [android, ios];
+    mkdirSync(path.join(root, ".rn", "delivery"), { recursive: true });
+    saveRegistry(root, registry);
+
+    const port = await freePort();
+    const handle = createControlPlane({ cwd: root, port, host: "127.0.0.1" });
+    await handle.listen();
+    try {
+      const check = async (query: string) => {
+        const res = await fetch(
+          `http://127.0.0.1:${port}/v1/js-updates/check?module=main&lane=production${query}`,
+        );
+        return { status: res.status, body: res.status === 200 ? await res.json() : null };
+      };
+      const plain = await check("");
+      assert.equal(plain.status, 200);
+      assert.equal((plain.body as { digest: string }).digest, androidDigest);
+      const iosHit = await check("&platform=ios");
+      assert.equal(iosHit.status, 200);
+      assert.equal((iosHit.body as { digest: string }).digest, iosDigest);
+      const androidHit = await check("&platform=android");
+      assert.equal(androidHit.status, 200);
+      assert.equal((androidHit.body as { digest: string }).digest, androidDigest);
+    } finally {
+      await handle.close();
+    }
+  });
 });

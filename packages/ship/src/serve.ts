@@ -164,6 +164,11 @@ function sendHtml(res: ServerResponse, status: number, html: string) {
   res.end(html);
 }
 
+/** iOS bundles are named `ios-release.bundle`. Older js-updates are Android. */
+function jsBundleHostPlatform(candidate: CandidateMetadata): "android" | "ios" {
+  return candidate.path?.endsWith("ios-release.bundle") ? "ios" : "android";
+}
+
 function withHostDownloadUrl(c: CandidateMetadata): CandidateMetadata & {
   download_url: string;
 } {
@@ -666,7 +671,11 @@ export function createControlPlane(options: {
           return;
         }
         const registry = ctx.registry();
-        const candidates = listJsUpdateCandidates(registry, lane, moduleId);
+        const requested = url.searchParams.get("platform")?.trim();
+        const hostPlatform = requested === "ios" ? "ios" : "android";
+        const candidates = listJsUpdateCandidates(registry, lane, moduleId).filter(
+          (candidate) => jsBundleHostPlatform(candidate) === hostPlatform,
+        );
         // Newest production candidate is the current release (promote appends).
         // A partial rollout of that digest covers a stable percent of devices;
         // the rest keep the previous production candidate.

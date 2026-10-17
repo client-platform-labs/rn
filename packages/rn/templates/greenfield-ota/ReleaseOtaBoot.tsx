@@ -18,7 +18,7 @@
  */
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 import { bootReleaseOta } from "@client-platform/shell-core";
 import type { OtaNativeAdapter, PullOtaResult } from "@client-platform/shell-core";
@@ -65,6 +65,7 @@ async function bootOta(moduleId: string): Promise<PullOtaResult> {
       },
       asRoot: true,
       timeoutMs: 8000,
+      bundlePlatform: Platform.OS === "ios" ? "ios" : "android",
     },
     moduleId,
   );
