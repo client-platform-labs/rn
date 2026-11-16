@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "serial": "10CEC62C7R000E3",
+  "model": "V2425A",
+  "package": "com.rnotaacceptance",
+  "hostProfile": "greenfield",
+  "project": "/Users/xuwei/Work/code/rn-ota-acceptance",
+  "cp": "http://127.0.0.1:4150",
+  "adbReverse": "tcp:4040 -> tcp:4150",
+  "chain": "chain-11-ota-trust",
+  "exitCode": 0,
+  "legs": [
+    "11.C PASS",
+    "11.B1 PASS",
+    "11.B2 PASS",
+    "11.A PASS"
+  ],
+  "note": "验收工程 greenfield 真机复现。不算 #370 嵌入既有壳 / host-profile=brownfield。Docker :4040 仍为 tiangong；本轮验收 CP 在 :4150。无物理 iPhone（#371 仍缺）。",
+  "recordedAt": "2026-11-16T16:17:50.217437Z"
+}
