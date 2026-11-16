@@ -1,0 +1,57 @@
+{
+  "ok": true,
+  "kind": "docker-two-container",
+  "note": "同机 Docker 两个独立 container（不同 hostname + 不同数据卷）主备切换。主 /ready=200 后停主；failover bound=true；备 /ready=200 且制品可取。仍非两台物理/云主机，不能关闭 #372。ECS root@47.93.214.189 SSH 超时不可达。",
+  "active": {
+    "container": "cp-ha-active-372",
+    "hostname": "cp-ha-active",
+    "port": 17460,
+    "ready": {
+      "ok": true,
+      "service": "control-plane",
+      "checks": {
+        "registry": true,
+        "artifacts_dir": true
+      },
+      "writable": true
+    },
+    "artifactHttp": "200"
+  },
+  "standby": {
+    "container": "cp-ha-standby-372",
+    "hostname": "cp-ha-standby",
+    "port": 17461,
+    "haBound": {
+      "role": "active",
+      "bound_at": "2026-11-16T15:40:16.508Z",
+      "snapshot": "/tmp/ha-docker-sim-372/snapshots/2026-11-16T15-40-15-305Z",
+      "taken_at": "2026-11-16T15:40:15.305Z",
+      "start": "ship cp-serve"
+    },
+    "ready": {
+      "ok": true,
+      "service": "control-plane",
+      "checks": {
+        "registry": true,
+        "artifacts_dir": true
+      },
+      "writable": true
+    },
+    "artifactHttp": "200"
+  },
+  "failover": {
+    "bound": true,
+    "reason": "failover",
+    "snapshot": "/tmp/ha-docker-sim-372/snapshots/2026-11-16T15-40-15-305Z",
+    "record": {
+      "role": "active",
+      "bound_at": "2026-11-16T15:40:16.508Z",
+      "snapshot": "/tmp/ha-docker-sim-372/snapshots/2026-11-16T15-40-15-305Z",
+      "taken_at": "2026-11-16T15:40:15.305Z",
+      "start": "ship cp-serve"
+    }
+  },
+  "digest": "c2b11319f7acb0c17d82e39336f6b66d1dc2568c54d27055bc3689c305d72129",
+  "workRoot": "/tmp/ha-docker-sim-372",
+  "recordedAt": "2026-11-16T15:40:17.944Z"
+}
