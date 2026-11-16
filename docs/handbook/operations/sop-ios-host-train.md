@@ -6,11 +6,11 @@
 | **版本** | 1.0 |
 | **状态** | 生效 |
 | **密级** | 内部 · 可交企业运维（不含私钥、不含 App Store Connect 密钥） |
-| **能力口径** | 说清平台构建停在哪、商店动作由谁做。本文写完不等于 iOS 三条真机证据已齐，**不能**据此说「企业闭环完成」 |
+| **能力口径** | 说清平台构建停在哪、商店动作由谁做。iOS 三条可以用模拟器取；记录必须标明模拟器型号，不得写成已连接的物理 iPhone。本文写完 **不能**据此说「企业闭环完成」 |
 | **读者** | 企业：壳运维 / 平台运维 / 发布者；我方：平台 BD |
-| **关联** | [ios-host-train-app-store-gap.md](../research/ios-host-train-app-store-gap.md) · [10-store-submit-checklist.md](../../../scripts/release-readiness/10-store-submit-checklist.md) · [#323](https://github.com/client-platform-labs/rn/issues/323) · [#346](https://github.com/client-platform-labs/rn/issues/346) |
+| **关联** | [ios-host-train-app-store-gap.md](../research/ios-host-train-app-store-gap.md) · [10-store-submit-checklist.md](../../../scripts/release-readiness/10-store-submit-checklist.md) · [#323](https://github.com/client-platform-labs/rn/issues/323) · [#346](https://github.com/client-platform-labs/rn/issues/346) · [#371](https://github.com/client-platform-labs/rn/issues/371) |
 
-JS 列车（签名、晋升、灰度分档、质量门）与 Android 相同，见 [SOP-GF-STEEL-01](./sop-greenfield-steel-thread.md) 与 [SOP-BF-EMBED-01](./sop-embed-existing-shell.md) 第 6 节。那些步骤要有一台能跑启动序列的 iOS 设备才取得到证。本规程不提供这台设备。
+JS 列车（签名、晋升、灰度分档、质量门）与 Android 相同，见 [SOP-GF-STEEL-01](./sop-greenfield-steel-thread.md) 与 [SOP-BF-EMBED-01](./sop-embed-existing-shell.md) 第 6 节。那些步骤要有能跑启动序列的 iOS 运行时才取得到证。模拟器可以。记录必须标明模拟器型号，不得写成已连接的物理 iPhone。本规程不提供这台运行时。
 
 ---
 
@@ -46,8 +46,18 @@ ship build --platform ios --profile release
 
 ---
 
-## 3. 现在还取不到的记录
+## 3. 三条记录可以用模拟器取
 
 `rn ota install` 在工程已有 `ios/` 时，把与 Android 同名的 `Ota` 模块拷到 `ios/Ota/`（Swift 模块、ObjC 导出、`OtaAdapter.podspec`），并烘焙同一把 64 位十六进制根公钥。`ios/Podfile` 里加上 `pod 'OtaAdapter'`。安装器先找 `ios/AppDelegate.swift`；没有时再找 `ios/<目录>/AppDelegate.swift`。文件里若已有 `main.jsbundle` 那一行，会改成先问 `OtaBundle.resolveURL`。细节在拷入后的 `ios/Ota/README.md`。没有 `ios/` 的工程不会多出这套文件。命令仍然先写 Android 的 `MainApplication.kt`；没有该文件时整次安装失败，iOS 文件也不写。
 
-适配器进工程之后，[#323](https://github.com/client-platform-labs/rn/issues/323) 的三条记录（两台设备按百分比分档、回到上一生产候选、真机质量信号挡住 `promote`）仍然要在一台加载了这个模块的 iOS 设备上另记。拷贝模板、`pod install`、模拟器安装、`06-ios.sh` 的退出码都不是这三条。iOS 要装的业务包用 `ship update --platform ios`（产物 `ios-release.bundle`）。`check` 带 `platform=ios` 时只返回这种包；没有时 204，不把 Android 包交给 iOS。不带 `platform` 时仍只返回 Android 包。新包写在 `staged/<update id>/`，不覆盖已经在跑的那一份文件。
+[#323](https://github.com/client-platform-labs/rn/issues/323) 的三条记录（两台运行时按百分比分档、回到上一生产候选、质量信号挡住 `promote`）可以在加载了这个模块的 iOS 模拟器上取。记录必须标明模拟器型号，runtime 写 `simulator`，不得写成已连接的物理 iPhone，不得填伪造的物理 UDID。拷贝模板、`pod install`、`06-ios.sh` 的退出码都不是这三条。只把模拟器包装上、没有这三条记录，也不算。
+
+已留下的模拟器记录：
+
+- 灰度：`evidence/device-gray-ios/`。iPhone 17 与 iPhone 17 Pro，percent=50。[#362](https://github.com/client-platform-labs/rn/issues/362)
+- 回到上一生产候选：`evidence/device-previous-production-ios/`。活动路径上的文件 sha256 对得上 digest。[#366](https://github.com/client-platform-labs/rn/issues/366)
+- 质量门挡住 promote：`evidence/device-quality-promote-ios/`。暂存候选 `main-f775f3305a9e`。[#368](https://github.com/client-platform-labs/rn/issues/368)
+
+这三条不能单独拿来关闭父图。嵌入既有壳与两台机器上的主备演练仍另计。
+
+iOS 要装的业务包用 `ship update --platform ios`（产物 `ios-release.bundle`）。`check` 带 `platform=ios` 时只返回这种包；没有时 204，不把 Android 包交给 iOS。不带 `platform` 时仍只返回 Android 包。新包写在 `staged/<update id>/`，不覆盖已经在跑的那一份文件。
