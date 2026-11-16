@@ -22,7 +22,7 @@
 4. 提交后记下后台单号、状态（已提交或审核中）、所填版本号。
 5. 若之后上架，在架版本号与第 1 步的 `versionName` 一致，即算对得上。被拒或尚未审完，不挡住「已提交」这条记录。
 
-**热更新许可未核实。** 写本规程时没有向任何一家确认是否允许 JS 热更新。未核实前不要对客户说这家允许热更新。改主功能、权限或隐私仍走商店，不走热更新。
+**热更新：** 六家口径见 [android-store-hot-update-policy.md](../research/android-store-hot-update-policy.md)（[#373](https://github.com/client-platform-labs/rn/issues/373)）。**不要**对客户说六家都允许 JS 热更新。改主功能、权限或隐私仍走商店，不走热更新。
 
 后台地址来自 `scripts/release-readiness/10-store-submit-checklist.md` 的「七渠」表。
 
@@ -35,7 +35,7 @@
 | 后台 | https://developer.huawei.com/ |
 | 上传物 | 共用步骤里的那一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实** |
+| 热更新 | **未核实**（Android JS OTA；见研究笔记） |
 
 ## 2. 荣耀应用市场
 
@@ -44,7 +44,7 @@
 | 后台 | https://developer.hihonor.com/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实** |
+| 热更新 | **未核实**（见研究笔记） |
 
 ## 3. 小米应用商店
 
@@ -53,7 +53,7 @@
 | 后台 | https://dev.mi.com/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实** |
+| 热更新 | **禁止动态可执行代码**（[生态政策 §安全 3.2](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1321)） |
 
 ## 4. OPPO 软件商店
 
@@ -62,7 +62,7 @@
 | 后台 | https://open.oppomobile.com/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实** |
+| 热更新 | **受限**（打击用线上热更规避审核；[合规复查公告](https://open.oppomobile.com/bbs/forum.php?mod=viewthread&tid=5160)） |
 
 ## 5. vivo 应用商店
 
@@ -71,7 +71,7 @@
 | 后台 | https://dev.vivo.com.cn/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实** |
+| 热更新 | **受限**（禁止上架后恶意篡改 / 服务端开启违规；[审核规范](https://dev.vivo.com.cn/documentCenter/doc/12) · [处罚规则](https://dev.vivo.com.cn/documentCenter/doc/479)） |
 
 ## 6. 应用宝
 

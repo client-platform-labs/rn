@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "kind": "same-host-two-process",
+  "note": "同机两个目录、两个 cp-serve 进程的主备切换。主 4050 被杀后 failover 绑定备机并拉起。这不是两台机器演练，不能关闭 #372。",
+  "failover": {
+    "bound": true,
+    "reason": "failover",
+    "snapshot": "/tmp/ha-drill-20261116/snapshots/2026-11-16T15-19-30-662Z",
+    "record": {
+      "role": "active",
+      "bound_at": "2026-11-16T15:19:31.776Z",
+      "snapshot": "/tmp/ha-drill-20261116/snapshots/2026-11-16T15-19-30-662Z",
+      "taken_at": "2026-11-16T15:19:30.662Z",
+      "start": "ship cp-serve"
+    }
+  },
+  "ha_bound": {
+    "role": "active",
+    "bound_at": "2026-11-16T15:19:31.776Z",
+    "snapshot": "/tmp/ha-drill-20261116/snapshots/2026-11-16T15-19-30-662Z",
+    "taken_at": "2026-11-16T15:19:30.662Z",
+    "start": "ship cp-serve"
+  },
+  "standby_ready_http": "503",
+  "digest": "deadbeef",
+  "recordedAt": "2026-11-16T15:19:32Z",
+  "standby_ready_note": "GET /ready 返回 503：resolveRegistryBackend 期望 registry.sqlite，本演练种子库不具备生产 schema；failover 已 bound=true，制品 digest 已在备机。同机两进程，不能关闭 #372。"
+}
