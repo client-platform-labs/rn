@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "package": "com.rnotaacceptance",
+  "percent": 50,
+  "newest": {
+    "updateId": "main-a0d130f489bc",
+    "digest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+  },
+  "previous": {
+    "updateId": "main-631e0d976f50",
+    "digest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+  },
+  "runtimes": [
+    {
+      "serial": "10CEC62C7R000E3",
+      "kind": "physical",
+      "model": "V2425A",
+      "device": "d0b619e2-41a7-4f47-b618-db9af2181cf7",
+      "bucket": 79,
+      "cohort": "previous",
+      "digest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+      "repeatDigest": "631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541"
+    },
+    {
+      "serial": "emulator-5554",
+      "kind": "emulator",
+      "model": "sdk_gphone64_arm64",
+      "device": "32b9ac5e-36d0-4019-b8f3-0339c44561f7",
+      "bucket": 30,
+      "cohort": "new",
+      "digest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+      "repeatDigest": "a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+    }
+  ],
+  "coldStartLines": [
+    "[cp] gray module=main device=d0b619e2-41a7-4f47-b618-db9af2181cf7 percent=50 bucket=79 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+    "[cp] gray module=main device=d0b619e2-41a7-4f47-b618-db9af2181cf7 percent=50 bucket=79 cohort=previous digest=631e0d976f50928e1691d5da00db9cd61770e5cf1204a364be38565e4be33541",
+    "[cp] gray module=main device=32b9ac5e-36d0-4019-b8f3-0339c44561f7 percent=50 bucket=30 cohort=new digest=a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7",
+    "[cp] gray module=main device=32b9ac5e-36d0-4019-b8f3-0339c44561f7 percent=50 bucket=30 cohort=new digest=a0d130f489bc5e0707ecb1353cfa53d03114e8106cd036007c4c76f26bd4ffc7"
+  ],
+  "note": "验收工程 release 包 com.rnotaacceptance。最新生产候选 main-a0d130f489bc 的 rollout 停在 canary，当前步 percent 是 50。check 读的就是这个字段：bucket < percent 进最新候选，否则留在上一生产候选。vivo V2425A（10CEC62C7R000E3）冷启两次都是 bucket=79、cohort=previous、digest 为上一生产候选 main-631e0d976f50。模拟器 emulator-5554（sdk_gphone64_arm64）冷启两次都是 bucket=30、cohort=new、digest 为最新候选 main-a0d130f489bc。30 < 50、79 不小于 50，与 CP 日志一致。同一 device 再请求 digest 不变。第二台运行时是模拟器。宿主是验收工程。本记录只认 check 的分档日志。不是第二台物理手机，也不是「企业闭环完成」。",
+  "recordedAt": "2026-11-16T16:45:04.852Z"
+}
