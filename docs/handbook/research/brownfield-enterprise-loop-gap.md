@@ -1,6 +1,6 @@
 # 嵌入既有壳相对新建工程还缺的证据与规程
 
-GitHub: [#340](https://github.com/client-platform-labs/rn/issues/340)，父图 [#319](https://github.com/client-platform-labs/rn/issues/319)。对照 [#323](https://github.com/client-platform-labs/rn/issues/323) 的三条证据。本文只记账，不构成「企业闭环完成」。
+GitHub: [#340](https://github.com/client-platform-labs/rn/issues/340)，取证票 [#370](https://github.com/client-platform-labs/rn/issues/370)，父图 [#319](https://github.com/client-platform-labs/rn/issues/319)。对照 [#323](https://github.com/client-platform-labs/rn/issues/323) 的三条证据。本文只记账，不构成「企业闭环完成」。
 
 ## 证据条
 
@@ -27,19 +27,33 @@ GitHub: [#340](https://github.com/client-platform-labs/rn/issues/340)，父图 [
 
 | 记录 | 实际证明了什么 | 出处 |
 |------|----------------|------|
+| 客户规程（接入 + 三条取证方法） | `SOP-BF-EMBED-01` 已生效。写清烤信任根、接线、控制面，以及第 6 节三条证据的算数 / 不算。本文写完不等于记录已经齐。 | `docs/handbook/operations/sop-embed-existing-shell.md` |
 | BF L4 | 在 `rn init` 出来的 brownfield 脚手架上装了 release APK，并跑了 promote / `block`。设备是同一台 vivo。没有按百分比分档，没有崩溃环恢复上一生产包，质量门走的是脚本。 | `docs/hitl/bf-l4-bf-2026-08-26.md` |
 | BF L5 | 要求 `.rn/host-profile.jsonc` 为 brownfield，然后调用 `scripts/verify-quality-gate.mjs`。该脚本在进程里构造质量信号并调用 `promote`，不读 logcat。 | `docs/hitl/bf-l5-quality-gate-2026-08-26.md`，`scripts/verify-bf-l5-quality-gate.mjs`，`scripts/verify-quality-gate.mjs` |
 | BF consumer 真机 | 安装链接了 AAR 的 debug APK。文档写明不是完整 RN Surface。 | `docs/hitl/bf-consumer-device-2026-08-26.md` |
-| 角色表 | 棕地宿主的交接停在 host-profile 与模块 link。没有客户规程编号。 | `docs/handbook/operations/roles-matrix.md` |
-
-操作手册里没有与 `SOP-GF-STEEL-01` 对等的嵌入既有壳规程。`docs/handbook/operations/` 下唯一的 SOP 文件是新建工程那一篇。
+| 角色表 | 棕地宿主交接指向 host-profile 与模块 link；规程编号见 SOP-BF-EMBED-01。 | `docs/handbook/operations/roles-matrix.md` |
 
 ## 相对缺口
 
-只列出嵌入既有壳比新建工程少的部分。新建工程有一次两运行时灰度，第二台是模拟器；嵌入既有壳还没有自己的灰度记录。真机回到上一生产候选，新建工程已有一次，嵌入既有壳还没有。
+只列出嵌入既有壳比新建工程少的部分。规程已齐；缺的是**客户正在维护的既有壳**上的真机三条。新建工程有一次两运行时灰度（第二台是模拟器）；嵌入既有壳还没有自己的灰度 / 上一生产回滚 / 真机质量门记录。
 
-1. **客户规程。** 没有一篇可交给壳运维的步骤，说明既有 Android 工程如何烤入信任根、接入 OTA、声明控制面地址，然后按 #323 做完三条记录。新建工程至少有首次接入规程。
-2. **真机质量记录。** 挡住 promote 的那次 logcat 来自验收工程 `com.rnotaacceptance`，不是既有壳。BF L5 是同一条 M9 脚本换了 host-profile。
-3. **宿主形态。** BF L4 的设备记录用的是本仓库脚手架（`apply-brownfield-host-stub` / `scaffold-bf-rct-host`），不是客户已经在维护的原生工程。
+1. **真机质量记录。** 挡住 promote 的那次 logcat 来自验收工程 `com.rnotaacceptance`，不是既有壳。BF L5 是同一条 M9 脚本换了 host-profile。
+2. **宿主形态。** BF L4 的设备记录用的是本仓库脚手架（`apply-brownfield-host-stub` / `scaffold-bf-rct-host`），不是客户已经在维护的原生工程。
+3. **本机无既有壳（2026-11-16 再扫）。** 见下一节。取证票 [#370](https://github.com/client-platform-labs/rn/issues/370) 在拿到壳之前不能开装机。
 
-规程已经写成 SOP-BF-EMBED-01。嵌入既有壳还缺自己的真机质量记录，以及自己的一次回到上一生产候选。新建工程的灰度记录是一台 vivo 加一台模拟器；嵌入既有壳还没有自己的一次。
+## 本机宿主盘点（2026-11-16）
+
+再扫 `/Users/xuwei/Work/code` 与本仓库：没有找到**真正**客户维护、且 `host-profile=brownfield` 的既有 Android 壳。不算 `examples/brownfield-host`、`apply-brownfield-host-stub` / `scaffold-bf-rct-host`，也不把 greenfield 改写成 brownfield。
+
+| 路径 | applicationId | host-profile | 判定 |
+|------|---------------|--------------|------|
+| `/Users/xuwei/Work/code/rn-ota-acceptance` | `com.rnotaacceptance` | greenfield | 验收工程，#370 不算 |
+| `/Users/xuwei/Work/code/tiangong-host` | `com.tiangong.host` | greenfield | 新建工业壳，#370 不算 |
+| `/Users/xuwei/Work/code/chatroom/chatroom-app` | `com.chatroomapp` | greenfield | 新建工程，#370 不算 |
+| `/Users/xuwei/Work/code/rn-steel-demo/app` | `com.app` | greenfield | 新建工程，#370 不算 |
+| `examples/brownfield-host`（本仓库） | （脚手架 stub） | brownfield | 仓库内 stub，#370 不算 |
+| `/Users/xuwei/Work/code/.scratch/**/examples/brownfield-host` | （脚手架副本） | — | scratch / 脚手架，#370 不算 |
+
+`/Users/xuwei/Work/code` 下其余目录（desk、kai、dashboard、nous、pi、stock-* 等）无独立 Android 壳工程、无 `.rn/host-profile.jsonc`。
+
+**壳运维要提供**：非空既有 Android 工程（`rn init` 会拒）、根目录 `.rn/host-profile.jsonc` 为 `profile: brownfield`、可按 SOP-BF-EMBED-01 烤 RCA / 接线 / 声明控制面，并接上至少两台（或两批）真机。拿到后按该规程第 6 节取三条证据；在此之前设备 agent 无候选可装。
