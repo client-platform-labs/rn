@@ -48,6 +48,7 @@
 我是新手接业务（onboarding）→ 先 [`../index.md`](../index.md)（实施手册总入口）→ [`../get-started.md`](../get-started.md)（首次端到端接入）→ [`sop-greenfield-steel-thread.md`](./sop-greenfield-steel-thread.md)（SOP-GF-STEEL-01，新建工程）或 [`sop-embed-existing-shell.md`](./sop-embed-existing-shell.md)（SOP-BF-EMBED-01，既有 Android 壳）→ 再本总章 §5（7 天样本含灰度）
 我要监控 / 我是 oncall     → 本总章 §3（告警规则 + oncall 响应）+ backend-services.md §2.4
 我要备份 / DR / 换机       → backend-services.md §4/§5（SQLite 备份 + 冷重建恢复）
+我要同地域两机主备演练     → [`sop-cp-ha-two-machine.md`](./sop-cp-ha-two-machine.md)（SOP-CP-HA-02；同机两进程不算）
 我要吊销 / 轮换密钥        → ota.md §4（轮换操作）+ 本总章 §4（吊销状态机补缺）
 我要做 AB 实验            → ab-test.md（先读「状态声明」：今天不存在，勿执行）
 我要理三角色交接           → roles-matrix.md §6（S1–S5 典型交接场景）

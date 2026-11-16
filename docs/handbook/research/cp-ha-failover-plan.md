@@ -47,8 +47,8 @@ GitHub: [#348](https://github.com/client-platform-labs/rn/issues/348)，父图 [
 - 备机库快照旧于 2 分钟仍对外服务，并把它叫作分钟级恢复点。
 - 两台同时写同一个 `registry.sqlite`。
 
-## 下一张实现票
+## 实现与演练
 
-「备机按分钟接收注册库与制品，并在主 /ready 失败时接过流量」。
+「备机按分钟接收注册库与制品，并在主 /ready 失败时接过流量」已落在 `deploy/distribution-service/ha-failover.mjs`（[#350](https://github.com/client-platform-labs/rn/issues/350)）。同机两进程中间证据在 `evidence/cp-ha-failover-local/`，**不算**两台机器。
 
-落在 `deploy/distribution-service/` 的脚本里，不新增 `ship` 子命令，不接 Postgres。测试在本机用两个目录模拟主备：分钟快照之后杀掉主，备能用 ≤ 2 分钟的库提供同一 digest 的制品。手册 `backend-services.md` 写明：这条路径是同地域主备；丢整地域仍是冷重建。
+两台不同主机的可执行步骤：[`sop-cp-ha-two-machine.md`](../operations/sop-cp-ha-two-machine.md)（SOP-CP-HA-02）· `deploy/distribution-service/ha-two-machine-drill.sh`。证据目录：`evidence/cp-ha-failover-two-machine/`（`kind=two-machine` 且主机名不同）。关 [#372](https://github.com/client-platform-labs/rn/issues/372) 仍要真两机时间线。
