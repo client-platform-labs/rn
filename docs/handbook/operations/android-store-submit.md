@@ -35,7 +35,7 @@
 | 后台 | https://developer.huawei.com/ |
 | 上传物 | 共用步骤里的那一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实**（Android JS OTA；见研究笔记） |
+| 热更新 | **禁止**（改特性/功能的代码下发；[审核指南 3.13](https://developer.huawei.com/consumer/cn/doc/50104-03)） |
 
 ## 2. 荣耀应用市场
 
@@ -44,7 +44,7 @@
 | 后台 | https://developer.hihonor.com/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实**（见研究笔记） |
+| 热更新 | **未核实**（公开审核规范未点名；见研究笔记） |
 
 ## 3. 小米应用商店
 
@@ -53,7 +53,7 @@
 | 后台 | https://dev.mi.com/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **禁止动态可执行代码**（[生态政策 §安全 3.2](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1321)） |
+| 热更新 | **受限**（L4 违规热更新 + [生态政策 3.2](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1321)；联运不允许热更新） |
 
 ## 4. OPPO 软件商店
 
@@ -71,7 +71,7 @@
 | 后台 | https://dev.vivo.com.cn/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **受限**（禁止上架后恶意篡改 / 服务端开启违规；[审核规范](https://dev.vivo.com.cn/documentCenter/doc/12) · [处罚规则](https://dev.vivo.com.cn/documentCenter/doc/479)） |
+| 热更新 | **未核实**（审核规范未点名热更新；规避审核/上架后篡改仍是红线） |
 
 ## 6. 应用宝
 
@@ -80,4 +80,4 @@
 | 后台 | https://wiki.open.qq.com/ |
 | 上传物 | 同一份 APK |
 | 完成记录 | 单号 + 已提交或审核中；上架后版本号与 `versionName` 一致 |
-| 热更新 | **未核实** |
+| 热更新 | **受限**（wiki：热更新涉赌/恶意改内容等；非一切 JS OTA 白名单） |
